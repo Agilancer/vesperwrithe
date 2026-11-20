@@ -204,10 +204,10 @@ export default [
     doors: [{ side: 'E', row: 9 }],
     blocks: [{ x: 6.5, y: 0.5, w: 40, h: 1.5 }, { x: 0.5, y: 0.5, w: 3, h: 2.5 }],
     lava: [{ x: 3.5, y: 0.5, w: 3, h: 1.2 }, { x: 46.5, y: 0.5, w: 3, h: 1.2 }],
-    platforms: zig([[11, 4.8, 5], [24, 6.0, 5.5], [37, 4.8, 5]]),
+    platforms: zig([[7, 5.9, 4.6], [41.4, 5.9, 4.6]]),   // perches at the wings only: the wyrm owns the middle of the hall
     enemies: [{ t: 'dragon_red', x: 25, y: 2.0, boss: true, mini: true }],
     chests: [{ x: 2, y: 3.0, unique: 'dragonspine', big: true }],
-    items: [{ x: 5, y: 0.5, gold: 50 }, { x: 26.7, y: 6.0, gem: 'topaz' }],
+    items: [{ x: 5, y: 0.5, gold: 50 }, { x: 43.6, y: 5.9, gem: 'topaz' }],
     breakables: [{ x: 8, y: 2.0 }, { x: 45, y: 2.0 }, { x: 51.5 }],
     props: [{ t: 'bones', x: 12, y: 2.0 }, { t: 'bones', x: 20, y: 2.0 }, { t: 'bones', x: 33, y: 2.0 }, { t: 'bones', x: 41, y: 2.0 }, { t: 'rubble', x: 16, y: 2.0 }, { t: 'rubble', x: 37, y: 2.0 },
       { t: 'brazier', x: 7.5, y: 2.0 }, { t: 'brazier', x: 45.5, y: 2.0 }, { t: 'brazier', x: 26.5, y: 2.0 }, { t: 'column', x: 14, y: 2.0 }, { t: 'column', x: 39, y: 2.0 }, { t: 'statue', x: 1, y: 3.0 },

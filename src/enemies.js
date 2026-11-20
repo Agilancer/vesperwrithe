@@ -44,7 +44,8 @@ export class Enemy {
     const T = this.T, file = T.files[this.id % T.files.length];
     const g = await cloneGLTF(file);
     this.root = new THREE.Group(); this.model = g.scene; this.tilt = new THREE.Group(); this.tilt.add(this.model); this.root.add(this.tilt);
-    fitHeight(this.model, T.h);
+    fitHeight(this.model, T.h); this.model.updateMatrixWorld(true);
+    { const bb = new THREE.Box3().setFromObject(this.model); if (isFinite(bb.min.y) && Math.abs(bb.min.y) < T.h * 0.4) this.model.position.y -= bb.min.y; }
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });

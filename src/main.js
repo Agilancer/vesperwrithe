@@ -659,7 +659,7 @@ class Game {
     this.moon.position.set(this.camPos.x - 8, this.camPos.y + 18, 14); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1);
     this.hemi.intensity = (this.amb || 0.5) * (this.room.lightning > 0 ? 3.5 : 1);
     this.ui.hud();
-    this.composer.render();
+    if (!window.__norender) this.composer.render();
   }
 
   start() {
@@ -690,6 +690,12 @@ window.lineup = async (types, pose, gap = 5) => { await tp('lowerhall', 8, 0.5, 
   for (const e of out) { const T = e.T, nm = pose === 'attack' ? (T.moves ? T.moves[0].anim : T.anim.attack) : pose === 'walk' ? T.anim.walk : pose === 'death' ? T.anim.death : T.anim.idle, c = e.clips[nm]; if (c) { e.play(nm, 0, { restart: true }); e.mixer.setTime(c.duration * (pose === 'attack' ? (T.windup[0] + T.windup[1]) / 2 : pose === 'death' ? 0.95 : 0.3)); } e.yaw = e.facing * (T.quad ? Math.PI / 2 - 0.22 : Math.PI / 2 - 0.42); e.model.rotation.y = e.yaw; }
   return out.map(e => e.spec.t + ':' + Object.keys(e.clips).length); };
 window.view = async (x, y, z, name) => { const b = game.room.b; game.camera.position.set(b.x0 + x, b.y0 + y + 0.9, z); game.camera.lookAt(b.x0 + x, b.y0 + y, 0); game.camFill.position.set(b.x0 + x + 3, b.y0 + y + 4, 14); game.camFill.target.position.set(b.x0 + x, b.y0 + y, 0); game.world.update(game.time, 0, game.room, { x: b.x0 + x, y: b.y0 + y }); game.composer.render(); const d = $('view').toDataURL('image/jpeg', 0.85); await fetch('/__shot?name=' + encodeURIComponent(name), { method: 'POST', body: d }); return name; };
+// headless soak: random inputs in each room with an unkillable hero; returns thrown errors
+window.soak = async (ids, frames = 240) => { const out = [], keys = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'Space', 'KeyL'], taps = ['KeyJ', 'Space', 'ShiftLeft', 'KeyE', 'KeyQ']; window.__norender = true; const P = game.player;
+  for (const id of ids || game.world.rooms.map(r => r.def.id)) { const r = game.world.byId(id), d = r.def; try { await game.ensureRoom(r); const sx = d.w * SW * (0.2 + Math.random() * 0.6), fy = game.floorBelow(r.b.x0 + sx, r.b.y0 + (d.h > 1 ? 9.5 : 4)); while (game.loading) await new Promise(q => setTimeout(q, 50)); await tp(id, sx, Math.max(0.5, fy - r.b.y0) + 0.02, 2); if (!game.room) { out.push(id + ': no room'); continue; } for (const e of game.room.enemies) if (e.boss) { e.awake = true; e.state = 'chase'; game.bossStart(e); }
+      for (let i = 0; i < frames; i++) { P.stats.hp = P.stats.hpMax; if (P.state === 'dead') P.state = 'free'; const held = keys.filter(() => Math.random() < 0.3), tap = taps.filter(() => Math.random() < 0.06); try { sim(1, held, tap); } catch (e) { out.push(id + ' f' + i + ': ' + (e.stack || e.message).split(String.fromCharCode(10)).slice(0, 3).join(' | ')); break; } if (game._err) { out.push(id + ': step error (see console)'); game._err = 0; break; } }
+    } catch (e) { out.push(id + ': ' + e.message); } }
+  window.__norender = false; return out; };
 window.boot = () => new Promise(r => { const i = setInterval(() => { if (!$('startBtn').classList.contains('hidden')) { clearInterval(i); $('startBtn').click(); r('started'); } }, 200); });
 game.load(t => $('loadMsg').textContent = t).then(() => {
   $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';

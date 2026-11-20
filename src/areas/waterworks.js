@@ -178,6 +178,7 @@ export default [
     doors: [{ side: 'W', row: 5 }, { side: 'E', row: 6 }],
     platforms: zig([[3.5, 4.2, 4.5], [45.3, 4.2, 4.5]]),
     blocks: [{ x: 44.5, y: 0.5, w: 6, h: 0.6 }],             // bell dais
+    shallow: [{ x: 5, w: 38.5 }],                             // ankle-deep black water across the whole arena
     enemies: [{ t: 'hydra', x: 28, boss: true }],
     bell: { id: 'dive', x: 47.5, y: 1.1 },
     breakables: [{ x: 9.5 }, { x: 40.5 }],

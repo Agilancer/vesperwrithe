@@ -26,7 +26,7 @@ export const BELL_ORDER = ['slide', 'djump', 'dive', 'wallkick', 'ember', 'echo'
 
 // ---- sugar: expand stairs etc. into plain lists. Returns a normalised copy of a room definition.
 export function expand(def) {
-  const r = { platforms: [], blocks: [], cracks: [], gates: [], spikes: [], lava: [], water: [], echo: [], movers: [], blades: [], enemies: [], chests: [], items: [], breakables: [], props: [], lore: [], ...def };
+  const r = { platforms: [], blocks: [], cracks: [], gates: [], spikes: [], lava: [], water: [], shallow: [], echo: [], movers: [], blades: [], enemies: [], chests: [], items: [], breakables: [], props: [], lore: [], ...def };
   r.blocks = [...r.blocks];
   for (const s of def.stairs || []) {
     // a solid staircase: `steps` courses climbing in direction dir (1 = rising to the right) from the near edge x at height y
