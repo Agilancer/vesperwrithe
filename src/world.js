@@ -23,6 +23,7 @@ function mat(spec, w, h) {
 }
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const TRIM = new THREE.MeshStandardMaterial({ color: 0x9a8c70, emissive: 0x5a4628, emissiveIntensity: 0.45, roughness: 0.7 });
 function box(m, x0, y0, x1, y1, z0 = ZB, z1 = ZF) {
   const mesh = new THREE.Mesh(boxGeo, m);
   mesh.scale.set(x1 - x0, y1 - y0, z1 - z0); mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
@@ -85,6 +86,7 @@ export class World {
     for (const p of def.platforms || []) {
       const x0 = b.x0 + p.x, y = b.y0 + p.y;
       add(box(mat(['ashlar'], p.w, 1), x0, y - 0.45, x0 + p.w, y, -1.7, 1.7));
+      add(box(TRIM, x0, y - 0.07, x0 + p.w, y + 0.015, 1.64, 1.78)); // lit lip so jumpable ledges read instantly
       add(box(mat(['wood'], p.w, 1), x0 + 0.2, y - 0.75, x0 + 0.5, y - 0.45, -1.2, -0.9)); // corbels
       add(box(mat(['wood'], p.w, 1), x0 + p.w - 0.5, y - 0.75, x0 + p.w - 0.2, y - 0.45, -1.2, -0.9));
       solid(x0, y - 0.45, x0 + p.w, y, { oneway: true });
@@ -104,6 +106,18 @@ export class World {
     }
     // props
     for (const p of def.props || []) await this.prop(room, p);
+    // SotN-style breakable candle stands in the play plane
+    room.breakables = [];
+    for (const bk of def.breakables || []) {
+      const x = b.x0 + bk.x, y = b.y0 + (bk.y ?? FLOOR), grp = new THREE.Group(); grp.position.set(x, y, 0.2);
+      const iron = new THREE.MeshStandardMaterial({ color: 0x3a3026, metalness: 0.8, roughness: 0.4 });
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.07, 1.1, 6), iron); stem.position.y = 0.55;
+      const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.08, 0.08, 8), iron); dish.position.y = 1.12;
+      const wax = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 8), new THREE.MeshStandardMaterial({ color: 0xeae0c8, roughness: 0.5 })); wax.position.y = 1.29;
+      const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex(), color: 0xffb050, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); fl.scale.set(0.2, 0.34, 1); fl.position.y = 1.55;
+      const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff9040, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.5 })); gl.scale.setScalar(1.1); gl.position.y = 1.5;
+      grp.add(stem, dish, wax, fl, gl); g.add(grp); room.breakables.push({ x, y, grp, broken: false });
+    }
     if (def.save) this.saveStatue(room, b.x0 + def.save.x, b.y0 + FLOOR);
     if (def.warp) this.warpMirror(room, b.x0 + def.warp.x, b.y0 + FLOOR);
     this.scene.add(g);
@@ -191,7 +205,8 @@ export class World {
         x = room.b.x0 + p.x;
         const big = p.big, w = big ? 3.6 : 2.0, h = big ? 7.5 : 4.0, cy = b.y0 + (big ? 9.5 : 4.6);
         const shape = new THREE.Shape(); shape.moveTo(-w / 2, -h / 2); shape.lineTo(w / 2, -h / 2); shape.lineTo(w / 2, h / 2 - w / 2); shape.absarc(0, h / 2 - w / 2, w / 2, 0, Math.PI, false); shape.lineTo(-w / 2, -h / 2);
-        const glass = new THREE.Mesh(new THREE.ShapeGeometry(shape, 16), new THREE.MeshBasicMaterial({ color: 0x5068a8, fog: false }));
+        const glass = new THREE.Mesh(new THREE.ShapeGeometry(shape, 16), new THREE.MeshBasicMaterial({ map: glassTex(), fog: false }));
+        { const uv = glass.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / w + 0.5, uv.getY(i) / h + 0.5); }
         glass.position.set(x, cy, ZB + 0.02); g.add(glass);
         const bars = new THREE.MeshStandardMaterial({ color: 0x15121a, roughness: 0.7 });
         g.add(box(bars, x - 0.05, cy - h / 2, x + 0.05, cy + h / 2 - 0.2, ZB, ZB + 0.12)); g.add(box(bars, x - w / 2, cy - 0.05, x + w / 2, cy + 0.05, ZB, ZB + 0.12));
@@ -281,3 +296,14 @@ function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.w
 export function glowTex() { return _glow ||= canvasTex(64, 64, (x, w) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }); }
 export function flameTex() { return _flame ||= canvasTex(32, 64, x => { const g = x.createRadialGradient(16, 44, 2, 16, 40, 22); g.addColorStop(0, 'rgba(255,255,230,1)'); g.addColorStop(0.4, 'rgba(255,180,60,.9)'); g.addColorStop(1, 'rgba(255,60,0,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(16, 2); x.quadraticCurveTo(30, 40, 16, 62); x.quadraticCurveTo(2, 40, 16, 2); x.fill(); }); }
 function rayTex() { return _ray ||= canvasTex(32, 128, (x) => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 128); const h = x.createLinearGradient(0, 0, 32, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = h; x.fillRect(0, 0, 32, 128); }); }
+
+// Leaded night glass: deep navy, moonlit toward the top, a few cool panes — reads as a window, not a blue card.
+let _glass;
+function glassTex() {
+  if (_glass) return _glass;
+  const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d');
+  const gr = x.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#4a5c96'); gr.addColorStop(0.45, '#26335e'); gr.addColorStop(1, '#121a34'); x.fillStyle = gr; x.fillRect(0, 0, 64, 128);
+  for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(${120 + Math.random() * 60 | 0},${140 + Math.random() * 60 | 0},220,${0.08 + Math.random() * 0.12})`; x.fillRect((Math.random() * 4 | 0) * 16, (Math.random() * 8 | 0) * 16, 16, 16); }
+  x.strokeStyle = 'rgba(10,8,16,.85)'; x.lineWidth = 1.5; for (let i = 16; i < 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke(); } for (let i = 16; i < 128; i += 16) { x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
+  _glass = new THREE.CanvasTexture(c); _glass.colorSpace = THREE.SRGBColorSpace; return _glass;
+}

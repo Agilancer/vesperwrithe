@@ -3,13 +3,14 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { World, glowTex, ZB } from './world.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { World, glowTex, flameTex, ZB } from './world.js';
 import { ROOMS, roomById, SW, SH, FLOOR } from './rooms.js';
 import { Player } from './player.js';
 import { Enemy, TYPES } from './enemies.js';
 import { UI } from './ui.js';
 import { loadMeta, weaponModel, audio, surface } from './assets.js';
-import { makeItem, makeGem, rollDrop, BASES, GEMS } from './items.js';
+import { makeItem, makeGem, makeUnique, rollDrop, BASES, GEMS } from './items.js';
 
 const $ = id => document.getElementById(id);
 
@@ -76,7 +77,9 @@ class Game {
     Object.assign(this.moon.shadow.camera, { left: -14, right: 14, top: 10, bottom: -6, near: 1, far: 60 }); this.moon.shadow.mapSize.set(2048, 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
     this.scene.add(this.moon, this.moon.target);
     // soft key from the viewer so armoured silhouettes read against dark halls (Bloodstained lights rooms by hand; this is our baseline)
-    this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.7); this.scene.add(this.camFill, this.camFill.target);
+    this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.9); this.scene.add(this.camFill, this.camFill.target);
+    this.backRim = new THREE.DirectionalLight(0x9fb4ff, 1.8); this.scene.add(this.backRim, this.backRim.target); // rim on every silhouette
+    const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; this.scene.environmentIntensity = 0.3; // metal needs something to reflect
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1024, 576), 0.55, 0.5, 0.82); this.composer.addPass(this.bloom);
@@ -140,8 +143,9 @@ class Game {
     const grp = new THREE.Group(); grp.position.set(x, y, -0.6); room.group.add(grp);
     const L = { item, room, grp, x, y, key, bob: Math.random() * 6, placed, vy: placed ? 0 : 5 };
     const col = item.gold ? 0xffd040 : item.potion ? 0xff3050 : item.gem ? GEMS[item.gem].color : { normal: 0xe0e0e0, magic: 0x6c8cff, rare: 0xffd84a, unique: 0xc88a3a }[item.rarity];
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.12, 2.6, 8, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.16, 2.6, 8, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: item.rarity === 'unique' || item.rarity === 'rare' ? 0.45 : 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
     beam.position.y = 1.3; grp.add(beam);
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.03; grp.add(pool);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); glow.scale.setScalar(0.9); glow.position.y = 0.55; glow.material.opacity = 0.6; grp.add(glow);
     let model;
     if (item.base && BASES[item.base].model) { model = await weaponModel(BASES[item.base].model, BASES[item.base].scale * 0.8); model.rotation.z = Math.PI / 2.4; }
@@ -173,20 +177,20 @@ class Game {
     if (it.potion) { P.stats.potions++; audio.play('heart_collect', 0.5); this.ui.toast('Potion of Vigor', 'magic'); return; }
     P.bag.push(it);
     if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
-    else { audio.play('weapon_pick_up', 0.6); this.ui.toast(`${it.name}`, it.rarity); }
+    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast('Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
     if (it.base === 'pilgrim_blade') { this.ui.prompt('Press I to open your pack, then Enter to equip the Pilgrim\'s Blade'); this.tutorial = 'equip'; }
   }
 
   makeChest(room, c, i) {
-    const x = room.b.x0 + c.x, y = room.b.y0 + FLOOR, key = `chest:${room.def.id}:${i}`;
+    const x = room.b.x0 + c.x, y = room.b.y0 + (c.y ?? FLOOR), key = `chest:${room.def.id}:${i}`;
     const wood = surface('wood', 1, 1), iron = new THREE.MeshStandardMaterial({ color: 0x3a3028, metalness: 0.8, roughness: 0.4 });
-    const g = new THREE.Group(); g.position.set(x, y, -1.2);
+    const g = new THREE.Group(); g.position.set(x, y, -1.2); if (c.big) g.scale.setScalar(1.35);
     const bodyM = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.8), wood); bodyM.position.y = 0.3; bodyM.castShadow = true;
     const lid = new THREE.Group(); lid.position.set(0, 0.6, -0.4);
     const lidM = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.2, 10, 1, false, 0, Math.PI), wood); lidM.rotation.z = Math.PI / 2; lidM.position.z = 0.4; lid.add(lidM);
     const band = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.08, 0.84), iron); band.position.y = 0.45;
     g.add(bodyM, lid, band); room.group.add(g);
-    const ch = { room, x, y, key, opened: false, def: c, open: (silent) => { ch.opened = true; lid.rotation.x = -1.9; if (!silent) { audio.play('chest_open_1', 0.6); this.dropLoot(x, y + 0.8, makeItem(c.base, { rarity: c.rarity, sockets: c.sockets, lvl: 3 }), room); this.flags[key] = true; } } };
+    const ch = { room, x, y, key, opened: false, def: c, open: (silent) => { ch.opened = true; lid.rotation.x = -1.9; if (!silent) { audio.play('chest_open_1', 0.6); this.dropLoot(x, y + 0.8, c.unique ? makeUnique(c.unique) : c.gem ? makeGem(c.gem) : makeItem(c.base, { rarity: c.rarity, sockets: c.sockets, lvl: 3 }), room); this.flags[key] = true; if (c.unique) { this.slowMo(0.6); this.fx.burst(x, y + 1, 0xc88a3a, 40, 5); } } } };
     return ch;
   }
 
@@ -199,7 +203,6 @@ class Game {
     this.room = room; room.group.visible = true; this.visited.add(room.def.id);
     const T = room.theme; this.scene.fog.color.setHex(T.fog[0]); this.scene.fog.near = T.fog[1]; this.scene.fog.far = T.fog[2]; this.scene.background.setHex(room.def.theme === 'outdoor' ? 0x141a30 : T.fog[0]);
     this.hemi.intensity = T.amb * 1.4; this.moon.intensity = T.moon;
-    for (const e of room.enemies) if (e.dead && !e.boss) this.respawn(e);
     if (!instant) { $('fade').style.opacity = 0.85; setTimeout(() => $('fade').style.opacity = 0, 90); }
     this.snapCam = true;
     if (!old || old.def.name !== room.def.name) this.ui.roomName(room.def.name);
@@ -220,7 +223,8 @@ class Game {
   // ------------------------------------------------------------------ combat hooks
   playerHits(hb) {
     const P = this.player, room = this.room;
-    for (const e of room.enemies) { if (!hb.attack.hitIds.has(e.id) && e.hit(hb, P.rollDamage(), P)) { this.hitStop(e.boss ? 0.05 : 0.07); this.shake(0.12); } }
+    for (const e of room.enemies) { if (hb.attack.hitIds.has(e.id)) continue; const roll = P.rollDamage(); if (e.hit(hb, roll, P)) { this.hitStop((e.boss ? 0.09 : e.spec.t === 'knight' ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); if (roll.crit) this.flash(); } }
+    for (const bk of room.breakables || []) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
     for (const t of room.thorns || []) if (!t.gone && !hb.attack.hitIds.has('thorn') && hb.x0 < t.x1 && hb.x1 > t.x0 && hb.y0 < t.y1 && hb.y1 > t.y0) {
       hb.attack.hitIds.add('thorn');
       if (P.d.elems.some(e => e.elem === 'fire')) this.burnThorns(t);
@@ -228,8 +232,34 @@ class Game {
     }
     for (const c of room.chests) if (!c.opened && !hb.attack.hitIds.has('c' + c.key) && hb.x0 < c.x + 0.6 && hb.x1 > c.x - 0.6 && hb.y0 < c.y + 0.7) { hb.attack.hitIds.add('c' + c.key); c.open(); }
   }
+  breakCandle(bk) {
+    bk.broken = true; bk.grp.visible = false; audio.play('glass_ping_small', 0.5, 0.8); this.fx.burst(bk.x, bk.y + 1.4, 0xffb050, 14, 3);
+    const r = Math.random(), drop = r < 0.6 ? { gold: 3 + (Math.random() * 10 | 0) } : r < 0.75 ? { potion: true } : r < 0.82 ? makeGem(['ruby', 'sapphire', 'topaz', 'emerald', 'skull'][Math.random() * 5 | 0]) : null;
+    if (drop) this.dropLoot(bk.x, bk.y + 1.2, drop, this.room);
+  }
+  flash() { const f = $('fade'); f.style.transition = 'none'; f.style.background = '#fff'; f.style.opacity = 0.35; requestAnimationFrame(() => { f.style.transition = 'opacity .18s'; f.style.opacity = 0; setTimeout(() => f.style.background = '#000', 200); }); }
+  slowMo(t) { this.slowT = t; }
+  // The gem set-piece: slow-mo, the blade catches, and the map marks where it matters.
+  ignite(elem) {
+    const P = this.player, col = { fire: 0xff6a10, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a }[elem];
+    this.slowMo(0.8); this.flash(); audio.play(elem === 'fire' ? 'firebuff_2' : elem === 'ice' ? 'ice_freeze_1' : 'spell_impact_3', 0.7);
+    for (let i = 0; i < 40; i++) setTimeout(() => this.fx.burst(P.pos.x + P.facing * 0.5, P.pos.y + 1.2, col, 3, 3), i * 18);
+    this.ui.roomName(elem === 'fire' ? 'THE BLADE CATCHES FIRE' : 'THE BLADE AWAKENS');
+    if (elem === 'fire' && !this.flags['thorn:lowerhall']) { this.objective = { c: 19.8, r: 0.6 }; this.ui.toast('Objective: burn the blackthorn in the Hall of Lost Pilgrims (marked on map)', 'unique'); }
+  }
+  shockwave(src, x, y, dir) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 6), new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending }));
+    m.position.set(x, y + 0.7, 0.2); src.room.group.add(m); audio.play('rock_wall_1', 0.6); this.shake(0.3);
+    this.waves = (this.waves || []).concat({ m, x, y, dir, t: 0, room: src.room, dmg: src.T.dmg * 0.8 });
+  }
+  updateWaves(dt) {
+    const P = this.player;
+    for (const w of this.waves || []) { w.t += dt; w.x += w.dir * 8 * dt; w.m.position.x = w.x; w.m.scale.y = 1 + Math.sin(w.t * 30) * 0.15; if (Math.random() < 0.5) this.fx.spawn(w.x, w.y + 0.2, 0.3, 0, 2, 0xff5020, 0.3, 0.3, 0);
+      if (!w.hit && Math.abs(P.pos.x - w.x) < 0.5 && P.pos.y < w.y + 1.2) { w.hit = true; P.takeHit(w.dmg, w.x - w.dir); } if (w.t > 1.8) { w.done = true; w.room.group.remove(w.m); } }
+    this.waves = (this.waves || []).filter(w => !w.done);
+  }
   burnThorns(t) {
-    t.gone = true; this.flags['thorn:' + this.room.def.id] = true; audio.play('fire_big', 0.6); audio.play('firespray_1', 0.5);
+    t.gone = true; this.flags['thorn:' + this.room.def.id] = true; this.objective = null; this.slowMo(0.5); audio.play('fire_big', 0.6); audio.play('firespray_1', 0.5);
     let k = 0; const iv = setInterval(() => { k += 0.05; t.mesh.scale.setScalar(Math.max(0.01, 1 - k)); t.mesh.position.y = -k * 2; for (let i = 0; i < 4; i++) this.fx.spawn(t.x0 + Math.random() * 1.6, t.y0 + Math.random() * 4, 0.4, (Math.random() - 0.5), 2 + Math.random() * 2, Math.random() < 0.5 ? 0xff6a10 : 0xffc040, 0.7, 0.35, -2); if (k >= 1) { clearInterval(iv); t.mesh.visible = false; } }, 40);
     this.ui.toast('The blackthorn burns away!', 'unique');
   }
@@ -251,7 +281,7 @@ class Game {
     if (drop) setTimeout(() => this.dropLoot(e.pos.x, e.pos.y + 1, drop.base || drop.gem ? drop : drop, e.room), 500);
     if (e.boss) {
       this.flags.boss = true; $('bossBar').classList.add('hidden'); this.gateSolid = null; this.fogGate.visible = false;
-      this.ui.toast('OATHBREAKER VANQUISHED', 'unique'); audio.music('ambient_3', 0.3);
+      this.ui.roomName('OATHBREAKER VANQUISHED'); this.slowMo(1.2); this.flash(); audio.play('firebuff_1', 0.7); audio.music('ambient_3', 0.3);
       setTimeout(() => { this.dropLoot(e.pos.x - 1, e.pos.y + 1.4, makeGem('onyx'), e.room); this.dropLoot(e.pos.x + 0.2, e.pos.y + 1.4, makeItem('dawnstar_kite', { rarity: 'rare', sockets: 2 }), e.room); this.dropLoot(e.pos.x + 1.4, e.pos.y + 1.4, makeItem('iron_greataxe', { rarity: 'magic', sockets: 3 }), e.room); }, 900);
     }
   }
@@ -268,18 +298,19 @@ class Game {
       const P = this.player; P.state = 'free'; P.stats.hp = P.stats.hpMax; P.inv = 1.5; P.vel.set(0, 0); P.layers.lower.cur = P.layers.upper.cur = null;
       const save = this.readSave(); if (save) { const rm = this.world.rooms.find(x => x.def.id === save.room); P.pos.set(rm.saveAt.x, rm.saveAt.y); } else { const c = this.world.rooms[0]; P.pos.set(c.b.x0 + c.def.start.x, c.b.y0 + c.def.start.y); }
       if (this.gateSolid) { this.gateSolid = null; this.fogGate.visible = false; $('bossBar').classList.add('hidden'); for (const r of this.world.rooms) for (const e of r.enemies) if (e.boss && !e.dead) { e.awake = false; e.hp = e.T.hp; e.pos.copy(e.home); e.state = 'idle'; } }
-      this.room = null; this.enterRoom(this.world.roomAt(P.pos.x, P.pos.y + 0.9), true); $('fade').style.opacity = 0;
+      this.respawnAll(); this.room = null; this.enterRoom(this.world.roomAt(P.pos.x, P.pos.y + 0.9), true); $('fade').style.opacity = 0;
     }, 2600);
   }
-  onEquip(it) { if (this.tutorial === 'equip' && this.player.equip.weapon) { this.tutorial = null; this.ui.prompt(''); this.ui.toast('J to attack · hold L to raise a shield once you find one', 'magic'); } }
+  onEquip(it) { if (this.tutorial === 'equip' && this.player.equip.weapon) { this.tutorial = null; this.ui.prompt(''); this.ui.toast('J to attack — while running, jumping or crouching too', 'magic'); } }
 
   // ------------------------------------------------------------------ save
   save(room) { const P = this.player; localStorage.setItem('vesperwrithe_save', JSON.stringify({ stats: P.stats, equip: P.equip, bag: P.bag, flags: this.flags, room: room.def.id })); }
   readSave() { try { return JSON.parse(localStorage.getItem('vesperwrithe_save')); } catch { return null; } }
 
+  respawnAll() { for (const r of this.world.rooms) { for (const e of r.enemies) if (e.dead && !e.boss) this.respawn(e); for (const bk of r.breakables) { bk.broken = false; bk.grp.visible = true; } } }
   interact() {
     const P = this.player, r = this.room;
-    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) { P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
+    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) { this.respawnAll(); P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
     if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8) { this.ui.toast('The mirror is dark. Its twin lies deeper in the castle.', 'magic'); return; }
     for (const c of r.chests) if (!c.opened && Math.abs(P.pos.x - c.x) < 1.4) { c.open(); return; }
   }
@@ -298,6 +329,7 @@ class Game {
     const inp = this.input.poll(), P = this.player;
     if (inp.invP) this.ui.toggle('inv'); else if (inp.mapP) this.ui.toggle('map');
     if (this.ui.open) { if (this.ui.open === 'inv') for (const k of this.input.menuKeys) if (!['KeyI', 'Tab'].includes(k)) this.ui.invKey(k); if (this.ui.open === 'map' && this.input.menuKeys.includes('Escape')) this.ui.toggle('map'); if (this.input.menuKeys.includes('Escape') && this.ui.open === 'inv' && !this.ui.socketMode) this.ui.toggle('inv'); this.render(0); return; }
+    if (this.slowT > 0) { this.slowT -= dt; dt *= 0.3; }
     this.time += dt;
     if (this.stopT > 0) { this.stopT -= dt; this.render(0); return; }
     if (inp.interactP && P.onGround && P.state === 'free') this.interact();
@@ -305,7 +337,7 @@ class Game {
     P.update(dt, inp);
     const r = this.world.roomAt(P.pos.x, P.pos.y + 0.9); if (r && r !== this.room) this.enterRoom(r);
     for (const e of this.room.enemies) if (!e.gone) e.update(dt, P);
-    this.updateLoot(dt); this.fx.update(dt); this.world.update(this.time); this.promptFor();
+    this.updateLoot(dt); this.updateWaves(dt); this.fx.update(dt); this.world.update(this.time); this.promptFor();
     if (this.fogGate.visible) this.fogGate.material.opacity = 0.4 + Math.sin(this.time * 6) * 0.2;
     this.render(dt);
   }
@@ -314,14 +346,17 @@ class Game {
     const P = this.player, b = this.room.b, cam = this.camera;
     const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * 12.3, halfW = halfH * cam.aspect;
     let tx = P.pos.x + P.facing * 1.4, ty = P.pos.y + 1.3;
+    const boss = this.room.enemies.find(e => e.boss && e.awake && !e.dead); // stage the boss: frame him on entrance, keep both in shot
+    if (boss) tx = boss.state === 'intro' && boss.t < 2 && !boss.enraged ? boss.pos.x - boss.facing * 1.2 : (P.pos.x + boss.pos.x) / 2;
     tx = (b.x1 - b.x0) <= halfW * 2 ? (b.x0 + b.x1) / 2 : Math.max(b.x0 + halfW, Math.min(b.x1 - halfW, tx));
     // keep the floor ~1/6 up the screen like SotN; tall rooms scroll vertically
-    const lo = b.y0 + halfH - 1.25, hi = Math.max(lo, b.y1 - halfH + 0.2);
+    const lo = b.y0 + halfH - 0.85, hi = Math.max(lo, b.y1 - halfH + 0.2);
     ty = Math.max(lo, Math.min(hi, ty));
     if (this.snapCam) { this.camPos.set(tx, ty); this.snapCam = false; }
     else { const k = 1 - Math.exp(-dt * 7); this.camPos.x += (tx - this.camPos.x) * k; this.camPos.y += (ty - this.camPos.y) * (1 - Math.exp(-dt * 5)); }
     let sx = 0, sy = 0; if (this.shakeT > 0) { this.shakeT -= dt; sx = (Math.random() - 0.5) * this.shakeT * 0.5; sy = (Math.random() - 0.5) * this.shakeT * 0.5; }
     cam.position.set(this.camPos.x + sx, this.camPos.y + 0.9 + sy, 12.3); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
+    this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 5, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.camFill.position.set(this.camPos.x + 3, this.camPos.y + 4, 14); this.camFill.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.moon.position.set(this.camPos.x - 8, this.camPos.y + 18, 14); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1);
     this.ui.hud();

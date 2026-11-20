@@ -106,6 +106,10 @@ export function makeItem(baseId, opts = {}) {
   if (opts.name) it.name = opts.name;
   return it;
 }
+export const UNIQUES = {
+  gravesong: { base: 'black_pike', name: 'Gravesong', sockets: 2, affixes: [{ n: 'u', v: { dmgPct: 70 }, text: '+70% damage' }, { n: 'u', v: { fire: 6 }, text: '+6 fire damage', elem: 'fire' }, { n: 'u', v: { leechPct: 5 }, text: '5% life stolen per hit' }, { n: 'u', v: { str: 4 }, text: '+4 Strength' }] },
+};
+export function makeUnique(id) { const U = UNIQUES[id]; const it = makeItem(U.base, { rarity: 'unique', sockets: U.sockets }); it.affixes = U.affixes.map(a => ({ ...a })); it.name = U.name; return it; }
 export function makeGem(gemId) { return { uid: uid++, gem: gemId, name: GEMS[gemId].name, rarity: 'gem' }; }
 
 export function rollDrop(level, mf = 0) {

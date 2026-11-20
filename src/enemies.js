@@ -38,6 +38,10 @@ export class Enemy {
         const hs = hand.getWorldScale(new THREE.Vector3()).x; s.position.copy(fing.multiplyScalar(0.075).add(palm.multiplyScalar(0.025))).multiplyScalar(1 / hs);
         w.scale.setScalar(0.8 / hs); s.add(w); this.sword = s; }
     }
+    // a faint cold key so dark armour never reads black-on-black; ember eyes on armoured foes
+    const L = new THREE.PointLight(this.boss ? 0xff7a7a : 0xc8d4ff, this.boss ? 12 : 6, 4.5, 1.5); L.position.set(0.5, T.h * 0.8, 1.7); this.root.add(L);
+    if (this.spec.t !== 'zombie') { const head = this.model.getObjectByName('head') || this.model.getObjectByName('mixamorigHead'); if (head) head.add(new THREE.PointLight(this.boss ? 0xff2020 : 0xff6030, 3, 1.2, 2)); }
+    this.model.traverse(o => { if (o.isMesh && o.material.color) { o.material.color.multiplyScalar(1.3); o.material.envMapIntensity = 1.2; } });
     this.room.group.add(this.root);
     this.play(this.state === 'buried' ? T.anim.rise : T.anim.idle, 0, this.state === 'buried' ? { paused: true } : {});
     if (this.state === 'buried') this.root.visible = false;
@@ -71,11 +75,13 @@ export class Enemy {
         if (this.t > 2.4) { this.state = 'chase'; this.t = 0; }
         break;
       case 'idle': case 'chase': {
-        if (this.boss && !this.awake) { if (sees && adx < 18) { this.awake = true; this.state = 'intro'; this.t = 0; this.play(T.anim.roar, 0.2, { once: true, restart: true }); audio.play('crowd_gasp', 0.4, 0.6); this.g.bossStart(this); } break; }
+        if (this.boss && !this.awake) { if (sees && adx < 11) { this.awake = true; this.state = 'intro'; this.t = 0; this.play(T.anim.roar, 0.2, { once: true, restart: true }); audio.play('crowd_gasp', 0.4, 0.6); this.g.bossStart(this); } break; }
         if (!sees) { this.vel.x = 0; this.play(T.anim.idle); this.state = 'idle'; break; }
         this.state = 'chase'; this.facing = Math.sign(dx) || this.facing;
         const enraged = this.boss && this.hp < T.hp * 0.5;
+        if (T.block && adx < 3.6 && this.cool <= 0 && Math.random() < 0.012) { this.state = 'guard'; this.t = 0; this.play(T.anim.block, 0.12, { restart: true }); this.g.fx.glint(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0x8ab0ff); break; }
         if (adx < T.reach + 0.3 && this.cool <= 0) { this.startAttack(enraged); break; }
+        if (this.boss && this.enraged && adx < 6 && this.cool <= 0 && Math.random() < 0.015) { this.startAttack(true, 'slam'); break; }
         if (this.boss && adx > 7 && this.cool <= 0 && Math.random() < 0.02) { this.startAttack(enraged, 'bash'); break; }
         const spd = T.speed * slow * (enraged ? 1.35 : 1) * (this.boss && adx > 5 ? 1.6 : 1);
         if (adx > T.reach * 0.8 && this.groundAhead()) { this.vel.x = this.facing * spd; this.play(this.boss && adx > 5 ? T.anim.run : T.anim.walk, 0.2, { speed: this.boss ? 1 : 1.1 }); }
@@ -85,6 +91,8 @@ export class Enemy {
       case 'attack': {
         const k = this.t / (this.atkDur);
         if (this.bash) this.vel.x = (k > 0.25 && k < 0.7) ? this.facing * 9 : 0; else this.vel.x = 0;
+        if (this.slam && k >= 0.5 && !this.slammed) { this.slammed = true; this.g.shockwave(this, this.pos.x + this.facing * 1.2, this.pos.y, this.facing); this.g.shockwave(this, this.pos.x - this.facing * 0.8, this.pos.y, -this.facing); }
+        if (k < T.windup[0]) this.flash = Math.max(this.flash, (Math.sin(this.t * 40) > 0.6 ? 0.03 : 0));
         const [w0, w1] = T.windup;
         if (k > w0 - 0.08 && !this.telegraphed) { this.telegraphed = true; audio.play(this.boss ? 'sword_attack_3' : T.sword ? 'sword_attack_2' : 'squelching_1', 0.5, this.boss ? 0.7 : 1); }
         if (k >= w0 && k <= w1 && !this.hitDone) {
@@ -97,14 +105,15 @@ export class Enemy {
         break;
       }
       case 'stagger': case 'hurt': this.vel.x *= 0.88; if (this.t > (this.state === 'stagger' ? 0.7 : 0.35)) { this.state = 'chase'; this.t = 0; } break;
-      case 'block': this.vel.x = 0; if (this.t > 0.45) { this.state = 'chase'; this.t = 0; this.cool = 0.15; } break;
+      case 'block': this.vel.x = 0; if (this.t > 0.45) { this.state = 'guard'; this.t = 0.9; } break;
+      case 'guard': this.vel.x = 0; this.facing = Math.sign(dx) || this.facing; if (this.t > 1.5) { this.state = 'chase'; this.t = 0; this.cool = 0.1; } break;
       case 'dead':
         this.vel.x *= 0.9;
         if (this.t > 2.2) { const k = Math.min(1, (this.t - 2.2) / 0.8); this.model.traverse(o => { if (o.isMesh) { o.material.transparent = true; o.material.opacity = 1 - k; } }); if (k >= 1) { this.root.visible = false; this.gone = true; } }
         break;
     }
     // contact damage
-    if (!this.dead && this.state !== 'buried' && this.state !== 'rise' && this.state !== 'intro') {
+    if (!this.dead && (this.state === 'chase' || this.state === 'attack')) {
       const a = this.aabb, pa = P.aabb;
       if (a.x0 < pa.x1 && a.x1 > pa.x0 && a.y0 < pa.y1 && a.y1 > pa.y0) P.takeHit(T.touch, this.pos.x);
     }
@@ -113,8 +122,8 @@ export class Enemy {
   }
 
   startAttack(enraged, kind) {
-    const T = this.T; this.state = 'attack'; this.t = 0; this.hitDone = false; this.telegraphed = false; this.bash = kind === 'bash';
-    let name = T.anim.attack; if (T.anim.attack2 && Math.random() < 0.4) name = T.anim.attack2; if (this.boss && T.anim.attack3 && Math.random() < 0.3) name = T.anim.attack3; if (this.bash) name = T.anim.bash;
+    const T = this.T; this.state = 'attack'; this.t = 0; this.hitDone = false; this.telegraphed = false; this.bash = kind === 'bash'; this.slam = kind === 'slam'; this.slammed = false;
+    let name = T.anim.attack; if (T.anim.attack2 && Math.random() < 0.4) name = T.anim.attack2; if (this.boss && T.anim.attack3 && Math.random() < 0.3) name = T.anim.attack3; if (this.bash) name = T.anim.bash; if (this.slam) { name = T.anim.attack3 || name; this.hitDone = true; }
     const clip = this.clips[name];
     this.atkDur = T.atkDur * (enraged ? 0.8 : 1);
     const a = this.play(name, 0.1, { once: true, restart: true, speed: clip ? clip.duration / this.atkDur : 1 });
@@ -160,10 +169,11 @@ export class Enemy {
     const a = this.aabb; if (!(hb.x0 < a.x1 && hb.x1 > a.x0 && hb.y0 < a.y1 && hb.y1 > a.y0)) return false;
     hb.attack.hitIds.add(this.id);
     const front = Math.sign(P.pos.x - this.pos.x) === this.facing;
-    if (this.T.block && front && P.onGround && (this.state === 'chase' || this.state === 'idle') && Math.random() < this.T.block) {
+    const low = P.crouch, high = !P.onGround && P.pos.y > this.pos.y + 0.5;
+    if (this.T.block && front && (this.state === 'guard' || this.state === 'block') && !low && !high) {
       this.state = 'block'; this.t = 0; this.play(this.T.anim.block, 0.06, { once: true, restart: true });
       this.g.fx.burst(this.pos.x + this.facing * 0.6, this.pos.y + 1.3, 0xfff0b0, 16, 4); audio.play('sword_parry_' + (1 + (Math.random() * 3 | 0)), 0.6);
-      this.g.ui.dmg(this.pos.x, this.pos.y + this.T.h + 0.2, 'GUARD', 'crit'); P.vel.x = -P.facing * 3; return true;
+      this.g.ui.dmg(this.pos.x, this.pos.y + this.T.h + 0.2, 'GUARD', 'crit'); P.vel.x = -P.facing * 3; if (!this.g.flags.guardHint) { this.g.flags.guardHint = 1; this.g.ui.toast('Raised guard: strike low (crouch) or from above (jump)', 'magic'); } return true;
     }
     let total = roll.dmg;
     this.g.ui.dmg(this.pos.x, this.pos.y + this.T.h + 0.1, roll.dmg, roll.crit ? 'crit' : '');
@@ -191,7 +201,7 @@ export class Enemy {
 
   die() {
     this.dead = true; this.state = 'dead'; this.t = 0; this.play(this.T.anim.death, 0.1, { once: true, restart: true });
-    audio.play(this.boss ? 'wilhelm_scream' : 'bone_snap', this.boss ? 0.3 : 0.5);
+    audio.play(this.boss ? 'rock_wall_2' : 'bone_snap', 0.5);
     this.g.onEnemyDeath(this);
   }
 }

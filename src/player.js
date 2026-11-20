@@ -39,7 +39,7 @@ export class Player {
     this.root = new THREE.Group();
     this.model = g.scene; this.spin = new THREE.Group(); this.spin.position.y = 0.95; this.model.position.y = -0.95;
     this.root.add(this.spin); this.spin.add(this.model);
-    this.model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.envMapIntensity = 0.6; } } });
+    this.model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { const m = o.material; m.envMapIntensity = 1.3; m.roughness = Math.max(m.roughness ?? 0.5, 0.45); m.color.multiplyScalar(1.35); } } });
     this.socketR = this.model.getObjectByName('WeaponSocket_R');
     const fore = this.model.getObjectByProperty('name', 'mixamorigLeftForeArm');
     this.socketL = new THREE.Group(); fore.add(this.socketL);
@@ -48,6 +48,7 @@ export class Player {
     this.rim = new THREE.PointLight(0x9ab0ff, 9, 6, 1.5); this.root.add(this.rim); this.rim.position.set(-0.6, 2.2, -1.2);
     this.fill = new THREE.PointLight(0xffd8b0, 7, 6, 1.4); this.root.add(this.fill); this.fill.position.set(0.4, 1.8, 2.6);
     this.trail = new Trail(this.g.scene);
+    this.scarf = new Scarf(this.g.scene, this.model.getObjectByName('mixamorigNeck'));
 
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = {};
@@ -116,9 +117,25 @@ export class Player {
     const base = BASES[it.base];
     // Socket lives under a 1.8× scaled rig; weapons are authored at true metres, so divide that scale out.
     const m = await weaponModel(base.model, base.scale / 1.8);
-    if (slot === 'offhand') { m.quaternion.set(-0.2272, -0.3524, -0.596, 0.6848); m.position.set(-0.0106, 0.0366 + 0.07, 0.0324); } // solved so the face points forward in the block pose
+    if (slot === 'offhand') this.placeShield(m);
     sock.add(m); this[slot + 'Mesh'] = m;
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
+  }
+
+  // Solve the shield's forearm-local transform from the block pose: face toward foe-and-viewer, centred on the forearm.
+  placeShield(m) {
+    const fore = this.socketL.parent, blk = this.clips[ANIM.block], a = this.mixer.clipAction(blk.full);
+    const keepYaw = this.model.rotation.y; this.model.rotation.y = 0;
+    a.reset().play(); a.time = 0.5; this.mixer.update(0); this.model.updateMatrixWorld(true);
+    const fq = fore.getWorldQuaternion(new THREE.Quaternion()), ws = fore.getWorldScale(new THREE.Vector3()).x;
+    const rootQ = this.model.parent.getWorldQuaternion(new THREE.Quaternion());
+    // model-space forward is +Z; shield face: mostly forward, turned 40deg toward the camera side (+X in model space = right side)
+    const fwd = new THREE.Vector3(0.45, 0, 0.89).normalize().applyQuaternion(rootQ), up = new THREE.Vector3(0, 1, 0).applyQuaternion(rootQ), x = new THREE.Vector3().crossVectors(up, fwd).normalize();
+    const qw = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, up, fwd));
+    const inv = fq.clone().invert();
+    m.quaternion.copy(inv.clone().multiply(qw));
+    m.position.copy(fwd.clone().multiplyScalar(0.12).applyQuaternion(inv).divideScalar(ws)).add(new THREE.Vector3(0, 0.12 / ws, 0));
+    a.stop(); this.model.rotation.y = keepYaw; this.mixer.update(0);
   }
 
   applyElementFX(m, elems) {
@@ -338,7 +355,7 @@ export class Player {
         if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
       }
     }
-    this.mixer.update(dt); this.trail.update(dt);
+    this.mixer.update(dt); this.trail.update(dt); this.root.updateMatrixWorld(true); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
@@ -347,6 +364,7 @@ export class Player {
     if (this.flip > 0) { this.flip += dt * 2.6; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (1 - Math.pow(1 - a, 2)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; this.spin.rotation.z = 0; } }
     // i-frame blink
     this.model.visible = !(this.inv > 0 && this.state !== 'block' && Math.floor(this.inv * 20) % 2 === 0 && this.inv < 1.05 && this.inv > 0.3);
+    if (this.scarf) this.scarf.mesh.visible = this.model.visible;
     if (this.fx) for (const p of this.fx.userData.parts) { p.userData.t += dt * 2.2; const u = p.userData.t % 1; p.position.set((Math.random() - 0.5) * 0.04, this.fx.userData.len * p.userData.along, (Math.random() - 0.5) * 0.04 + (this.fx.userData.elem === 'fire' ? u * 0.0 : 0)); p.position.y += this.fx.userData.elem === 'fire' ? u * 0.25 : 0; p.material.opacity = 1 - u; const sc = (this.fx.userData.elem === 'lightning' ? (Math.random() < 0.3 ? 0.25 : 0.08) : 0.16) * (1 - u * 0.5); p.scale.setScalar(sc); }
   }
 }
@@ -359,24 +377,48 @@ class Trail {
     this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.max * 2 * 3); this.alpha = new Float32Array(this.max * 2);
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.geo.setAttribute('alpha', new THREE.BufferAttribute(this.alpha, 1));
     const idx = []; for (let i = 0; i < this.max - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
-    this.mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(0xdde4ff) }, fade: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    this.mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(0x7fa0ff) }, fade: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       vertexShader: 'attribute float alpha; varying float a; void main(){ a=alpha; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-      fragmentShader: 'uniform vec3 col; uniform float fade; varying float a; void main(){ gl_FragColor=vec4(col*a*fade*1.6, a*fade); }' });
+      fragmentShader: 'uniform vec3 col; uniform float fade; varying float a; void main(){ float e=a*a; vec3 c=mix(col, vec3(1.), smoothstep(.85,1.,a)*.6); float f=e*e*fade*.75; gl_FragColor=vec4(c*f*1.8, f); }' });
     this.mesh = new THREE.Mesh(this.geo, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh); this.life = 0;
   }
   push(weapon, elem) {
     if (!weapon) return;
     const len = weapon.userData.len * 1.8 / weapon.scale.x;
-    const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.25, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
+    const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.5, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
     this.pts.unshift([base, tip]); if (this.pts.length > this.max) this.pts.pop();
-    this.mat.uniforms.col.value.setHex(TRAIL_COL[elem] || 0xdde4ff); this.life = 0.18; this.mesh.visible = true; this.write();
+    this.mat.uniforms.col.value.setHex(TRAIL_COL[elem] || 0xdde4ff); this.life = 0.13; this.mesh.visible = true; this.write();
   }
   write() {
     const n = this.pts.length;
     for (let i = 0; i < this.max; i++) { const p = this.pts[Math.min(i, n - 1)]; const k = i < n ? 1 - i / n : 0;
-      this.pos.set([p[0].x, p[0].y, p[0].z], i * 6); this.pos.set([p[1].x, p[1].y, p[1].z], i * 6 + 3); this.alpha[i * 2] = 0; this.alpha[i * 2 + 1] = k * 0.85; }
+      this.pos.set([p[0].x, p[0].y, p[0].z], i * 6); this.pos.set([p[1].x, p[1].y, p[1].z], i * 6 + 3); this.alpha[i * 2] = 0; this.alpha[i * 2 + 1] = k; }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.alpha.needsUpdate = true;
   }
   end() { this.pts.length = 0; }
-  update(dt) { if (this.life > 0) { this.life -= dt; this.mat.uniforms.fade.value = Math.max(0, this.life / 0.18); if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
+  update(dt) { if (this.life > 0) { this.life -= dt; this.mat.uniforms.fade.value = Math.max(0, this.life / 0.13); if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
+}
+
+// Crimson scarf: a short verlet ribbon pinned at the neck — a colour accent that reads from the side and shows motion.
+class Scarf {
+  constructor(scene, anchor) {
+    this.anchor = anchor; this.n = 9; this.seg = 0.13; this.p = []; this.o = [];
+    for (let i = 0; i < this.n; i++) { this.p.push(new THREE.Vector3()); this.o.push(new THREE.Vector3()); }
+    this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.n * 2 * 3);
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    const idx = []; for (let i = 0; i < this.n - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
+    this.mesh = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ color: 0xa0101e, emissive: 0x3a0208, roughness: 0.7, side: THREE.DoubleSide }));
+    this.mesh.frustumCulled = false; this.mesh.castShadow = true; scene.add(this.mesh); this.init = false;
+  }
+  update(dt, facing, vel) {
+    if (!this.anchor) return;
+    const a = this.anchor.getWorldPosition(new THREE.Vector3()); a.y -= 0.02; a.x -= facing * 0.1;
+    if (!this.init) { this.p.forEach((p, i) => { p.copy(a).x -= facing * i * this.seg; this.o[i].copy(p); }); this.init = true; }
+    const g = -26 * dt * dt, wind = (-facing * 1.5 - vel.x * 1.6) * dt * dt;
+    this.p[0].copy(a); this.o[0].copy(a);
+    for (let i = 1; i < this.n; i++) { const p = this.p[i], o = this.o[i], vx = (p.x - o.x) * 0.96, vy = (p.y - o.y) * 0.96; o.copy(p); p.x += vx + wind; p.y += vy + g; p.z = a.z - 0.05; }
+    for (let k = 0; k < 3; k++) for (let i = 1; i < this.n; i++) { const A = this.p[i - 1], B = this.p[i], d = B.clone().sub(A), L = d.length() || 1e-4; B.copy(A).addScaledVector(d, this.seg / L); }
+    for (let i = 0; i < this.n; i++) { const p = this.p[i], w = 0.11 * (1 - i / this.n * 0.5); this.pos.set([p.x, p.y + w / 2, p.z + 0.02], i * 6); this.pos.set([p.x, p.y - w / 2, p.z - 0.02], i * 6 + 3); }
+    this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals();
+  }
 }

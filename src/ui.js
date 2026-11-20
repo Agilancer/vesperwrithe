@@ -44,6 +44,7 @@ export class UI {
       if (full && seen) { ctx.fillStyle = 'rgba(233,224,204,.85)'; ctx.font = `${Math.max(9, cell * 0.22)}px Georgia`; ctx.fillText(r.name, x + 4, y + cell * 0.32); }
       if (seen) for (const d of r.doors) { ctx.fillStyle = '#000'; if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 3, oy + d.row * cell + cell * 0.55, 4, cell * 0.3); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 3, cell * 0.3, 4); }
     }
+    if (this.g.objective) { const o = this.g.objective; ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(ox + o.c * cell, oy + o.r * cell, Math.max(3, cell * 0.18) * (1 + 0.25 * Math.sin(performance.now() / 160)), 0, 7); ctx.fill(); }
     if ((performance.now() / 300 | 0) % 2) { ctx.fillStyle = '#fff'; ctx.fillRect(ox + pc * cell - 3, oy + (pr - 1 + 0.7) * cell - 3, 6, 6); }
   }
   minimap() {
@@ -103,6 +104,7 @@ export class UI {
     audio.play('gem_collect', 0.6); this.toast(`${GEMS[gem.gem].name} set into ${item.name}`, 'gem');
     for (const [slot, it] of Object.entries(P.equip)) if (it === item) await P.attachVisual(slot);
     P.refreshStats(); this.socketMode = null; this.sel = 0; this.g.onEquip?.(item); this.renderInv();
+    if (P.equip.weapon === item && GEMS[gem.gem].weapon.elem) { this.toggle('inv'); this.g.ignite(GEMS[gem.gem].weapon.elem); }
   }
   renderInv() {
     const P = this.g.player, s = P.stats; P.refreshStats(); const d = P.d;
