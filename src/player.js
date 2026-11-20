@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadGLTF, weaponModel, audio } from './assets.js';
-import { BASES, STYLES, GEMS, itemStats } from './items.js';
+import { BASES, GEMS, itemStats } from './items.js';
+import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
 
 // Movement tuned from Symphony of the Night frame data (docs/research), converted at 1 SotN px ≈ 3.35 cm, 60 fps:
@@ -9,17 +10,43 @@ import { glowTex } from './world.js';
 export const PHYS = { walk: 4.7, jumpV: 9.85, djumpV: 8.25, grav: 17.5, fallMax: 14, cutV: 2.5, backdash: 7.4, backdashT: 0.34, coyote: 0.117, buffer: 0.1, dashV: 12, dashT: 0.2 };
 const W = 0.62, H_STAND = 1.72, H_CROUCH = 1.08;
 const UPPER = /Spine|Neck|Head|Shoulder|Arm|Hand/;
-const FPS = 30;
 const ELEM_COLOR = { fire: 0xff5a1a, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a };
 
 const ANIM = {
   idle: 'axe_unarmed_idle', idleArmed: 'sword_and_shield_idle', jog: 'jogging', jogArmed: 'sword_and_shield_run',
-  jump: 'axe_unarmed_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
+  jump: 'axe_unarmed_jump', jumpArmed: 'sword_and_shield_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
   backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'sitting',
   block: 'sword_and_shield_block_idle', crouchBlock: 'sword_and_shield_crouch_block_idle', pickup: 'axe_unarmed_equip_over_shoulder',
   dashAir: 'standing_melee_run_jump_attack',
 };
+// Airborne part of each jump clip (frames). The clip's opening frames are the crouched wind-up with feet planted,
+// which mid-air looked like standing on something invisible, so the rise is scrubbed through the tuck by vertical speed.
+const JUMP_WIN = { axe_unarmed_jump: [28, 38], sword_and_shield_jump: [7, 14] };
 const NO_HIPS_POS = /jump|fall|flying|run_back|impact/;
+
+// Right-hand weapon grip. The rig's WeaponSocket_R points its +Y back down the forearm, so blades came out of the
+// pinky side and trailed behind the fist. Build the grip from the knuckles instead (these bones are direct children of
+// the hand, so their hand-space positions never change): the blade runs across the fist and out of the thumb side,
+// tipped a little toward the fingers, edge facing the knuckles.
+export const GRIP = { tilt: 0.28, palm: 0.018, back: 0.006 };
+export function makeGrip(model) {
+  const hand = model.getObjectByName('mixamorigRightHand');
+  const p = n => model.getObjectByName('mixamorigRightHand' + n).position.clone();
+  const idx = p('Index1'), pinky = p('Pinky1'), mid = p('Middle1');
+  const across = idx.clone().sub(pinky).normalize(); // pinky → index (thumb side)
+  const fingers = mid.clone().normalize(); // wrist → knuckles
+  const palm = new THREE.Vector3().crossVectors(across, fingers).normalize();
+  if (palm.dot(p('Thumb1').sub(mid)) < 0) palm.negate(); // palm faces the thumb's side of the hand
+  const blade = across.clone().multiplyScalar(Math.cos(GRIP.tilt)).addScaledVector(fingers, Math.sin(GRIP.tilt)).normalize();
+  const edge = fingers.clone().addScaledVector(blade, -fingers.dot(blade)).normalize();
+  const x = new THREE.Vector3().crossVectors(blade, edge);
+  const g = new THREE.Group(); g.name = 'Grip_R';
+  g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, blade, edge));
+  // fist centre: on the knuckle line, pulled into the palm where the curled fingers close
+  g.position.copy(idx).add(pinky).multiplyScalar(0.5).addScaledVector(palm, GRIP.palm).addScaledVector(fingers, -GRIP.back);
+  hand.add(g);
+  return g;
+}
 
 export class Player {
   constructor(game) {
@@ -40,7 +67,7 @@ export class Player {
     this.model = g.scene; this.spin = new THREE.Group(); this.spin.position.y = 0.95; this.model.position.y = -0.95;
     this.root.add(this.spin); this.spin.add(this.model);
     this.model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { const m = o.material; m.envMapIntensity = 1.3; m.roughness = Math.max(m.roughness ?? 0.5, 0.45); m.color.multiplyScalar(1.35); } } });
-    this.socketR = this.model.getObjectByName('WeaponSocket_R');
+    this.socketR = makeGrip(this.model);
     const fore = this.model.getObjectByProperty('name', 'mixamorigLeftForeArm');
     this.socketL = new THREE.Group(); fore.add(this.socketL);
     this.g.scene.add(this.root);
@@ -55,7 +82,8 @@ export class Player {
     for (const c of g.animations) {
       const tracks = c.tracks.filter(t => !(t.name.endsWith('.position') && !t.name.includes('Hips')) && !(NO_HIPS_POS.test(c.name) && t.name.includes('Hips.position')) && !t.name.endsWith('.scale'));
       const up = tracks.filter(t => UPPER.test(t.name)), lo = tracks.filter(t => !UPPER.test(t.name));
-      this.clips[c.name] = { full: c, up: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_u', c.duration, up)), lo: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_l', c.duration, lo)), dur: c.duration };
+      const game = new THREE.AnimationClip(c.name + '_g', c.duration, tracks);
+      this.clips[c.name] = { full: c, game, up: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_u', c.duration, up)), lo: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_l', c.duration, lo)), dur: c.duration };
     }
     this.setLayer('lower', ANIM.idle, 0); this.setLayer('upper', ANIM.idle, 0);
   }
@@ -109,7 +137,7 @@ export class Player {
     audio.play(slot === 'weapon' ? 'sword_unsheath_1' : 'item_equip', 0.5);
   }
 
-  async attachVisual(slot) {
+  async attachVisual(slot, grip) {
     if (slot !== 'weapon' && slot !== 'offhand') return;
     const sock = slot === 'weapon' ? this.socketR : this.socketL;
     if (this[slot + 'Mesh']) { sock.remove(this[slot + 'Mesh']); this[slot + 'Mesh'] = null; }
@@ -117,7 +145,13 @@ export class Player {
     const base = BASES[it.base];
     // Socket lives under a 1.8× scaled rig; weapons are authored at true metres, so divide that scale out.
     const m = await weaponModel(base.model, base.scale / 1.8);
+    if (this.equip[slot] !== it) return; // swapped again while loading
+    if (this[slot + 'Mesh']) { sock.remove(this[slot + 'Mesh']); this[slot + 'Mesh'] = null; }
     if (slot === 'offhand') this.placeShield(m);
+    else { // grip: normal = blade up out of the thumb side, reverse = ice-pick, forward = along the forearm (spears/lances)
+      const gr = grip || attackFor(base).grip;
+      if (gr === 'reverse') m.rotation.z = Math.PI; else if (gr === 'forward') m.rotation.x = Math.PI / 2;
+    }
     sock.add(m); this[slot + 'Mesh'] = m;
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
   }
@@ -157,7 +191,9 @@ export class Player {
   update(dt, inp) {
     const s = this.stats, P = PHYS;
     this.stateT += dt; if (this.inv > 0) this.inv -= dt;
-    if (this.state === 'dead') { this.animate(dt); return; }
+    if (this.state === 'dead') { // keep falling and sliding to a stop so a mid-air death lands on the floor
+      this.vel.x *= Math.max(0, 1 - dt * 6); this.vel.y = Math.max(-PHYS.fallMax, this.vel.y - PHYS.grav * dt); this.move(dt); this.animate(dt); return;
+    }
     if (this.state === 'sit') { if (inp.x || inp.jumpP || inp.attackP) { this.state = 'free'; } else { this.vel.set(0, 0); this.animate(dt); return; } }
 
     const abil = this.abilities();
@@ -258,11 +294,11 @@ export class Player {
 
   startAttack() {
     const w = this.equip.weapon, base = w ? BASES[w.base] : null;
-    const st = STYLES[base ? base.style : 'punch'];
+    const st = attackFor(base);
     const ias = 1 + (this.d?.ias || 0) / 100;
     const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
     this.attack = { st, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || base.style === 'smash'), swung: false };
-    const fullBody = mode === 'idle';
+    const fullBody = mode === 'idle' && !st.upperOnly;
     this.setLayer('upper', st.anim, 0.06, { manual: true, at: st.from / FPS, restart: true });
     if (fullBody) this.setLayer('lower', st.anim, 0.08, { manual: true, at: st.from / FPS, restart: true });
   }
@@ -319,6 +355,13 @@ export class Player {
     return true;
   }
   heal(n, quiet) { const s = this.stats, before = s.hp; s.hp = Math.min(s.hpMax, s.hp + n); if (!quiet && s.hp > before) this.g.ui.dmg(this.pos.x, this.pos.y + 2, s.hp - before, 'heal'); }
+  // Back to a clean idle (after death/respawn): the clamped death clip otherwise stays at full weight and blends with
+  // idle, leaving the hero half-lying and floating.
+  resetAnim() {
+    this.mixer.stopAllAction(); this.attack = null; this.trail.end(); this.flip = 0; this.spin.rotation.z = 0;
+    this.layers.lower.cur = this.layers.upper.cur = null; this.crouch = false;
+    this.setLayer('lower', this.armed ? ANIM.idleArmed : ANIM.idle, 0); this.setLayer('upper', this.armed ? ANIM.idleArmed : ANIM.idle, 0);
+  }
   die() { this.state = 'dead'; this.stateT = 0; this.attack = null; this.setLayer('lower', ANIM.death, 0.1, { once: true }); this.setLayer('upper', ANIM.death, 0.1, { once: true }); this.g.onPlayerDeath(); }
   gainXP(n) {
     const s = this.stats; s.xp += n;
@@ -334,23 +377,24 @@ export class Player {
       else if (this.state === 'hurt') base = ANIM.hurt;
       else if (this.state === 'backdash') base = ANIM.backdash;
       else if (this.state === 'dash') base = ANIM.fall;
-      else if (!this.onGround) base = this.vel.y > 0 ? ANIM.jump : ANIM.fall;
+      else if (!this.onGround) base = this.vel.y > 0 ? (armed ? ANIM.jumpArmed : ANIM.jump) : ANIM.fall;
       else if (this.crouch) base = this.blocking ? ANIM.crouchBlock : (armed ? ANIM.crouchArmed : ANIM.crouch);
       else if (Math.abs(this.vel.x) > 0.4) base = armed ? ANIM.jogArmed : ANIM.jog;
       else base = armed ? ANIM.idleArmed : ANIM.idle;
       const lowerBusy = this.attack && this.layers.lower.cur === this.attack.st.anim;
       if (!lowerBusy) {
         const opts = {};
-        if (base === ANIM.jump) { opts.at = 0.55; opts.speed = 0.9; }
+        if (JUMP_WIN[base]) opts.manual = true;
         if (base === ANIM.fall) opts.at = 0.2;
         if (base === ANIM.backdash) opts.speed = 1.6;
         if (base === ANIM.jog || base === ANIM.jogArmed) opts.speed = 1.15;
         if (base === ANIM.hurt) { opts.once = true; }
-        this.setLayer('lower', base, base === ANIM.jump ? 0.08 : 0.14, opts);
+        this.setLayer('lower', base, JUMP_WIN[base] ? 0.08 : 0.14, opts);
+        if (JUMP_WIN[base]) { const [a, b] = JUMP_WIN[base], k = Math.min(1, Math.max(0, 1 - this.vel.y / PHYS.jumpV)); this.clipAct(base, 'lower').time = (a + (b - a) * k) / FPS; }
       }
       if (!this.attack) {
         const upper = this.blocking ? (this.crouch ? ANIM.crouchBlock : ANIM.block) : (lowerBusy ? this.layers.lower.cur : base);
-        const opts = {}; if (upper === ANIM.jump) { opts.at = 0.55; opts.speed = 0.9; } if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = 1.15; if (upper === ANIM.hurt) opts.once = true;
+        const opts = {}; if (JUMP_WIN[upper]) opts.manual = true; if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = 1.15; if (upper === ANIM.hurt) opts.once = true;
         this.setLayer('upper', upper, 0.12, opts);
         // keep the two halves of a locomotion clip in phase
         if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
