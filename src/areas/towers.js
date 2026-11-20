@@ -192,7 +192,7 @@ export default [
     chests: [{ x: 64.4, tier: 3, rarity: 'magic' }, { x: 31.4, y: 19.6, tier: 3, rarity: 'rare' }, { x: 65, y: 8.0, tier: 4, rarity: 'rare' }],
     items: [{ x: 63.4, y: 8.0, gem: 'emerald' }],
     breakables: [{ x: 9 }, { x: 27 }, { x: 52 }, { x: 34, y: 8.0 }, { x: 14, y: 8.0 }, { x: 20, y: 15.5 }, { x: 53, y: 15.5 }],
-    props: [...pr('bookshelf', 6, 20, 26, 40, 52, [16, 8.0], [28, 8.0], [36, 8.0], [50, 8.0], [18, 15.5], [32, 15.5], [44, 15.5], [58, 15.5]),
+    props: [{ t: 'chandelier', x: 13.3 }, { t: 'chandelier', x: 46.6 }, ...pr('bookshelf', 6, 20, 26, 40, 52, [16, 8.0], [28, 8.0], [36, 8.0], [50, 8.0], [18, 15.5], [32, 15.5], [44, 15.5], [58, 15.5]),
       ...pr('candles', 11, 23, 36, 48, 60, [5, 8.0], [19, 8.0], [33, 8.0], [45, 8.0], [53, 8.0], [3, 15.5], [15, 15.5], [28, 15.5], [41, 15.5], [54, 15.5]),
       ...pr('table', 15.5, [26, 8.0], [37.5, 15.5]), ...pr('chandelier', [44, 8.0], [22, 15.5]), ...pr('orrery', [46, 15.5]), ...pr('rug', [10, 15.5]), ...pr('statue', 58), ...pr('rubble', [60, 8.0])],
     lore: [{ x: 20, text: 'Every shelf is chained. Not to keep the books from readers - to keep them on the shelves.' },

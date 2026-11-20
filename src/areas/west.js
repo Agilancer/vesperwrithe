@@ -78,7 +78,7 @@ export default [
     enemies: [{ t: 'zombie', x: 10 }, { t: 'zombie', x: 20, rise: true }, { t: 'knight', x: 24, y: 12.2 }, { t: 'child', x: 30 }, { t: 'wizard', x: 16, y: 14.3 }],
     breakables: [{ x: 5 }, { x: 35 }, { x: 17.5, y: 14.3 }],
     chests: [{ x: 3, tier: 1, rarity: 'magic' }],
-    props: [{ t: 'rosewindow', x: 20, y: 9 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 18.5, face: 1 }, { t: 'pews', x: 25, face: 1 }, { t: 'candles', x: 6 }, { t: 'candles', x: 31.5 }, { t: 'torch', x: 1, y: 2.7 }, { t: 'torch', x: 39, y: 10.1 }, { t: 'altar', x: 35, steps: 2 }, { t: 'organ', x: 4 }, { t: 'chandelier', x: 22, y: 6.6 }, { t: 'rubble', x: 28 }],
+    props: [{ t: 'rosewindow', x: 20, y: 9 }, { t: 'window', x: 13.3, big: true }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 18.5, face: 1 }, { t: 'pews', x: 25, face: 1 }, { t: 'candles', x: 6 }, { t: 'candles', x: 31.5 }, { t: 'torch', x: 1, y: 2.7 }, { t: 'torch', x: 39, y: 10.1 }, { t: 'altar', x: 35, steps: 2 }, { t: 'organ', x: 4 }, { t: 'chandelier', x: 22, y: 6.6 }, { t: 'rubble', x: 28 }],
     lore: [{ x: 34, text: 'The chapel burned once. High on the broken altar something still glows red.' }] },
 
   { id: 'greathall', name: 'Hall of the Oathbreaker', area: '02', col: 17, row: -3, w: 4, h: 3, theme: 'throne', vista: 15, boss: 'caddoc',
