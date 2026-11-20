@@ -134,7 +134,7 @@ class Game {
         try { await e.load(); room.enemies.push(e); } catch (err) { console.warn('enemy', spec.t, err); }
       }));
       def.chests.forEach((c, i) => room.chests.push(this.makeChest(room, c, i)));
-      def.items.forEach((it, i) => { const key = `item:${def.id}:${i}`; if (!this.flags[key]) this.spawnPlaced(room, it, key); });
+      this.placeItems(room);
       room.cracks.forEach((s, i) => { s.key = `crack:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
       room.gates.forEach((s, i) => { s.key = `gate:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
       for (const ch of room.chests) if (this.flags[ch.key]) ch.open(true);
@@ -158,6 +158,8 @@ class Game {
       for (const s of ['weapon', 'offhand']) await P.attachVisual(s);
       room = this.world.byId(save.room) || this.world.rooms.find(r => r.def.start);
     } else room = this.world.rooms.find(r => r.def.start);
+    // rooms raised during loading lost their pickups when the loot list was cleared above (the causeway blade among them)
+    for (const r of this.world.rooms) if (r.live) { this.placeItems(r); for (const ch of r.chests) if (this.flags[ch.key] && !ch.opened) ch.open(true); }
     await this.ensureRoom(room);
     if (save && room.saveAt) P.pos.set(room.saveAt.x, room.saveAt.y); else P.pos.set(room.b.x0 + (room.def.start?.x ?? 5), room.b.y0 + (room.def.start?.y ?? 0.5));
     P.refreshStats(); if (!save) { P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; }
@@ -165,14 +167,23 @@ class Game {
   }
 
   // ------------------------------------------------------------------ loot
+  // a room's placed pickups (and their pedestals, which stay once the prize is taken)
+  placeItems(room) {
+    const def = room.def; room.peds ||= new Set();
+    def.items.forEach((it, i) => {
+      const key = `item:${def.id}:${i}`;
+      if (it.pedestal && !room.peds.has(key)) { room.peds.add(key); this.pedestal(room, room.b.x0 + it.x, room.b.y0 + (it.y ?? FLOOR), it.altar); }
+      if (!this.flags[key] && !this.loot.some(L => L.key === key)) this.spawnPlaced(room, it, key);
+    });
+  }
   async spawnPlaced(room, it, key) {
     const x = room.b.x0 + it.x, y = room.b.y0 + (it.y ?? FLOOR);
     const item = it.gem ? makeGem(it.gem) : it.up ? { up: it.up } : it.potion ? { potion: true } : it.gold ? { gold: it.gold } : it.unique ? makeUnique(it.unique) : it.tier ? tierItem(it.tier, it.rarity) : makeItem(it.tutorial ? startWeapon() : it.base, { rarity: it.rarity, sockets: it.sockets }); // the Attack Viewer can swap the first weapon
-    if (it.pedestal) {
-      const m = surface(it.altar ? 'marble' : 'ashlar', 1, 1, it.altar ? { dir: 'assets/game/interior/' } : {});
-      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
-      this.dropLoot(x, y + 0.9, item, room, key, true);
-    } else this.dropLoot(x, y, item, room, key, true);
+    this.dropLoot(x, it.pedestal ? y + 0.9 : y, item, room, key, true);
+  }
+  pedestal(room, x, y, altar) {
+    const m = surface(altar ? 'marble' : 'ashlar', 1, 1, altar ? { dir: 'assets/game/interior/' } : {});
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
   }
 
   async dropLoot(x, y, item, room = this.room, key, placed) {
@@ -292,7 +303,7 @@ class Game {
     const near = new Set([cur, ...this.neighbours(cur)]);
     for (const r of live.filter(r => !near.has(r)).sort((a, b) => (a.seen || 0) - (b.seen || 0)).slice(0, live.length - (LOW_MEM ? 4 : 9))) {
       this.loot = this.loot.filter(L => { if (L.room !== r) return true; if (!L.key) return false; return false; });
-      this.world.unload(r, r.enemies.map(e => e.root)); r.live = false; r.living = null; r.enemies = []; r.chests = []; r.bellObj = null;
+      this.world.unload(r, r.enemies.map(e => e.root)); r.live = false; r.living = null; r.enemies = []; r.chests = []; r.bellObj = null; r.peds = null;
     }
   }
   leaveRoom(old) {
