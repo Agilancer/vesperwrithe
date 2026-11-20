@@ -155,7 +155,7 @@ export class UI {
     $('detail').innerHTML = detailItem ? this.describe(detailItem, true) : '';
   }
   describe(it, compare) {
-    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (S)</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">[S] Socket into an item</div>`; }
+    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (${document.body.classList.contains('touch') ? 'GEM button' : 'S'})</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">[S] Socket into an item</div>`; }
     const b = BASES[it.base], st = itemStats(it), P = this.g.player;
     let h = `<h3 class="q-${it.rarity}">${it.name}</h3><div class="type">${it.rarity !== 'normal' ? it.rarity[0].toUpperCase() + it.rarity.slice(1) + ' ' : ''}${b.cls || b.name}${b.hands === 2 ? ' · Two-Handed' : ''} · item level ${itemLevel(it)}${P.stats.lvl < itemReq(it) ? ` · <em class="dn">requires level ${itemReq(it)}</em>` : ''}</div>`;
     const cur = compare && (b.slot === 'ring' ? P.equip.ring1 : P.equip[b.slot]), cs = cur && cur !== it ? itemStats(cur) : null;
@@ -164,7 +164,7 @@ export class UI {
     if (b.def) h += `<div class="line">Defense: ${st.def}${diff(st.def, cs?.def || 0)}</div>`; if (b.block) h += `<div class="line">Block: ${Math.round(b.block * 100)}%</div>`;
     for (const l of st.lines) h += `<div class="line ${l.cls}" ${l.css ? `style="color:${l.css}"` : ''}>${l.text}</div>`;
     if (it.sockets) h += `<div class="sockets">${Array.from({ length: it.sockets }, (_, i) => { const g = it.gems[i]; return `<span class="sock" style="${g ? `background:radial-gradient(circle at 35% 35%,#fff,${GEMS[g].css} 45%,#000);border-color:${GEMS[g].css}` : ''}"></span>`; }).join('')}</div>`;
-    h += `<div class="act">${this.socketMode ? '[Enter] Socket here · [Esc] cancel' : compare ? '[Enter] Equip · [U] unequip a slot · worth ' + Math.round(itemValue(it) * 0.3) + 'g' : ''}</div>`;
+    h += `<div class="act">${this.socketMode ? '[Enter] Socket here · [Esc] cancel' : compare ? (document.body.classList.contains('touch') ? 'Tap again to equip · worth ' : '[Enter] Equip · [U] unequip a slot · worth ') + Math.round(itemValue(it) * 0.3) + 'g' : ''}</div>`;
     return h;
   }
 

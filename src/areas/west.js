@@ -114,7 +114,7 @@ export default [
     chests: [{ x: 22.5, y: 14.3, tier: 2, rarity: 'rare' }, { x: 4.5, y: 43.6, tier: 3, rarity: 'rare' }],
     items: [{ x: 44, y: 29.0, up: 'mana' }],
     breakables: [{ x: 3 }, { x: 20 }, { x: 29 }, { x: 50 }, { x: 30.5, y: 7.7 }],
-    props: [{ t: 'chandelier', x: 26.6, y: 14.3 }, { t: 'chandelier', x: 14, y: 26 }, { t: 'chandelier', x: 39, y: 34 }, { t: 'rosewindow', x: 26.6, y: 20 }, { t: 'window', x: 8, big: true }, { t: 'window', x: 45, big: true }, { t: 'banner', x: 19 }, { t: 'banner', x: 34.5 }, { t: 'statue', x: 14 }, { t: 'statue', x: 39.3 }, { t: 'rug', x: 26.6 },
+    props: [{ t: 'chandelier', x: 26.6, y: 0.5 }, { t: 'chandelier', x: 14, y: 26 }, { t: 'chandelier', x: 39, y: 34 }, { t: 'rosewindow', x: 26.6, y: 20 }, { t: 'window', x: 8, big: true }, { t: 'window', x: 45, big: true }, { t: 'banner', x: 19 }, { t: 'banner', x: 34.5 }, { t: 'statue', x: 14 }, { t: 'statue', x: 39.3 }, { t: 'rug', x: 26.6 },
       { t: 'torch', x: 2 }, { t: 'torch', x: 51 }, { t: 'torch', x: 1, y: 7.9 }, { t: 'torch', x: 52, y: 7.9 }, { t: 'torch', x: 1, y: 18.1 }, { t: 'torch', x: 52, y: 29 }, { t: 'torch', x: 1, y: 43.6 }, { t: 'column', x: 18 }, { t: 'column', x: 35.3 }, { t: 'tapestry', x: 24, y: 7.7 }, { t: 'painting', x: 30, y: 14.3 }],
     lore: [{ x: 26, text: 'Every wing of Castle Velscour opens on this well. Bells hang silent in the dark above.' }] },
 

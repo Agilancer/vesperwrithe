@@ -81,9 +81,9 @@ export function addRim(m, rim) {
   m.onBeforeCompile = sh => {
     sh.uniforms.rimCol = { get value() { return rim.col; } }; sh.uniforms.rimK = { get value() { return rim.k; } };
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 rimCol; uniform float rimK;')
-      .replace('#include <opaque_fragment>', 'outgoingLight += rimCol * rimK * pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.4);\n#include <opaque_fragment>');
+      .replace('#include <opaque_fragment>', 'outgoingLight += rimCol * rimK * pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), ' + (rim.p || 2.4).toFixed(2) + ');\n#include <opaque_fragment>');
   };
-  m.customProgramCacheKey = () => 'rim'; m.needsUpdate = true;
+  m.customProgramCacheKey = () => 'rim' + (rim.p || 2.4); m.needsUpdate = true;
   return m;
 }
 export function surface(name, repX = 1, repY = 1, opts = {}) {

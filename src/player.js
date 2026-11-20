@@ -103,8 +103,7 @@ export class Player {
     this.socketL = new THREE.Group(); fore.add(this.socketL);
     this.g.scene.add(this.root);
     // rim light that follows the hero so he reads against dark rooms
-    this.rim = new THREE.PointLight(0x9ab0ff, 9, 6, 1.5); this.root.add(this.rim); this.rim.position.set(-0.6, 2.2, -1.2);
-    this.fill = new THREE.PointLight(0xffd8b0, 7, 6, 1.4); this.root.add(this.fill); this.fill.position.set(0.4, 1.8, 2.6);
+    // (no lights of his own any more: they pooled cold light on the set around him; a fresnel edge does the job)
     // x-ray: where stone stands between the camera and the hero, a cool silhouette shows through. Drawn after the room
     // (renderOrder 1) and before the hero (2), so only the room's depth is tested: never the hero's own body.
     const XRAY = new THREE.MeshBasicMaterial({ color: 0x31457e, blending: THREE.AdditiveBlending, depthFunc: THREE.GreaterDepth, depthWrite: false });
@@ -181,6 +180,7 @@ export class Player {
   }
 
   async attachVisual(slot, grip) {
+    this.gearVer = (this.gearVer || 0) + 1;
     if (slot !== 'weapon' && slot !== 'offhand') return;
     const sock = slot === 'weapon' ? this.socketR : this.socketL;
     if (this[slot + 'Mesh']) { sock.remove(this[slot + 'Mesh']); this[slot + 'Mesh'] = null; }
@@ -296,7 +296,7 @@ export class Player {
       this.vel.x = -this.facing * P.backdash * Math.max(0, k * 1.15);
       if (this.backdashT >= P.backdashT) this.state = 'free';
       if (inp.jumpP && this.onGround) this.state = 'free';
-      if (inp.attackP && this.backdashT > 0.1) this.state = 'free'; // backdash-strike: the swing rides the slide
+      if (inp.attackP && this.backdashT > 0.1) { this.state = 'free'; this.backStrike = true; } // backdash-strike: the swing rides the slide on planted feet
     }
     if (this.state === 'dash') { this.dashT += dt; this.vel.set(this.facing * P.dashV, 0); if (Math.random() < 0.8) this.g.fx.spawn(this.pos.x - this.facing * 0.3, this.pos.y + 0.4 + Math.random() * 1.1, 0.3, 0, 0, 0x9a5aff, 0.3, 0.5, 0); if (this.dashT > P.dashT) { this.state = 'free'; this.vel.x = this.facing * P.walk; } }
     if (this.state === 'slide') {
@@ -382,7 +382,7 @@ export class Player {
   move(dt) {
     const solids = this.g.activeSolids();
     // X
-    if (this.groundS?.mover && this.onGround) { this.pos.x += this.groundS.dx || 0; this.pos.y = this.groundS.y1; } // ride lifts and gears
+    const gs = this.groundS; if (gs?.mover && this.onGround && this.pos.x > gs.x0 - 0.8 && this.pos.x < gs.x1 + 0.8 && Math.abs(this.pos.y - gs.y1) < 1.2) { this.pos.x += gs.dx || 0; this.pos.y = gs.y1; } // ride lifts and gears (only the one underfoot: a warp or respawn must not snap back to it)
     this.pos.x += this.vel.x * dt;
     if (this.push) { this.pos.x += this.push * dt; this.push *= Math.pow(0.03, dt); if (Math.abs(this.push) < 0.3) this.push = 0; }
     let a = this.aabb; this.wallDir = 0;
@@ -435,7 +435,7 @@ export class Player {
     const st = chain ? { ...st0, ...chain[ci % chain.length] } : st0;
     if (ci && this.inpX && this.onGround) this.facing = Math.sign(this.inpX); // re-aim between links
     const ias = 1 + Math.min(120, this.d?.ias || 0) / 100; this.swings++; if (!this.onGround) this.airAttacked = true;
-    const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
+    const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 && !this.backStrike ? 'move' : 'idle'; this.backStrike = false; // a backdash-strike plants its feet
     this.attack = { st, chain, ci, t: ci ? (st.dur / ias) * 2 / (st.to - st.from) : 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)) && !st.ranged, swung: false, n: this.swings, reach: st.reach * (this.d?.echo === 'long' ? 1.35 : 1) };
     const fullBody = mode === 'idle' && !st.upperOnly;
     this.setLayer('upper', st.anim, ci ? 0.1 : 0.06, { manual: true, at: st.from / FPS, restart: true });
@@ -625,9 +625,10 @@ export class Player {
     this.spin.position.y = 0.95 - (this.state === 'slide' ? 0.42 : 0);
     if (this.flip > 0) { this.flip += dt * 2.3; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (a * a * (3 - 2 * a)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; } } // smoothstep flip: gathers, whips round, settles upright
     // i-frame blink
-    if (!this.hurtRim) { this.hurtRim = { col: new THREE.Color(0xd02040), k: 0 }; this.model.traverse(o => { if (o.isMesh && !o.userData.xray) for (const m of [].concat(o.material)) addRim(m, this.hurtRim); }); }
+    this.hurtRim ||= { col: new THREE.Color(0x8fa4d8), k: 0.32, p: 3.2 };
+    if (this._rimmed !== this.gearVer) { this._rimmed = this.gearVer; this.model.traverse(o => { if (o.isMesh && !o.userData.xray) for (const m of [].concat(o.material)) if (!m.userData.rim) { m.userData.rim = 1; addRim(m, this.hurtRim); } }); }
     const blink = this.inv > 0.3 && this.inv < 1.05 && this.state !== 'block' && this.state !== 'dead', on = blink && Math.floor(this.inv * 12) % 2 === 0;
-    this.hurtRim.k = on ? 0.55 : 0; // hurt: a crimson edge flickers, the armour keeps its own colours
+    if (on) { this.hurtRim.col.setHex(0xe02848); this.hurtRim.k = 0.85; } else { this.hurtRim.col.setHex(0x8fa4d8); this.hurtRim.k = 0.32; } // a cool edge always; hurt flickers it crimson
     this.model.visible = true; if (this.scarf) this.scarf.mesh.visible = true;
     if (this.fx) for (const p of this.fx.userData.parts) { p.userData.t += dt * 2.2; const u = p.userData.t % 1; p.position.set((Math.random() - 0.5) * 0.04, this.fx.userData.len * p.userData.along, (Math.random() - 0.5) * 0.04 + (this.fx.userData.elem === 'fire' ? u * 0.0 : 0)); p.position.y += this.fx.userData.elem === 'fire' ? u * 0.25 : 0; p.material.opacity = 1 - u; const sc = (this.fx.userData.elem === 'lightning' ? (Math.random() < 0.3 ? 0.25 : 0.08) : 0.16) * (1 - u * 0.5); p.scale.setScalar(sc); }
   }

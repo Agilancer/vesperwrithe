@@ -10,18 +10,18 @@ export const RARITY = { normal: 'normal', magic: 'magic', rare: 'rare', unique: 
 export const STYLES = {
   slash1h: { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [16, 24], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
   slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
-  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
+  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], cancel: 63, dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
   // maul: same overhead slam, slower with a longer recovery so the weight reads
   smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], cancel: 64, dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
   // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
-  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
+  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], cancel: 62, dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
   // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
   // (frames 236-262, level at 246-257) with a forward grip pushes the point out level; its legs kick there, so it plays on the upper body
   // only. Fists: the boxing set's straight, arm fully out f170-180. Daggers: a quick slash.
-  thrust:  { anim: 'fist_fight_a', from: 236, to: 262, hit: [246, 257], dur: 0.44, reach: 2.6, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
-  lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
-  stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
-  punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
+  thrust:  { anim: 'fist_fight_a', from: 236, to: 262, hit: [246, 257], cancel: 260, dur: 0.44, reach: 2.6, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
+  lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], cancel: 261, dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
+  stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], cancel: 26, dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
+  punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], cancel: 183, dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
   // ranged classes: the missile leaves at the hit frame (bows loose arrows, boomerangs come back)
   shoot:   { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [18, 19], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow', upperOnly: true },
   hurl:    { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [17, 18], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang', upperOnly: true },

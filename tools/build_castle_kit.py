@@ -369,7 +369,9 @@ def make_gatehouse():
     arch = arch_xz(gw, rise, 22, spring); opening = [(-gw / 2, 0)] + arch + [(gw / 2, 0)]
     S.append(solid_face('gh_wall', [(-3.4, 0), (-gw / 2, 0)] + arch + [(gw / 2, 0), (3.4, 0), (3.4, 11.0), (-3.4, 11.0)], [], 0.9, 'stone', 0.0))
     T.append(solid_face('gh_tunnel', [(-gw / 2 - 0.3, 0)] + arch_xz(gw + 0.6, rise + 0.3, 22, spring) + [(gw / 2 + 0.3, 0)], [opening], 3.8, 'tunnel', 0.9))
-    T.append(box('gh_back', -3.0, 4.6, -0.2, 3.0, 5.0, 7.2, 'tunnel'))
+    T.append(box('gh_back', -3.0, 4.6, -0.2, 3.0, 5.0, 7.2, 'tunnel')); T.append(box('gh_floor', -2.6, 0.0, -0.6, 2.6, 4.7, 0.01, 'tunnel'))
+    for i in range(10): x = -1.7 + i * 0.378; T.append(box('fpc', x - 0.04, 4.3, 0.0, x + 0.04, 4.38, 4.6, 'dark'))
+    for z in (0.8, 1.9, 3.0, 4.1): T.append(box('fpcr', -1.85, 4.28, z, 1.85, 4.4, z + 0.08, 'dark'))
     T.append(miter_sweep('gh_arch', [(-gw / 2 - 0.36, 0)] + arch_xz(gw + 0.72, rise + 0.3, 30, spring) + [(gw / 2 + 0.36, 0)], roll_uv(0.6, 0.72), 0.0, False, 'trim'))
     T.append(miter_sweep('gh_hood', arch_xz(gw + 1.9, rise + 0.95, 30, spring), [(-0.12, 0), (-0.12, 0.2), (-0.02, 0.27), (0.1, 0.22), (0.12, 0)], 0.0, False, 'trim'))
     # raised portcullis: its lower rail and teeth hang in the arch head
@@ -423,13 +425,11 @@ def make_skyline():
         x = -106 + i * 10.5; S.append(box('fb', x - 1.4, -16, 30, x + 1.4, -11, 70, 'stone')); S.append(cyl('fbp', x, -13.5, 70, 80, 1.3, 4, 'roof', 0.0))
         fly = box('fly', x - 0.8, -11, 56, x + 0.8, -2, 59, 'stone'); S.append(fly)
     S.append(box('westwork', -54, -6, 30, -40, 26, 96, 'stone')); S.append(cyl('wspire', -47, 10, 96, 138, 6.5, 8, 'roof', 0.0))
-    rose = [cyl('rose', -82, -2.2, 0, 0.3, 4.5, 20, 'roseglow')]
-    rose[0].rotation_euler = (math.pi / 2, 0, 0); rose[0].location = (-82, -2.2, 56); apply(rose[0]); bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
+    rose = []
     # belfry (east): tall square tower with open lancets and a pyramid roof
     S.append(box('belfry', 62, -6, 30, 82, 14, 132, 'stone'))
-    for z in (100, 114):
-        for x in (65, 70.5, 76):
-            S.append(box('bopen', x, -6.4, z, x + 3.2, -6.0, z + 9, 'dark'))
+    for x in (65.5, 70.6, 75.7):  # tall belfry louvres, one storey of them
+        S.append(box('bopen', x, -6.4, 104, x + 2.0, -6.0, 124, 'dark')); S.append(cyl('bopenh', x + 1.0, -6.2, 124, 125.6, 1.0, 8, 'dark', 0.0))
     S.append(cyl('broof', 72, 4, 132, 160, 15, 4, 'roof', 0.0))
     # observatory dome (far east)
     S.append(cyl('obs', 116, 6, 34, 90, 10, 14, 'stone'))
@@ -438,8 +438,8 @@ def make_skyline():
     for x in (-128, -100, -66, -34, 36, 46, 92, 100, 130):
         h = rnd.uniform(60, 104); S += tower('mt', x, rnd.uniform(-2, 8), rnd.uniform(3, 5), 30, h, rnd.uniform(1.6, 2.4), seg=8, cren=rnd.random() < 0.5)
     glow = rose
-    for x0, x1, z0, z1, y, n in [(-22, 22, 26, 108, -6.1, 70), (-108, -52, 34, 62, -2.1, 26), (62, 82, 34, 96, -6.1, 26), (-52, -42, 34, 92, -6.1, 14), (-138, 138, 16, 32, -8.1, 50)]:
-        glow += windows(x0, x1, z0, z1, y, max(4, n // 3), 0.5, 1.8, 0.5, rnd)
+    for x0, x1, z0, z1, y, n in [(-22, 22, 46, 108, -6.1, 70), (-108, -52, 40, 62, -2.1, 26), (62, 82, 50, 96, -6.1, 26), (-52, -42, 50, 92, -6.1, 14)]:  # nothing low enough to float in the mist
+        glow += windows(x0, x1, z0, z1, y, max(3, n // 6), 0.5, 1.8, 0.5, rnd)
     sk = join('skyline', S + glow)
     lit = mat('stonelit'); sk.data.materials.append(lit); li = len(sk.data.materials) - 1
     for f in sk.data.polygons:

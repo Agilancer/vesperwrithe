@@ -201,8 +201,11 @@ class Game {
     const L = { item, room, grp, x, y, key, bob: 0, placed: true, planted: true, model: new THREE.Group() }; grp.add(L.model); this.loot.push(L);
     const shaft = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 14), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xa8b8e0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false })); shaft.position.set(-1.6, 6.2, -0.4); shaft.rotation.z = -0.24; grp.add(shaft);
     const pool = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xa8b8e0, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.005, 0.2); grp.add(pool);
-    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xe8f0ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); glint.scale.setScalar(0.35); L.model.add(glint); L.glint = glint;
-    try { const m = await weaponModel(BASES[item.base].model, BASES[item.base].scale * 1.15); const len = m.userData.len; m.rotation.z = Math.PI; m.position.y = len * 0.78; L.model.add(m); L.len = len; } catch (e) { console.warn(e); }
+    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xe8f0ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); glint.scale.set(0.09, 0.55, 1); L.model.add(glint); L.glint = glint; // a thin travelling gleam on the edge, not a ball
+    try { const m = await weaponModel(BASES[item.base].model, BASES[item.base].scale * 1.38); const len = m.userData.len; m.rotation.z = Math.PI; m.position.y = len * 0.78; L.model.add(m); L.len = len;
+      m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x34486e); o.material.emissiveIntensity = 0.7; } }); // a cold edge of moonlight on the steel
+      L.model.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(m), inv = L.model.matrixWorld.clone().invert(); bb.applyMatrix4(inv); L.blade = bb; // the glint runs up the real blade
+    } catch (e) { console.warn(e); }
     return L;
   }
   pedestal(room, x, y, altar, tutorial) {
@@ -236,7 +239,7 @@ class Game {
     const P = this.player;
     for (const L of this.loot) {
       if (L.room !== this.room) continue;
-      if (L.planted) { L.bob += dt; if (L.glint && L.len) { const u = (L.bob * 0.45) % 1; L.glint.position.y = L.len * (0.78 - 0.7 * (1 - u)); L.glint.material.opacity = Math.sin(u * Math.PI) * 0.9; } }
+      if (L.planted) { L.bob += dt; if (L.glint && L.blade) { const u = (L.bob * 0.45) % 1, B = L.blade; L.glint.position.set((B.min.x + B.max.x) / 2, B.min.y + 0.15 + (B.max.y - B.min.y) * 0.62 * u, B.max.z + 0.02); L.glint.material.opacity = Math.sin(u * Math.PI) * 0.9; } }
       else { L.bob += dt * 2.4; L.model.position.y = 0.55 + Math.sin(L.bob) * 0.08; L.model.rotation.y += dt * 1.6; }
       if (!L.placed) { L.vy -= 18 * dt; L.grp.position.y += L.vy * dt; const floor = this.floorBelow(L.grp.position.x, L.grp.position.y + 0.3); if (L.grp.position.y <= floor) { L.grp.position.y = floor; L.vy = 0; L.placed = true; } if (L.grp.position.y < this.room.b.y0 - 2) L.taken = true; }
       const dx = Math.abs(P.pos.x - L.grp.position.x), dy = L.grp.position.y + 0.4 - P.pos.y;
@@ -253,7 +256,7 @@ class Game {
     if (it.potion) { if (P.stats.potions >= this.potionCap()) { P.heal(Math.round(P.stats.hpMax * 0.25)); this.ui.toast('Your flasks are full — you drink it where you stand.', 'magic'); } else { P.stats.potions++; this.ui.toast(`Potion of Vigor (${P.stats.potions}/${this.potionCap()})`, 'magic'); } audio.play('heart_collect', 0.5); return; }
     if (it.up) { if (it.up === 'life') P.stats.lifeUp++; else P.stats.manaUp++; P.refreshStats(); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; audio.play('firebuff_1', 0.6); this.flash(); this.fx.burst(P.pos.x, P.pos.y + 1, it.up === 'life' ? 0xff4060 : 0x5a80ff, 40, 5); this.ui.roomName(it.up === 'life' ? 'LIFE VESSEL — MAX LIFE UP' : 'MANA VESSEL — MAX MANA UP', 2600); return; }
     P.bag.push(it);
-    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap Socket' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
+    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap GEM' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
     else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(wantsTouch() ? 'Equip it from the pack, then HOLD the shield button to raise it' : 'Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
     if (L.planted && BASES[it.base]?.slot === 'weapon' && !P.equip.weapon) { // drawn from the stone straight into the hand
       this.flags.equipHint = 1; P.equipItem('weapon', it); P.state = 'ring'; P.stateT = 0; P.ringDur = 1.1; P.vel.x = 0; this.slowMo(0.5); this.flash(); audio.play('firebuff_1', 0.5); this.fx.burst(L.x, L.y + 0.8, 0xc8d8ff, 30, 4); this.ui.roomName(it.name.toUpperCase(), 2200);
@@ -309,12 +312,12 @@ class Game {
     const old = this.room, P = this.player;
     if (!room.live) { this.loading = true; $('fade').style.opacity = 1; try { await this.ensureRoom(room); } finally { this.loading = false; } }
     if (old) { old.group.visible = false; this.leaveRoom(old); }
-    this.room = room; room.group.visible = true; this.visited.add(room.def.id);
+    this.room = room; room.group.visible = true; this.visited.add(room.def.id); if (instant) P.groundS = null;
     for (const e of room.enemies) if (e.dead && !e.boss && !e.summoner) e.reset();
     for (const bk of room.breakables) if (bk.broken && Math.random() < 0.6) { bk.broken = false; bk.grp.visible = true; }
     this.applyBells(room);
     const T = room.theme; this.scene.fog.color.setHex(T.fog[0]); this.scene.fog.near = T.fog[1]; this.scene.fog.far = T.fog[2]; this.scene.background.setHex(T.sky === 'moon' ? 0x141a30 : T.sky === 'storm' ? 0x0c1018 : T.fog[0]);
-    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.15); this.hemi.intensity = this.amb; this.hemi.color.setHex(open ? 0x8a90c0 : 0x4a4250); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
+    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.3); this.hemi.intensity = this.amb; this.hemi.color.setHex(open ? 0x8a90c0 : 0x4a4250); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
     if (!instant) { $('fade').style.opacity = 0.85; setTimeout(() => $('fade').style.opacity = 0, 90); } else $('fade').style.opacity = 0;
     this.snapCam = true;
     if (!old || old.def.name !== room.def.name) this.ui.roomName(room.def.name);
@@ -726,6 +729,7 @@ class Game {
     if (P.onGround || this.footY === undefined || this.snapCam) this.footY = P.pos.y;
     let fy = this.footY; if (P.pos.y > fy + 1.6) fy = P.pos.y - 1.6; if (P.pos.y < fy) { fy = P.pos.y; this.footY = fy; }
     let tx = P.pos.x + this.lookX, ty = fy + (def.open ? 2.6 : 1.5); // open air: give the sky and the castle more of the frame
+    if (def.vistaAt && P.pos.x - b.x0 > def.vistaAt.x) ty += 2.2; // and lift it to take in the barbican's crown
     if (boss) { tx = boss.state === 'intro' && boss.t < 2 && boss.phase === 1 ? boss.pos.x - boss.facing * 1.2 : P.pos.x * 0.6 + boss.pos.x * 0.4; ty = fy * 0.7 + (boss.pos.y + 1) * 0.3 + 1.4; }
     tx = (b.x1 - b.x0) <= halfW * 2 ? (b.x0 + b.x1) / 2 : Math.max(b.x0 + halfW, Math.min(b.x1 - halfW, tx));
     const lo = b.y0 + halfH - (def.open ? 0.7 : 0.35), hi = Math.max(lo, b.y1 - halfH + (def.open ? 6 : 0.2));

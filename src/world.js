@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const T0 = 'assets/game/tex/', I = 'assets/game/interior/', X = 'assets/game/tex2/';
 // the one dressed stone for every moulding (arcades, piers, cornices, caps): fine limestone; marble halls keep a darkened marble
-const DRESS = ['limestone_1', T0, 0x8a847c], DRESS_RED = ['oxblood_marble', X, 0x5e4248];
+const DRESS = ['limestone_1', T0, 0x8a847c], DRESS_RED = ['limestone_1', T0, 0x96706e]; // marble halls: the dressed stone with an oxblood wash
 // [texture, dir, tint]. back = far wall, floor/wall = room shell, block = solid masonry and ledges, rug = carpet runner.
 const THEMES = {
   outdoor:   { sky: 'moon', floor: ['road_sett', T0], wall: ['ashlar', T0], block: ['bridge_ashlar', X], fog: [0x1a2238, 18, 110], amb: 0.55, moon: 1.6, trim: 0x9a8c70 },
@@ -17,7 +17,7 @@ const THEMES = {
   chapel:    { arcade: true, back: ['wall_rough', I], floor: ['flags', T0], wall: ['ashlar', T0], block: ['pv_carved_stone', X], fog: [0x0e0a14, 18, 60], amb: 0.32, moon: 0.8, pillars: true, trim: 0x9a8c70 },
   throne:    { arcade: true, dress: DRESS_RED, back: ['wall_ashlar', I, 0x9a8ea6], floor: ['marble', I, 0x6a6070], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x0a0610, 18, 60], amb: 0.32, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xc0a060 },
   courtyard: { sky: 'moon', wallH: 4, backWall: ['pv_curtain_granite_a', X], floor: ['pv_courtyard_setts_a', X], wall: ['pv_curtain_granite_b', X], block: ['pv_rusticated_plinth_a', X], fog: [0x161c30, 20, 110], amb: 0.5, moon: 1.7, trim: 0x8a94a8 },
-  vestibule: { arcade: true, dress: DRESS_RED, back: ['pv_limestone_interior_a', X, 0x8a847c], floor: ['pv_velscour_inlay_a', X], wall: ['pv_keep_dressed_stone_a', X], block: ['oxblood_marble', X], fog: [0x0e0a12, 20, 70], amb: 0.4, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xd0b070 },
+  vestibule: { arcade: true, dress: DRESS_RED, back: ['pv_limestone_interior_a', X, 0x8a847c], floor: ['pv_velscour_inlay_a', X, 0x8a8078], wall: ['pv_keep_dressed_stone_a', X], block: ['oxblood_marble', X], fog: [0x0e0a12, 20, 70], amb: 0.4, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xd0b070 },
   servants:  { back: ['pv_warm_grey_plaster', X], wainscot: ['pv_wood_panelling', X], floor: ['worn_floorboards', X], wall: ['pv_city_clay_brick_a', X], block: ['pv_hearth_brick', X], fog: [0x100b08, 14, 46], amb: 0.36, moon: 0.3, trim: 0xa07a50, beams: true },
   aqueduct:  { back: ['waterline_wall', X], floor: ['pv_undercroft_blocks_a', X], wall: ['pv_undercroft_blocks_c', X], block: ['pv_undercroft_blocks_b', X], fog: [0x06100e, 12, 44], amb: 0.32, moon: 0.25, trim: 0x6a9a8a, damp: true },
   cistern:   { arcade: true, back: ['pv_bastion_basalt_a', X], floor: ['pv_hall_flagstones_c', X], wall: ['pv_bastion_basalt_b', X], block: ['pv_bastion_basalt_c', X], fog: [0x040c12, 14, 60], amb: 0.3, moon: 0.3, pillars: true, trim: 0x5a9ab0, damp: true },
@@ -27,7 +27,7 @@ const THEMES = {
   library:   { back: ['book_spines', X], floor: ['oak_planks', X], wall: ['pv_dark_walnut', X], block: ['pv_carved_wood', X], fog: [0x0c0806, 16, 52], amb: 0.38, moon: 0.3, rug: ['pv_blue_geometric', X], trim: 0xc09a50 },
   garden:    { sky: 'moon', wallH: 3.6, backWall: ['pv_curtain_granite_b', X], floor: ['dead_grass', X], wall: ['pv_curtain_granite_d', X], block: ['moss_1', T0], fog: [0x101a1a, 18, 100], amb: 0.48, moon: 1.6, trim: 0x6a8a50, trimGlow: 0.07, ivy: true },
   menagerie: { back: ['pv_keep_dressed_stone_b', X], floor: ['straw_ground', X], wall: ['pv_keep_dressed_stone_c', X], block: ['riveted_plate', X], fog: [0x0c0a06, 14, 50], amb: 0.34, moon: 0.4, trim: 0xa08040, bars: true },
-  catacomb:  { back: ['skulls', I], floor: ['cata_floor2', I], wall: ['cata_wall3', I], block: ['cata_block', I], fog: [0x060606, 9, 34], amb: 0.28, moon: 0.15, trim: 0xb0a890 },
+  catacomb:  { arcade: true, back: ['skulls', I], floor: ['cata_floor2', I], wall: ['cata_wall3', I], block: ['cata_block', I], fog: [0x060606, 9, 34], amb: 0.28, moon: 0.15, trim: 0xb0a890 },
   royalcrypt:{ arcade: true, back: ['mausoleum_marble', X, 0x8a8a98], floor: ['bone_checker', X], wall: ['pv_chalk_ashlar', X], block: ['mausoleum_marble', X], fog: [0x0a0a10, 12, 44], amb: 0.36, moon: 0.3, pillars: true, trim: 0xc8c8e0 },
   clock:     { back: ['bronze_plates', X, 0x9a9080], floor: ['walk_paving', X], wall: ['riveted_plate', X], block: ['bronze_plates', X], fog: [0x0c0a06, 16, 56], amb: 0.36, moon: 0.4, trim: 0xd0a040, cogs: true },
   mine:      { back: ['granite_cliff', X], floor: ['ash_clay_ground', X], wall: ['obsidian', X], block: ['keep_basalt', X], fog: [0x06060a, 10, 40], amb: 0.28, moon: 0.2, trim: 0x8070b0 },
@@ -38,7 +38,7 @@ const THEMES = {
   rampart:   { sky: 'storm', wallH: 1.3, backWall: ['bridge_ashlar', X], floor: ['walk_paving', X], wall: ['bridge_ashlar', X], block: ['bridge_ashlar', X], fog: [0x10141e, 20, 120], amb: 0.5, moon: 1.3, trim: 0x8a94a8, merlons: true },
   belfry:    { back: ['pv_curtain_granite_d', X], floor: ['tar_boards', X], wall: ['pv_curtain_granite_a', X], block: ['adzed_beam', X], fog: [0x0a0c14, 16, 60], amb: 0.36, moon: 0.7, trim: 0xb0b8d0, beams: true },
   sanctum:   { arcade: true, back: ['obsidian', X, 0x7068a0], floor: ['pv_bastion_basalt_d', X], wall: ['keep_basalt', X], block: ['obsidian', X], fog: [0x04030a, 12, 50], amb: 0.3, moon: 0.3, trim: 0x9070ff, stars: true },
-  hollow:    { arcade: true, back: ['pv_keep_dressed_stone_a', X, 0x9a8a78], dress: DRESS_RED, floor: ['pv_velscour_inlay_d', X], wall: ['bloodstone', X], block: ['oxblood_marble', X], fog: [0x100604, 18, 70], amb: 0.4, moon: 0.5, pillars: true, rug: ['pv_red_gothic', X], trim: 0xffc050 },
+  hollow:    { arcade: true, back: ['pv_keep_dressed_stone_a', X, 0x9a8a78], dress: DRESS_RED, floor: ['pv_velscour_inlay_d', X, 0x8a8078], wall: ['bloodstone', X], block: ['oxblood_marble', X], fog: [0x100604, 18, 70], amb: 0.4, moon: 0.5, pillars: true, rug: ['pv_red_gothic', X], trim: 0xffc050 },
 };
 export const ZB = -3.4, ZF = 2.6; // back wall depth, front lip of floors (collision depth)
 export const FRONT = 1.6; // where an interior floor's moulded front edge is drawn: the slab no longer eats the frame
@@ -148,7 +148,7 @@ function box(m, x0, y0, x1, y1, z0 = ZB, z1 = ZF) {
 }
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
 const RECESS = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }), GLOW = new THREE.MeshBasicMaterial({ color: 0xffb060, fog: false });
-let _gear; const GEAR = () => _gear ||= (() => { const m = surface('bronze_plates', 0.6, 0.6, { dir: X, rough: 0.5, tint: 0xd0b890 }).clone(); m.metalness = 0.35; m.emissive = new THREE.Color(0x1a1206); return m; })();
+let _gear; const GEAR = () => _gear ||= new THREE.MeshStandardMaterial({ color: 0x8a6a3a, metalness: 0.85, roughness: 0.48, emissive: 0x120a04 }); // brass
 const BEAM = std(0x2a1c12, { roughness: 0.85 }), IRON = std(0x2a2522, { metalness: 0.75, roughness: 0.45 }), BRASS = std(0xb08a3a, { metalness: 0.9, roughness: 0.35 }), WAX = std(0xe8dcc0, { roughness: 0.6 }), DARK = std(0x15121a, { roughness: 0.7 });
 function tex(name, dir = X) { return texture(`${dir}${name}_c.webp`); }
 // white-on-black mask textures become tinted decals
@@ -195,11 +195,11 @@ export class World {
     const def = room.def, T = room.theme, b = room.b, g = new THREE.Group(); g.visible = false; g.name = def.id; room.group = g;
     const W = b.x1 - b.x0, H = b.y1 - b.y0, add = o => { g.add(o); return o; };
     SEED = hashStr(def.id); const seed = SEED, P_ = k => pickSpec(def.theme, T, k), S_ = { wall: P_('wall'), floor: P_('floor'), block: P_('block'), back: P_('back'), backWall: P_('backWall'), wainscot: P_('wainscot') }; room.spec = S_;
-    const KIT = await castleKit();
+    const KIT = await castleKit(); room.wallRects = [];
     const wallM = tm(S_.wall), floorM = tm(S_.floor), blockM = tm(S_.block), capM = [blockM, blockM, floorM, blockM, blockM, blockM]; // block tops read as floor: the walkable surface shows by value, not glow
     const TRIM = std(T.trim, { emissive: T.trim, emissiveIntensity: Math.min(0.04, T.trimGlow ?? 0.04), roughness: 0.7 }), NOSE = std(T.trim, { emissive: T.trim, emissiveIntensity: 0.02, roughness: 0.8 });
     room.trim = TRIM;
-    const fy = b.y0 + FLOOR, timber = /library|belfry|clock|servants|prison|portrait/.test(def.theme), slots = this.kitSlots(room, KIT);
+    const fy = b.y0 + FLOOR, timber = /library|belfry|clock|servants|prison|portrait/.test(def.theme), slots = this.kitSlots(room, KIT); room.kit = KIT; room.slots = slots;
     const hasBelow = (s) => room.solids.some(o => o !== s && !o.oneway && o.y1 <= s.y0 + 0.05 && o.y1 >= s.y0 - 0.05 && o.x0 < s.x1 - 0.2 && o.x1 > s.x0 + 0.2);
     for (const s of room.solids) {
       switch (s.kind) {
@@ -210,12 +210,12 @@ export class World {
           add(wbox(DARK, s.x0, s.y1 - 0.34, s.x1, s.y1 - 0.2, z1 - 0.04, z1 + 0.01)); // shadow line under the nosing
           break;
         }
-        case 'ceil': add(wbox(wallM, s.x0, s.y0, s.x1, s.y1 + 0.99)); break;
+        case 'ceil': add(wbox(wallM, s.x0, s.y0, s.x1, s.y1 + 0.99, ZB, FRONT)); if (!timber && !T.beams) { const rm = tm(T.dress || DRESS, false, 0.6); for (let rx = b.x0 + 3.3; rx < b.x1 - 1; rx += 6.667) if (rx > s.x0 + 0.3 && rx < s.x1 - 0.3) { add(wbox(rm, rx - 0.22, s.y0 - 0.32, rx + 0.22, s.y0, ZB, FRONT)); add(nosing(rm, rx - 0.22, rx + 0.22, s.y0 - 0.32, FRONT, 0.06)); } } break;
         case 'wall': if (!def.open || T.backWall) add(wbox(wallM, s.x0, s.y0, s.x1, Math.min(s.y1, b.y1 + 1.5), ZB, 1.2)); break;
         case 'ledge': add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 1.6)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 1.6)); break;
         case 'plat': {
           const w = s.x1 - s.x0;
-          const ground = Math.max(...[s.x0 + 0.3, s.x1 - 0.3].map(px => this.groundAt(room, px, s.y0)));
+          const ground = Math.max(...[s.x0 + 0.3, s.x1 - 0.3].map(px => this.groundAt(room, px, s.y0, def.open)));
           if (timber) { // a timber gallery: boards on joists; posts to the floor with knee braces in the picture plane, or iron hangers from the vault
             const wood = tm(['oak_planks', X], false), beam = tm(['adzed_beam', X], false);
             add(wbox(wood, s.x0, s.y1 - 0.12, s.x1, s.y1, ZB, 0.9)); add(wbox(beam, s.x0, s.y1 - 0.42, s.x1, s.y1 - 0.12, 0.5, 0.82)); add(wbox(beam, s.x0, s.y1 - 0.42, s.x1, s.y1 - 0.12, ZB + 0.2, ZB + 0.52));
@@ -223,20 +223,31 @@ export class World {
               add(wbox(beam, px - 0.13, ground, px + 0.13, s.y1 - 0.42, -1.1, -0.84)); add(wbox(beam, px - 0.13, ground, px + 0.13, s.y1 - 0.42, ZB + 0.2, ZB + 0.46));
               const kb = wbox(beam, -0.07, -0.75, 0.07, 0.75, -0.07, 0.07); kb.geometry.rotateZ(d * 0.785); kb.geometry.translate(px + d * 0.5, s.y1 - 0.92, -0.97); worldUV(kb.geometry); add(kb);
             } else for (const px of [s.x0 + 0.3, s.x1 - 0.3]) { const up = this.ceilingAt(room, px, s.y1); add(wbox(IRON, px - 0.035, s.y1 - 0.4, px + 0.035, up, 0.62, 0.69)); add(wbox(IRON, px - 0.035, s.y1 - 0.4, px + 0.035, up, ZB + 0.3, ZB + 0.37)); }
-          } else if (def.open && s.y0 - ground < 9) { // open air: a slab on columns standing on the ground below
-            add(wbox(capM, s.x0, s.y0, s.x1, s.y1, -1.6, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
-            const cm = tm(T.dress || DRESS, false, 0.6); for (const px of w > 3 ? [s.x0 + 0.5, s.x1 - 0.5] : [(s.x0 + s.x1) / 2]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, s.y0 - ground, 10), cm); c.position.set(px, (s.y0 + ground) / 2, -0.4); c.castShadow = true; add(c); add(wbox(cm, px - 0.42, s.y0 - 0.28, px + 0.42, s.y0, -0.82, 0.02)); add(wbox(cm, px - 0.42, ground, px + 0.42, ground + 0.32, -0.82, 0.02)); }
+          } else if (def.open && s.y0 - ground < 9 && s.y0 - ground > 1.6) { // open air: a ruined cloister bay — a pointed arch on two piers carries the slab
+            const endM = tm(T.dress || DRESS, false, 0.6); add(wbox([endM, endM, floorM, blockM, blockM, blockM], s.x0, s.y0, s.x1, s.y1, -1.6, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
+            const c = (s.x0 + s.x1) / 2, sx = Math.max(0.5, w / 6.667), H2 = s.y0 - ground, sy = Math.min(1.0, H2 / 5.2, sx * 1.15), spring = s.y0 - 4.0 * sy, P = { ...slots, stone: slots.trim }, sc = Math.min(0.62, 0.3 + w * 0.06);
+            for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, 'bay_low' + part, part === '_spandrel' ? { ...slots, stone: tm(S_.block, true) } : P, c, spring, -1.75, sx, sy, 1);
+            for (const px of [c - 2.83 * sx, c + 2.83 * sx]) this.kitPier(room, px, ground, spring, sc, -1.25);
           } else if (def.open) { // high in open air: hung on chains
             add(wbox(capM, s.x0, s.y0, s.x1, s.y1, -1.6, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
             for (const px of [s.x0 + 0.3, s.x1 - 0.3]) add(chain(0x6a6a6a, 0.22, 9, px, s.y1 + 4.5, -0.4));
           } else { // a stone slab built into the wall, carried on carved corbels
-            add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
+            const endM = tm(T.dress || DRESS, false, 0.6); add(wbox([endM, endM, floorM, blockM, blockM, blockM], s.x0, s.y0, s.x1, s.y1, ZB, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
             const n = Math.max(2, Math.ceil(w / 2)); for (let i = 0; i < n; i++) { const cx = s.x0 + 0.4 + (w - 0.8) * (n === 1 ? 0.5 : i / (n - 1)); kitPiece(room, KIT, 'corbel', { stone: blockM && tm(S_.block, true) }, cx, s.y0, ZB + 1.7); }
           }
           break;
         }
         case 'block': {
-          add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 1.75));
+          const niche = /catacomb|ossuary|crypt/.test(def.theme) && s.y1 - s.y0 >= 1.8 && s.x1 - s.x0 <= 3, hang = !hasBelow(s) && s.y0 > fy + 0.2 && room.solids.some(o => o !== s && o.y0 <= s.y1 + 0.05 && o.y0 >= s.y1 - 0.05 && o.x0 < s.x1 && o.x1 > s.x0);
+          if (niche) { const nm = tm(['niches', I]); add(wbox([blockM, blockM, floorM, blockM, nm, blockM], s.x0, s.y0, s.x1, s.y1, ZB, 1.75)); } // a pier of burial niches
+          else if (hang && def.theme === 'prison' && s.x1 - s.x0 < 1.5) { // a cell front: the hanging stub is its lintel's end; a grille set back between jambs
+            const dm = tm(T.dress || DRESS, false, 0.6), x0 = s.x0 - 3.2, x1 = s.x1, gy = s.y0;
+            add(wbox(dm, x0, gy - 0.05, x1, s.y1, ZB, ZB + 0.95)); add(wbox(dm, x1 - 0.45, fy, x1, gy, ZB, ZB + 0.85)); add(wbox(dm, x0, fy, x0 + 0.45, gy, ZB, ZB + 0.85));
+            const bars = new THREE.MeshStandardMaterial({ map: tex('wrought_bars'), metalness: 0.6, roughness: 0.6, transparent: true, alphaTest: 0.3 }), gp = plane(bars, x1 - x0 - 0.9, gy - fy, (x0 + x1) / 2, (gy + fy) / 2, ZB + 0.4); add(gp);
+            const cell = plane(RECESS, x1 - x0 - 0.9, gy - fy, (x0 + x1) / 2, (gy + fy) / 2, ZB + 0.06); add(cell); room.cells = (room.cells || []).concat((x0 + x1) / 2);
+            break;
+          }
+          else add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 1.75));
           add(nosing(s.ref.stair ? NOSE : blockM, s.x0, s.x1, s.y1 + 0.004, 1.75, 0.07));
           if (s.y0 > fy + 0.2 && !hasBelow(s)) { // a mass that hangs in the air needs a reason: stub piers to the floor, or corbels into the wall
             const pm = tm(T.dress || S_.block);
@@ -284,7 +295,7 @@ export class World {
     if (T.damp) for (let x = b.x0 + 4; x < b.x1 - 2; x += rnd(7, 12)) add(plane(decal(Math.random() < 0.5 ? 'damp_rise' : 'soot_streaks', 0x0a1410, 0.75), 6, 5, x, b.y0 + FLOOR + 2.5 + (Math.random() < 0.5 ? 0 : Math.min(H - 6, 3)), ZB + 0.04));
     if (T.heat || def.theme === 'catacomb' || def.theme === 'crypt') for (let x = b.x0 + 5; x < b.x1 - 2; x += rnd(9, 15)) add(plane(decal(T.heat ? 'soot_streaks' : 'blood_splashes', T.heat ? 0x050302 : 0x3a0406, 0.8), 5, 5, x, b.y0 + FLOOR + 3, ZB + 0.04));
     if (T.ivy) for (let x = b.x0 + 3; x < b.x1 - 3; x += rnd(8, 14)) add(plane(decal('dead_ivy', 0x2a3a1a, 0.95), 5, 5, x, b.y0 + FLOOR + 2.6, ZB + 0.05));
-    if (T.bars) for (let x = b.x0 + 6; x < b.x1 - 4; x += 13.3) { const p = plane(new THREE.MeshStandardMaterial({ map: tex('wrought_bars'), metalness: 0.6, roughness: 0.6 }), 4, 4, x, b.y0 + FLOOR + 2.2, ZB + 0.06); add(p); }
+    if (T.bars) for (let x = b.x0 + 6; x < b.x1 - 4; x += 13.3) if (!(room.cells || []).some(c => Math.abs(c - x) < 5)) { const p = plane(new THREE.MeshStandardMaterial({ map: tex('wrought_bars'), metalness: 0.6, roughness: 0.6 }), 4, 4, x, b.y0 + FLOOR + 2.2, ZB + 0.06); add(p); }
     if (T.cogs) for (let x = b.x0 + 5; x < b.x1 - 3; x += rnd(9, 14)) for (let y = b.y0 + 4; y < b.y1 - 2; y += rnd(9, 14)) this.bgGear(room, x, y, rnd(1.2, 2.6));
     if (T.stars) { const n = Math.round(W * H / 6), pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) pos.set([b.x0 + Math.random() * W, b.y0 + Math.random() * H, ZB + 0.1 + Math.random() * 0.4], i * 3); const pts = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pos, 3)), new THREE.PointsMaterial({ color: 0xc8d0ff, size: 0.09, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); add(pts); room.anim.push(t => { pts.material.opacity = 0.65 + Math.sin(t * 1.3) * 0.25; }); }
     if (T.merlons) for (let x = b.x0 + 0.6; x < b.x1 - 1; x += 2.6) add(box(mat(S_.block, 1, 1), x, b.y0 + FLOOR, x + 1.3, b.y0 + FLOOR + 1.1, ZB + 0.1, ZB + 0.9));
@@ -296,18 +307,17 @@ export class World {
     for (const l of def.lava) this.lava(room, b.x0 + l.x, b.y0 + l.y, l.w, l.h);
     for (const w of def.water) this.water(room, b.x0 + w.x, b.y0 + w.y, w.w, w.h);
     for (const bl of room.blades) this.blade(room, bl);
-    room.wallRects = [];
     for (const p of [...def.props].sort((a, c) => (/window/.test(c.t) ? 1 : 0) - (/window/.test(a.t) ? 1 : 0))) { try { await this.prop(room, p); } catch (e) { console.warn('prop', def.id, p.t, e); } }
     this.sconces(room);
     SEED = seed; this.dress(room, seed);
     flushKit(room);
     // SotN-style breakable candle stands in the play plane
     for (const bk of def.breakables) {
-      const x = b.x0 + bk.x, y = b.y0 + (bk.y ?? FLOOR), grp = new THREE.Group(); grp.position.set(x, y, 0.2);
+      const x = b.x0 + bk.x, y = b.y0 + (bk.y ?? FLOOR), grp = new THREE.Group(); grp.position.set(x, y, -0.55);
       const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.07, 1.1, 6), IRON); stem.position.y = 0.55;
       const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.08, 0.08, 8), IRON); dish.position.y = 1.12;
       const wax = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.26, 8), WAX); wax.position.y = 1.29;
-      grp.add(stem, dish, wax, sprite(flameTex(), 0xffb050, 0.2, 0.34, 0, 1.55, 0), sprite(glowTex(), 0xff9040, 1.1, 1.1, 0, 1.5, 0, 0.5)); g.add(grp); room.breakables.push({ x, y, grp, broken: false });
+      grp.add(stem, dish, wax, sprite(flameTex(), 0xffb050, 0.2, 0.34, 0, 1.55, 0), sprite(glowTex(), 0xff9040, 1.1, 1.1, 0, 1.5, 0, 0.5)); grp.traverse(o => { if (o.isMesh) o.renderOrder = 2; }); g.add(grp); room.breakables.push({ x, y, grp, broken: false });
     }
     if (def.save) this.saveStatue(room, b.x0 + def.save.x, b.y0 + FLOOR);
     if (def.warp) this.warpMirror(room, b.x0 + def.warp.x, b.y0 + FLOOR);
@@ -403,7 +413,7 @@ export class World {
     return { stone: tm(S_.back || S_.wall, true), trim: tm(T.dress || DRESS, true, 0.6), dark: DARK, wood: tm(['oak_planks', X], true), glow: GLOW, roof: tm(['slate_roof', X], true), glass: GLOW };
   }
   // the top of whatever stands under x below height y (the floor at least); the underside of whatever is above
-  groundAt(room, x, y) { let best = room.b.y0 + FLOOR; for (const s of room.solids) if (!s.oneway && s.kind !== 'ceil' && x > s.x0 && x < s.x1 && s.y1 <= y + 0.01 && s.y1 > best) best = s.y1; return best; }
+  groundAt(room, x, y, oneway = false) { let best = room.b.y0 + FLOOR; for (const s of room.solids) if ((!s.oneway || (oneway && s.kind === 'plat')) && s.kind !== 'ceil' && x > s.x0 && x < s.x1 && s.y1 <= y + 0.01 && s.y1 > best) best = s.y1; return best; }
   ceilingAt(room, x, y) { let best = room.b.y1 - FLOOR; for (const s of room.solids) if (x > s.x0 && x < s.x1 && s.y0 >= y && s.y0 < best) best = s.y0; return best; }
   // a compound pier (base, shaft, capital) standing at y0 and carrying an arch that springs at y1
   kitPier(room, x, y0, y1, sc = 1, z = ZB + 0.5) {
@@ -423,22 +433,39 @@ export class World {
     room.pillarX = piers.slice();
     const tall = C > 8, heavy = def.props.filter(p => /altar|sarcophagus|throne|organ|statue|fountain|bookshelf|furnace|coffin|pews|bigbell/.test(p.t)).map(p => b.x0 + p.x);
     const stands = room.solids.filter(s => s.kind === 'block' && s.y0 <= fy + 0.1);
-    const cornice = y => { g.add(wbox(trimM, b.x0, y, b.x1, y + 0.32, ZB, Z + 0.28)); g.add(nosing(trimM, b.x0, b.x1, y + 0.32, Z + 0.28, 0.08)); };
+    const cornice = y => { g.add(wbox(trimM, b.x0, y, b.x1, y + 0.32, ZB, Z + 0.28)); g.add(nosing(trimM, b.x0, b.x1, y + 0.32, Z + 0.28, 0.08)); room.wallRects.push({ x0: b.x0, x1: b.x1, y0: y - 0.05, y1: y + 0.4 }); };
     const solidsIn = (x0, x1, y0, y1) => room.solids.some(s => ['plat', 'block', 'ledge', 'crack', 'echo'].includes(s.kind) && s.x0 < x1 && s.x1 > x0 && s.y0 < y1 && s.y1 > y0);
+    const underIn = (x0, x1, y0, y1) => room.solids.filter(s => ['plat', 'block', 'ledge', 'crack', 'echo'].includes(s.kind) && s.x0 < x1 && s.x1 > x0 && s.y0 < y1 && s.y1 > y0).reduce((m, s) => Math.min(m, s.y0), Infinity);
     const tier = (name, spring, top, sy, sc) => {
-      const rise = (name === 'bay_high' ? 4.9 : 3.6) * sy;
+      const rise = (name === 'bay_high' ? 4.9 : 3.6) * sy, base = room._tierBase ?? fy, landed = [];
       for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) {
-        if (solidsIn(c - 2.9, c + 2.9, spring - 0.2, spring + rise + 0.5)) { room.blind = (room.blind || []).concat({ c, spring }); continue; }
-        for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, name + part, part === '_spandrel' ? S : P, c, spring, ZB, 1, sy, 1);
-        const rc = new THREE.Mesh(new THREE.ShapeGeometry(archShape(5.6, rise, 16, spring - (room._tierBase ?? fy))), RECESS); rc.position.set(c, spring, ZB + 0.04); g.add(rc); // the recess falls into shadow
+        if (!solidsIn(c - 2.9, c + 2.9, spring - 0.2, spring + rise + 0.5)) {
+          for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, name + part, part === '_spandrel' ? S : P, c, spring, ZB, 1, sy, 1);
+          const rc = new THREE.Mesh(new THREE.ShapeGeometry(archShape(5.6, rise, 16, spring - base)), RECESS); rc.position.set(c, spring, ZB + 0.04); g.add(rc);
+          landed.push(c); continue;
+        }
+        // something crosses this bay: a lower arch tucked under it, springing from imposts on the piers, or a moulded panel
+        const under = underIn(c - 2.9, c + 2.9, base + 0.4, spring + rise + 0.5), sy2 = Math.min(sy, (under - 0.3 - (base + 2.0)) / 4.0), sp2 = under - 0.3 - 4.0 * sy2;
+        if (sy2 >= 0.42 && !solidsIn(c - 2.9, c + 2.9, base + 0.2, sp2 + 3.6 * sy2 + 0.2)) {
+          for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, 'bay_low' + part, part === '_spandrel' ? S : P, c, sp2, ZB, 1, sy2, 1);
+          const rc = new THREE.Mesh(new THREE.ShapeGeometry(archShape(5.6, 3.6 * sy2, 16, sp2 - base)), RECESS); rc.position.set(c, sp2, ZB + 0.04); g.add(rc);
+          landed.push(c); room._imp = (room._imp || []).concat([[c - 3.333, sp2], [c + 3.333, sp2]]);
+        } else if (under - base > 2.2) {
+          const y0 = base + 0.5, y1 = Math.min(under, spring + rise) - 0.45, w2 = 2.3;
+          if (y1 - y0 > 1.2) { for (const [a, c2, d, e] of [[c - w2, c + w2, y1, y1 + 0.18], [c - w2, c + w2, y0 - 0.18, y0], [c - w2, c - w2 + 0.18, y0, y1], [c + w2 - 0.18, c + w2, y0, y1]]) g.add(wbox(trimM, a, d, c2, e, ZB, ZB + 0.22)); const pn = new THREE.Mesh(new THREE.PlaneGeometry(w2 * 2 - 0.36, y1 - y0), RECESS); pn.position.set(c, (y0 + y1) / 2, ZB + 0.03); g.add(pn); }
+        }
       }
       for (const x of piers) {
-        let y0 = room._tierBase ?? fy;
+        if (!landed.some(c => Math.abs(Math.abs(c - x) - 3.333) < 0.2)) continue; // a pier only where an arch lands
+        let y0 = base;
         const on = stands.find(s => x > s.x0 - 0.5 && x < s.x1 + 0.5); if (on && y0 === fy) y0 = on.y1;
-        this.kitPier(room, x, y0, spring, sc, Z);
+        if (spring - y0 < 0.75 * sc + 0.72 * sc + 0.3) continue; // no lone capitals stuck to the wall
+        this.kitPier(room, x, y0, spring, sc, Z); room._piersMade = (room._piersMade || []).concat({ x, spring, sc });
       }
+      for (const [x, sp2] of room._imp || []) if (room._piersMade?.some(p => Math.abs(p.x - x) < 0.2 && p.spring === spring)) kitPiece(room, KIT, 'pier_cap', P, x, sp2 - 0.72 * sc * 0.75, Z + 0.36 * sc, sc * 0.75, sc * 0.75, sc * 0.75); // impost for the lower arch
+      room._imp = null;
       cornice(spring + top * sy);
-      room.arches = (room.arches || []).concat(piers.map(x => ({ c: x + 3.333, spring, apex: spring + rise })).filter(a => !(room.blind || []).some(o => Math.abs(o.c - a.c) < 1 && o.spring === spring)));
+      room.arches = (room.arches || []).concat(landed.map(c => ({ c, spring, apex: spring + rise })));
       return spring + top * sy + 0.32;
     };
     let y;
@@ -452,14 +479,20 @@ export class World {
         if (k % 2 === 0 && cy - y > 4.8 && !LOW_MEM) { room._tierBase = y; y = tier('bay_low', y + 1.3, 4.0, 0.8, 0.5); }
         else { // clerestory: lancets between wall shafts
           const h = Math.min(4.4, cy - y - 0.6), sc = h / 4.6;
-          for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) if (c > b.x0 + 1.5 && c < b.x1 - 1.5 && !solidsIn(c - 1.4, c + 1.4, y, y + h + 0.5)) { this.lancet(room, c, y + 0.35, sc, T.sky ? GLOW : this.nightGlass(c)); room.lancets = (room.lancets || 0) + 1; }
-          for (const x of piers) kitPiece(room, KIT, 'pier_shaft', P, x, y, Z + 0.15, 0.4, h + 0.4, 0.4);
+          const lit = []; for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) if (c > b.x0 + 1.5 && c < b.x1 - 1.5 && !solidsIn(c - 1.4, c + 1.4, y, y + h + 0.5)) { this.lancet(room, c, y + 0.35, sc, T.sky ? GLOW : this.nightGlass(c)); room.lancets = (room.lancets || 0) + 1; lit.push(c); }
+          for (const x of piers) if (lit.some(c => Math.abs(Math.abs(c - x) - 3.333) < 0.2)) kitPiece(room, KIT, 'pier_shaft', P, x, y, Z + 0.15, 0.4, h + 0.4, 0.4);
           y += h + 0.6; cornice(y - 0.3);
         }
       }
     }
     room._tierBase = null;
-    room.pierInfo = { piers, fy, C };
+    for (const pm of room._piersMade || []) for (const sl of room.solids) {
+      if (!['plat', 'block'].includes(sl.kind) || sl.y0 <= pm.spring + 0.6 || sl.y0 > pm.spring + 4.5) continue;
+      if (Math.min(Math.abs(sl.x0 - pm.x), Math.abs(sl.x1 - pm.x)) > 1.0 && !(sl.x0 < pm.x && sl.x1 > pm.x)) continue;
+      kitPiece(room, KIT, 'pier_shaft', P, pm.x, pm.spring, Z + 0.2, 0.42 * pm.sc / 0.72, sl.y0 - 0.5 - pm.spring, 0.42 * pm.sc / 0.72);
+      kitPiece(room, KIT, 'pier_cap', P, pm.x, sl.y0 - 0.5, Z + 0.25, 0.55, 0.69, 0.55);
+    }
+    room.pierInfo = { piers: (room._piersMade || []).map(p => p.x), fy, C }; room._piersMade = null;
   }
   // a dark arcade gets a sconce on every other pier with no fire near it (after the room's own torches are placed)
   sconces(room) { const I = room.pierInfo; if (!I) return; I.piers.forEach((x, i) => { const ly = I.fy + Math.min(3.0, I.C - 1.5); if (i % 2 === 0 && !room.sources.some(s => Math.hypot(s.x - x, s.y - ly) < 6.5)) this.torch(room, x, ly, ZB + 1.55); }); }
@@ -479,7 +512,7 @@ export class World {
     flushKit(room);
   }
 
-  bgGear(room, x, y, r) { const gm = GEAR(); const c = new THREE.Mesh(gearGeo(r, Math.round(8 + r * 4)), gm); c.position.set(x, y, ZB + 0.25); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.26, r * 0.26, 0.5, 14), IRON); hub.rotation.x = Math.PI / 2; hub.position.z = 0.2; c.add(hub); c.castShadow = true; room.group.add(c); const sp = rnd(0.2, 0.6) * (Math.random() < 0.5 ? -1 : 1); room.anim.push(t => { c.rotation.z = t * sp; }); }
+  bgGear(room, x, y, r) { const gm = GEAR(); const c = new THREE.Mesh(gearGeo(r, Math.round(8 + r * 4)), gm); c.position.set(x, y, ZB + 0.25); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.27, r * 0.3, 0.52, 16), gm); hub.rotation.x = Math.PI / 2; hub.position.z = 0.15; c.add(hub); const cap = new THREE.Mesh(new THREE.SphereGeometry(r * 0.12, 12, 8), IRON); cap.position.z = 0.42; c.add(cap); for (let k = 0; k < 5; k++) { const a = (k + 0.5) / 5 * Math.PI * 2, sp = new THREE.Mesh(new THREE.BoxGeometry(r * 0.12, r * 0.6, 0.22), gm); sp.position.set(Math.cos(a) * r * 0.48, Math.sin(a) * r * 0.48, 0.15); sp.rotation.z = a - Math.PI / 2; c.add(sp); } c.castShadow = true; room.group.add(c); const sp = rnd(0.2, 0.6) * (Math.random() < 0.5 ? -1 : 1); room.anim.push(t => { c.rotation.z = t * sp; }); }
 
   async sky(room, kind, KIT) {
     const g = room.group, b = room.b, storm = kind === 'storm';
@@ -494,14 +527,14 @@ export class World {
       const sk = src.clone(true), mats = {
         stone: new THREE.MeshStandardMaterial({ color: storm ? 0x0c0e16 : 0x10142a, roughness: 1, vertexColors: true, fog: false }),
         stonelit: new THREE.MeshStandardMaterial({ color: storm ? 0x262c3c : 0x2c3656, emissive: storm ? 0x0a0c14 : 0x0c1222, roughness: 1, vertexColors: true, fog: false }),
-        roof: new THREE.MeshStandardMaterial({ color: storm ? 0x080a10 : 0x0a0d1c, roughness: 0.6, metalness: 0.3, vertexColors: true, fog: false }),
-        glow: new THREE.MeshBasicMaterial({ color: 0xffa24a, fog: false }), roseglow: new THREE.MeshBasicMaterial({ color: 0x2a1418, fog: false }), dark: new THREE.MeshBasicMaterial({ color: 0x04050a, fog: false }) };
+        roof: new THREE.MeshStandardMaterial({ color: storm ? 0x080a10 : 0x0a0d1c, roughness: 1, metalness: 0, vertexColors: true, fog: false }),
+        glow: new THREE.MeshBasicMaterial({ color: 0xa8743c, fog: false }), roseglow: new THREE.MeshBasicMaterial({ color: 0x2a1418, fog: false }), dark: new THREE.MeshBasicMaterial({ color: 0x04050a, fog: false }) };
       sk.traverse(o => { if (o.isMesh) { o.material = mats[(o.material.name || 'stone').replace(/\.\d+$/, '')] || mats.stone; o.castShadow = o.receiveShadow = false; o.frustumCulled = false; } });
       sk.scale.setScalar(0.5); sk.position.z = -92; g.add(sk);
       const place = () => { const c = this.cam || { x: (b.x0 + b.x1) / 2, y: b.y0 + 4 }; sk.position.x = c.x + (350 - c.x) * 0.16; sk.position.y = c.y - 40 + (60 - c.y) * 0.1; };
       place(); room.anim.push(place);
-      const far = src.clone(true), haze = new THREE.MeshBasicMaterial({ color: storm ? 0x1a2030 : 0x1c2440, fog: false }), hazeLit = new THREE.MeshBasicMaterial({ color: storm ? 0x242a3a : 0x27304e, fog: false });
-      far.traverse(o => { if (o.isMesh) { const n = (o.material.name || '').replace(/\.\d+$/, ''); o.material = n === 'glow' ? new THREE.MeshBasicMaterial({ color: 0x8a5a3a, fog: false }) : n === 'stonelit' ? hazeLit : haze; o.frustumCulled = false; } });
+      const far = src.clone(true), haze = new THREE.MeshBasicMaterial({ color: storm ? 0x121620 : 0x141a30, fog: false }), hazeLit = new THREE.MeshBasicMaterial({ color: storm ? 0x171c28 : 0x192038, fog: false });
+      far.traverse(o => { if (o.isMesh) { const n = (o.material.name || '').replace(/\.\d+$/, ''); o.material = n === 'glow' ? new THREE.MeshBasicMaterial({ color: 0x4a3426, fog: false }) : n === 'stonelit' ? hazeLit : haze; o.frustumCulled = false; } });
       far.scale.set(-0.36, 0.36, 0.36); far.position.z = -125; g.add(far); // mirrored and smaller: the castle's far wings behind
       const placeFar = () => { const c = this.cam || { x: (b.x0 + b.x1) / 2, y: b.y0 + 4 }; far.position.x = c.x + (420 - c.x) * 0.1 - 40; far.position.y = c.y - 28 + (60 - c.y) * 0.06; };
       placeFar(); room.anim.push(placeFar);
@@ -511,7 +544,7 @@ export class World {
     room.anim.push((t, dt) => { for (const c of cards) { c.position.x += dt * 0.6; if (c.position.x > b.x1 + 70) c.position.x = b.x0 - 70; } });
     const mtn = new THREE.MeshBasicMaterial({ color: 0x141a2c, fog: false });
     for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(rnd(18, 32), rnd(26, 46), 5), mtn); m.position.set(b.x0 - 20 + i * 14, b.y0 + 2 - drop, -130); g.add(m); }
-    const mist = plane(new THREE.MeshBasicMaterial({ color: 0x5a6a8c, transparent: true, opacity: 0.18, depthWrite: false }), b.x1 - b.x0 + 120, 14, (b.x0 + b.x1) / 2, b.y0 - 6, -30); g.add(mist);
+    const mist = plane(new THREE.MeshBasicMaterial({ map: canvasTex(4, 64, x => { const v = x.createLinearGradient(0, 0, 0, 64); v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.6, 'rgba(255,255,255,.9)'); v.addColorStop(1, 'rgba(255,255,255,1)'); x.fillStyle = v; x.fillRect(0, 0, 4, 64); }), color: 0x5a6a8c, transparent: true, opacity: 0.2, depthWrite: false }), b.x1 - b.x0 + 120, 14, (b.x0 + b.x1) / 2, b.y0 - 6, -30); g.add(mist);
     if (storm) { // racing cloud bank and lightning
       const cm = new THREE.MeshBasicMaterial({ map: cloudTex(), color: 0x39405a, transparent: true, opacity: 0.85, depthWrite: false, fog: false });
       const clouds = []; for (let i = 0; i < 8; i++) { const c = plane(cm, rnd(60, 110), rnd(18, 30), b.x0 + rnd(-40, b.x1 - b.x0 + 40), b.y0 + rnd(34, 62), -120 - i * 3); g.add(c); clouds.push(c); }
@@ -576,8 +609,8 @@ export class World {
     return !room.solids.some(s => ['plat', 'block', 'ledge', 'crack', 'echo', 'mover'].includes(s.kind) && s.x0 < x1 + m && s.x1 > x0 - m && s.y0 < y1 + m && s.y1 > y0 - m)
       && !(room.wallRects || []).some(r => r.x0 < x1 + m && r.x1 > x0 - m && r.y0 < y1 + m && r.y1 > y0 - m);
   }
-  findWall(room, x, hw, y0, y1, steps = [0, 3.333, -3.333, 6.667, -6.667, 10, -10]) {
-    for (const dx of steps) { const xx = x + dx; if (xx - hw < room.b.x0 + 0.8 || xx + hw > room.b.x1 - 0.8) continue; if (this.clearWall(room, xx - hw, xx + hw, y0, y1)) { room.wallRects.push({ x0: xx - hw, x1: xx + hw, y0, y1 }); return xx; } }
+  findWall(room, x, hw, y0, y1, steps = [0, 3.333, -3.333, 6.667, -6.667, 10, -10], dys = [0]) {
+    for (const dy of dys) for (const dx of steps) { const xx = x + dx; if (xx - hw < room.b.x0 + 0.8 || xx + hw > room.b.x1 - 0.8) continue; if (this.clearWall(room, xx - hw, xx + hw, y0 + dy, y1 + dy)) { room.wallRects.push({ x0: xx - hw, x1: xx + hw, y0: y0 + dy, y1: y1 + dy }); room._dy = dy; return xx; } }
     return null;
   }
   async prop(room, p) {
@@ -601,7 +634,7 @@ export class World {
       case 'brazier': {
         add(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.2, 0.35, 10), IRON)).position.set(x, y + 1.0, -1.4);
         for (const a of [0, 2.1, 4.2]) { const l = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 5), IRON)); l.position.set(x + Math.cos(a) * 0.22, y + 0.45, -1.4 + Math.sin(a) * 0.22); l.rotation.z = Math.cos(a) * 0.25; }
-        this.flame(room, x, y + 1.5, -1.4, 0.7, 16); break;
+        this.flame(room, x, y + 1.5, -1.4, 0.6, 10); break;
       }
       case 'candles': {
         for (let i = 0; i < 7; i++) { const h = 0.2 + Math.random() * 0.5, cx = x + (Math.random() - 0.5) * 1.2, cz = -2.2 + Math.random(); add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, h, 6), WAX)).position.set(cx, y + h / 2, cz); add(sprite(flameTex(), 0xffb050, 0.12, 0.2, cx, y + h + 0.08, cz)); }
@@ -642,11 +675,11 @@ export class World {
           // in an arcade the lancet stands in its bay's arch; elsewhere it is cut into the wall
           const want = y + (big ? 7.0 : 3.6), arch = (room.arches || []).filter(a => Math.abs(a.c - x) < 1 && want > a.spring - 4 && want < a.apex + 1).sort((a, c) => Math.abs(a.spring - want) - Math.abs(c.spring - want))[0];
           const room4 = arch ? (arch.apex - 0.4 - Math.max(y + 1.0, arch.spring - 3.2)) / 4.6 : 0, sc = arch && room4 > 0.55 ? Math.min(big ? 1.4 : 1.0, room4) : big ? 1.3 : 0.9;
-          h = 4.6 * sc; w = 2.2 * sc; const sill = arch && room4 > 0.55 ? arch.apex - 0.35 - h : Math.min(top - h - 0.6, y + (big ? 5.0 : 2.0)); cy = sill + h / 2;
-          const nx = this.findWall(room, x, w / 2 + 0.5, sill - 0.3, sill + h + 0.3, T.arcade ? [0, 6.667, -6.667, 13.333, -13.333] : [0, 2, -2, 4, -4]); if (nx === null) break; x = nx;
-          this.lancet(room, x, sill, sc, glassM); room.lancets = (room.lancets || 0) + 1;
+          h = 4.6 * sc; w = 2.2 * sc; let sill = arch && room4 > 0.55 ? arch.apex - 0.35 - h : Math.min(top - h - 0.6, y + (big ? 5.0 : 2.0)); cy = sill + h / 2;
+          const nx = this.findWall(room, x, w / 2 + 0.5, sill - 0.3, sill + h + 0.3, T.arcade ? [0, 6.667, -6.667, 13.333, -13.333] : [0, 2, -2, 4, -4], arch ? [0] : [0, 1.2, 2.4, -1.2]); if (nx === null) break; x = nx;
+          this.lancet(room, x, sill + room._dy, sc, glassM); cy += room._dy; room.lancets = (room.lancets || 0) + 1;
         }
-        const ray = plane(new THREE.MeshBasicMaterial({ map: rayTex(), color: lit ? 0xd07050 : 0x7b90d0, transparent: true, opacity: lit ? 0.14 : 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), w * 1.1, 13, x + 2.4, cy - 4.5, ZB + 1.6); ray.rotation.z = 0.45; ray.rotation.y = 0.25; add(ray);
+        const rl = rose ? Math.min(26, cy - y + 3) : 13, ray = plane(new THREE.MeshBasicMaterial({ map: rayTex(), color: lit ? 0xd07050 : 0x7b90d0, transparent: true, opacity: rose ? 0.11 : lit ? 0.14 : 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), w * 1.1, rl, x + rl * 0.18, cy - rl * 0.35, ZB + 1.6); ray.rotation.z = rose ? 0.3 : 0.45; ray.rotation.y = 0.25; add(ray); // a rose window's beam reaches the floor
         this.light(room, x + 1.5, cy - 2.5, 0.6, lit ? 0xff8060 : 0x8aa0ff, lit ? 14 : 12, 16); break;
       }
       case 'statue': case 'gargoyle': {
@@ -655,15 +688,15 @@ export class World {
         if (k.animations.length) { const mx = new THREE.AnimationMixer(k.scene), c = k.animations.find(a => a.name === (garg ? 'roar' : ['Sword_Idle', 'Idle_FoldArms_Loop', 'Sword_Block'][Math.abs(Math.round(x)) % 3])) || k.animations[0]; mx.clipAction(c).play(); mx.setTime(c.duration * 0.45); } // statues are posed, never T-posed
         k.scene.traverse(o => { if (o.isMesh) { o.material = sm; o.castShadow = true; o.frustumCulled = false; } });
         fitHeight(k.scene, garg ? 1.5 : 2.6); const ped = garg ? 0 : 0.9; k.scene.position.set(x, y + ped, garg ? -1.2 : ZB + 1.2); if (garg) k.scene.rotation.y = (Math.round(x) % 2 ? 1 : -1) * 1.0; add(k.scene);
-        if (!garg) add(box(stone, x - 0.8, y, x + 0.8, y + 0.9, ZB + 0.3, ZB + 2.0));
+        if (!garg) add(wbox(tm(T.dress || DRESS, false, 0.6), x - 0.8, y, x + 0.8, y + 0.9, ZB + 0.3, ZB + 2.0));
         break;
       }
-      case 'chain': add(chain(0x9a9590, 0.35, top - y, x, (top + y) / 2, ZB + 1.2)); break;
+      case 'chain': { let lo = y; for (const sl of room.solids) if (!['floor', 'wall', 'ceil'].includes(sl.kind) && x > sl.x0 - 0.2 && x < sl.x1 + 0.2 && sl.y1 < top - 0.5 && sl.y1 > lo) lo = sl.y1; add(chain(0x9a9590, 0.35, top - lo, x, (top + lo) / 2, ZB + 1.2)); if (lo > y + 0.1) { const eye = add(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 6, 12), IRON)); eye.position.set(x, lo + 0.1, ZB + 1.2); } break; }
       case 'hook': { const len = Math.min(3.2, top - y - 2.2); add(chain(0x9a9590, 0.28, len, x, top - len / 2, -1.4)); const hk = add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 5, 12, 4.2), IRON)); hk.position.set(x, top - len - 0.15, -1.4); if (Math.round(x) % 2) { const pts = [[0.03, 0.34], [0.06, 0.26], [0.17, 0.12], [0.23, -0.05], [0.2, -0.22], [0.1, -0.32], [0, -0.34]].map(([r, yy]) => new THREE.Vector2(r, yy)); const meat = add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), std(0x9a5a4a, { roughness: 0.6 }))); meat.position.set(x, top - len - 0.75, -1.4); const bone = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 5), std(0xe0d8c0))); bone.position.set(x, top - len - 0.2, -1.4); } break; }
-      case 'cage': { const cy = Math.min(top - 2.2, y + 4.2), len = top - cy - 1; add(chain(0x9a9590, 0.3, len, x, top - len / 2, -1.3)); const c = add(new THREE.Group()); c.position.set(x, cy, -1.3); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2, 5), IRON); bar.position.set(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7); c.add(bar); } for (const ry of [-0.5, 0.4]) c.add(new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.03, 5, 20), IRON).rotateX(Math.PI / 2).translateZ(-ry)); if (Math.round(x) % 2) { const sk = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), std(0xd8d0b8)); sk.position.set(0.1, -0.82, 0); c.add(sk); } add(new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.5, 10), IRON)).position.set(x, cy + 1.25, -1.3); add(new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 10), IRON)).position.set(x, cy - 1, -1.3); room.anim.push(t => { c.rotation.y = Math.sin(t * 0.5 + x) * 0.3; }); break; }
-      case 'pews': if (p.face) { const pw = tm(['pv_dark_walnut', X]), d = p.face; for (let i = 0; i < 4; i++) { const px = x + (i - 1.5) * 1.15; add(wbox(pw, px - 0.24, y + 0.42, px + 0.24, y + 0.48, -3.0, -0.9)); add(wbox(pw, px - d * 0.28 - 0.04, y, px - d * 0.28 + 0.04, y + 1.05, -3.0, -0.9)); const end = new THREE.Shape([[-0.32, 0], [0.32, 0], [0.32, 0.55], [0, 0.95], [-0.32, 1.1]].map(([a, c]) => new THREE.Vector2(a * d, c))); const eg = new THREE.ExtrudeGeometry(end, { depth: 0.07, bevelEnabled: false }); eg.translate(px, y, -0.97); worldUV(eg); add(new THREE.Mesh(eg, pw)).castShadow = true; } break; } else { const pw = tm(['pv_dark_walnut', X]); for (let i = 0; i < 3; i++) { const px = x + i * 2.2 - 2.2; add(wbox(pw, px - 0.95, y + 0.44, px + 0.95, y + 0.5, -2.75, -2.3)); add(wbox(pw, px - 0.95, y + 0.55, px + 0.95, y + 1.15, -2.82, -2.76)); for (const ex of [-0.98, 0.98]) { add(wbox(pw, px + ex - 0.04, y, px + ex + 0.04, y + 1.25, -2.85, -2.25)); const fin = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), pw)); fin.position.set(px + ex, y + 1.36, -2.8); } } break; }
+      case 'cage': { const cy = Math.min(top - 2.2, y + 4.2), len = top - cy - 1; add(chain(0x9a9590, 0.3, len, x, top - len / 2, -1.3)); const c = add(new THREE.Group()); c.position.set(x, cy, -1.3); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2, 5), IRON); bar.position.set(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7); c.add(bar); } for (const ry of [-0.5, 0.4]) c.add(new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.03, 5, 20), IRON).rotateX(Math.PI / 2).translateZ(-ry)); if (Math.round(x) % 2) { const sk = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), std(0x8e8270, { roughness: 0.85 })); sk.position.set(0.1, -0.82, 0); c.add(sk); } add(new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.5, 10), IRON)).position.set(x, cy + 1.25, -1.3); add(new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 10), IRON)).position.set(x, cy - 1, -1.3); room.anim.push(t => { c.rotation.y = Math.sin(t * 0.5 + x) * 0.3; }); break; }
+      case 'pews': if (p.face) { const pw = tm(['pv_dark_walnut', X, 0x8a7a72]), d = p.face; for (let i = 0; i < 4; i++) { const px = x + (i - 1.5) * 1.15; add(wbox(pw, px - 0.24, y + 0.42, px + 0.24, y + 0.48, -3.0, -0.9)); add(wbox(pw, px - d * 0.28 - 0.04, y, px - d * 0.28 + 0.04, y + 1.05, -3.0, -0.9)); const end = new THREE.Shape([[-0.32, 0], [0.32, 0], [0.32, 0.55], [0, 0.95], [-0.32, 1.1]].map(([a, c]) => new THREE.Vector2(a * d, c))); const eg = new THREE.ExtrudeGeometry(end, { depth: 0.07, bevelEnabled: false }); eg.translate(px, y, -0.97); worldUV(eg); add(new THREE.Mesh(eg, pw)).castShadow = true; } break; } else { const pw = tm(['pv_dark_walnut', X]); for (let i = 0; i < 3; i++) { const px = x + i * 2.2 - 2.2; add(wbox(pw, px - 0.95, y + 0.44, px + 0.95, y + 0.5, -2.75, -2.3)); add(wbox(pw, px - 0.95, y + 0.55, px + 0.95, y + 1.15, -2.82, -2.76)); for (const ex of [-0.98, 0.98]) { add(wbox(pw, px + ex - 0.04, y, px + ex + 0.04, y + 1.25, -2.85, -2.25)); const fin = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), pw)); fin.position.set(px + ex, y + 1.36, -2.8); } } break; }
       case 'throne': { const m = surface('oxblood_marble', 1, 1, { dir: X }); add(box(m, x - 3, y, x + 3, y + 0.6, ZB + 0.1, ZB + 3)); add(box(m, x - 1, y + 0.6, x + 1, y + 1.4, ZB + 0.5, ZB + 2)); add(box(m, x - 1, y + 1.4, x + 1, y + 5, ZB + 0.3, ZB + 0.7)); add(box(BRASS, x - 1.15, y + 4.9, x + 1.15, y + 5.2, ZB + 0.25, ZB + 0.75)); for (const dx of [-1, 1]) add(new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 6), BRASS)).position.set(x + dx * 0.95, y + 5.6, ZB + 0.5); break; }
-      case 'gatearch': if (room.kit || (room.kit = await castleKit())) { const gx = x - 3.4; kitPiece(room, room.kit, 'gatehouse', { stone: tm(['bridge_ashlar', X], true), trim: tm(DRESS, true, 0.6), tunnel: tm(['ashlar', T0, 0x2a2a32], true), dark: IRON, glow: GLOW, glowdim: new THREE.MeshBasicMaterial({ color: 0x6a3a18, fog: false }), roof: tm(['slate_roof', X], true) }, gx, y, -1.0); for (const dx of [-2.75, 2.75]) this.torch(room, gx + dx, y + 3.4, -0.55); add(sprite(glowTex(), 0xff9040, 3.2, 3.6, gx, y + 1.9, -4.9, 0.35)); this.light(room, gx, y + 2.2, -4.2, 0xff8a40, 6, 6); break; } else { const m = surface('ashlar', 2, 4); add(box(m, x - 4, y, x - 2.2, y + 11, -3.2, 0.2)); add(box(m, x + 0.1, y, x + 2.2, y + 11, -3.2, 0.2)); add(box(m, x - 4, y + 5.2, x + 2.2, y + 7, -3.2, 0.2)); for (let i = 0; i < 4; i++) { const c = add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), m)); c.position.set(x - 3.1 + (i % 2) * 4.2, y + 12.2 + (i > 1 ? 3 : 0), -1.5); if (i > 1) c.scale.setScalar(0.5); } this.torch(room, x - 2.6, y + 3.0); break; }
+      case 'gatearch': if (room.kit || (room.kit = await castleKit())) { const gx = x - 3.4; kitPiece(room, room.kit, 'gatehouse', { stone: tm(['bridge_ashlar', X], true), trim: tm(DRESS, true, 0.6), tunnel: tm(['ashlar', T0, 0x2a2a32], true), dark: std(0x1c1a18, { metalness: 0.3, roughness: 0.85 }), glow: GLOW, glowdim: new THREE.MeshBasicMaterial({ color: 0x6a3a18, fog: false }), roof: tm(['slate_roof', X], true) }, gx, y, -1.0); for (const dx of [-2.75, 2.75]) this.torch(room, gx + dx, y + 3.4, -0.55); { const sp = plane(new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xff8a40, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }), 3.4, 4.2, gx, y + 0.03, -3.6); sp.rotation.x = -Math.PI / 2; add(sp); } this.light(room, gx, y + 1.2, -4.6, 0xff8a40, 6, 6); break; } else { const m = surface('ashlar', 2, 4); add(box(m, x - 4, y, x - 2.2, y + 11, -3.2, 0.2)); add(box(m, x + 0.1, y, x + 2.2, y + 11, -3.2, 0.2)); add(box(m, x - 4, y + 5.2, x + 2.2, y + 7, -3.2, 0.2)); for (let i = 0; i < 4; i++) { const c = add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), m)); c.position.set(x - 3.1 + (i % 2) * 4.2, y + 12.2 + (i > 1 ? 3 : 0), -1.5); if (i > 1) c.scale.setScalar(0.5); } this.torch(room, x - 2.6, y + 3.0); break; }
       case 'portcullis': { const py = y + DOOR_H - 0.15; add(wbox(DARK, x - 0.16, py, x + 0.16, py + 2.4, ZB, 1.25)); // the slot it rises into
         for (let z = -2.9; z <= 1.0; z += 0.39) { add(box(IRON, x - 0.05, py - 0.05, x + 0.05, py + 2.2, z - 0.05, z + 0.05)); const t = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 5), IRON)); t.rotation.x = Math.PI; t.position.set(x, py - 0.2, z); }
         for (const hy of [0.1, 0.8, 1.5]) add(box(IRON, x - 0.06, py + hy, x + 0.06, py + hy + 0.08, -3.0, 1.1)); break; }
@@ -673,10 +706,12 @@ export class World {
         add(new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.05, 6, 20), wd)).position.set(x + 1.05, y + 1.5, -2.6).constructor; g.children[g.children.length - 1].rotation.y = Math.PI / 2;
         add(chain(0x6a6a6a, 0.24, top - y - 1.6, x - 0.3, (top + y + 1.6) / 2, -2.6)); add(chain(0x6a6a6a, 0.24, top - y - 1.6, x + 0.3, (top + y + 1.6) / 2, -2.6)); break; }
       case 'dial': { // the great clock face: a backlit iron-ringed dial, hands still turning though it keeps no hour
-        const r = p.r || 3, cyy = Math.min(top - r - 0.6, y + (p.h ?? 7)), face = add(new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshBasicMaterial({ map: dialTex(), color: 0xd8c8a0, fog: false }))); face.position.set(x, cyy, ZB + 0.05);
-        const ring = add(new THREE.Mesh(new THREE.TorusGeometry(r + 0.12, 0.2, 8, 48), GEAR())); ring.position.set(x, cyy, ZB + 0.2);
-        const hand = (len, wdt, sp) => { const h = new THREE.Group(); h.position.set(x, cyy, ZB + 0.3 + wdt); const m = new THREE.Mesh(new THREE.BoxGeometry(wdt, len, 0.06), IRON); m.position.y = len / 2 - 0.25; h.add(m); add(h); room.anim.push(t => { h.rotation.z = -t * sp; }); };
-        hand(r * 0.62, 0.16, 0.05); hand(r * 0.88, 0.09, 0.6); add(sprite(glowTex(), 0xffc070, r * 3.2, r * 3.2, x, cyy, ZB + 0.02, 0.35)); this.light(room, x, cyy, ZB + 2.0, 0xffc078, 14, 14); break; }
+        const r = p.r || 3, cyy = Math.min(top - r - 0.6, y + (p.h ?? 7)), DZ = ZB + 0.45, face = add(new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshBasicMaterial({ map: dialTex(), color: 0xd8c8a0, fog: false }))); face.position.set(x, cyy, DZ);
+        const bez = add(new THREE.Mesh(new THREE.CylinderGeometry(r + 0.5, r + 0.6, 0.45, 48, 1, true), GEAR())); bez.rotation.x = Math.PI / 2; bez.position.set(x, cyy, DZ - 0.1); const back = add(new THREE.Mesh(new THREE.CircleGeometry(r + 0.55, 48), DARK)); back.position.set(x, cyy, DZ - 0.3);
+        const gl = add(new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.05, metalness: 0.9, depthWrite: false }))); gl.position.set(x, cyy, DZ + 0.42);
+        const ring = add(new THREE.Mesh(new THREE.TorusGeometry(r + 0.12, 0.22, 10, 48), GEAR())); ring.position.set(x, cyy, DZ + 0.12);
+        const hand = (len, wdt, sp) => { const h = new THREE.Group(); h.position.set(x, cyy, DZ + 0.12 + wdt); const m = new THREE.Mesh(new THREE.BoxGeometry(wdt, len, 0.12), IRON); m.position.y = len / 2 - 0.25; h.add(m); add(h); room.anim.push(t => { h.rotation.z = -t * sp; }); };
+        hand(r * 0.62, 0.2, 0.05); hand(r * 0.88, 0.11, 0.6); add(sprite(glowTex(), 0xffc070, r * 2.6, r * 2.6, x, cyy, DZ - 0.25, 0.3)); this.light(room, x, cyy, DZ + 2.2, 0xffc078, 12, 12); break; }
       case 'bellframe': { // the bell hung in its timber frame between the stone cradle piers
         const wd = tm(['adzed_beam', X]), by = y + (p.h ?? 3.6); add(wbox(wd, x - 5.4, by, x + 5.4, by + 0.45, -2.2, -0.9));
         for (const d of [-1, 1]) { const kb = wbox(wd, -0.09, -0.8, 0.09, 0.8, -0.09, 0.09); kb.geometry.rotateZ(d * 0.7); kb.geometry.translate(x + d * 4.3, by - 0.45, -1.55); worldUV(kb.geometry); add(kb); }
@@ -689,7 +724,7 @@ export class World {
       case 'bones': { const bm = std(0x9a8e74, { roughness: 0.85 }); for (let i = 0; i < 9; i++) { const L = rnd(0.4, 0.75), c = add(new THREE.Group()); c.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, L, 6), bm)); for (const e of [-1, 1]) c.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), bm).translateY(e * L / 2)); c.position.set(x + rnd(-0.8, 0.8), y + 0.04, rnd(-2.4, -1.2)); c.rotation.set(Math.PI / 2, rnd(0, 6), 0); c.rotateZ(rnd(-0.3, 0.3)); } const sk = await cloneGLTF('assets/game/items/skull_0' + (1 + Math.abs(Math.round(x)) % 8) + '.glb'); fitHeight(sk.scene, 0.34); sk.scene.position.set(x + 0.2, y + 0.12, -1.6); sk.scene.rotation.y = rnd(-1, 1); add(sk.scene); break; }
       case 'skullwall': add(plane(surface('skulls2', 1, 1, { dir: I }), 4, 4, x, Math.min(top - 2.2, y + 2.4), ZB + 0.05)); break;
       case 'gear': this.bgGear(room, x, Math.min(top - 2.5, y + 3.5), p.r || 2.2); break;
-      case 'pendulum': { const piv = new THREE.Group(), len = Math.min(6, top - y - 1.5); piv.position.set(x, y + len + 1, ZB + 0.5); piv.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 6), BRASS).translateY(-len / 2), new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20), BRASS).rotateX(Math.PI / 2).translateZ(0).translateY(0)); piv.children[1].position.set(0, -len, 0); add(piv); room.anim.push(t => { piv.rotation.z = Math.sin(t * 1.3 + x) * 0.5; }); break; }
+      case 'pendulum': { const piv = new THREE.Group(), len = Math.min(6, top - y - 1.5); piv.position.set(x, y + len + 1, ZB + 0.5); piv.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 6), GEAR()).translateY(-len / 2), new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.16, 28), GEAR()).rotateX(Math.PI / 2).translateZ(0).translateY(0)); piv.children[1].position.set(0, -len, 0); add(piv); room.anim.push(t => { piv.rotation.z = Math.sin(t * 1.3 + x) * 0.5; }); break; }
       case 'barrel': { const c = add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 1.0, 12), wood)); c.position.set(x, y + 0.5, -1.9); c.castShadow = true; for (const h of [0.25, 0.75]) add(new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.025, 4, 14), IRON)).rotateX(Math.PI / 2).position.set(x, y + h, -1.9); break; }
       case 'crate': { const s = 0.9 + (Math.round(x * 3) % 3) * 0.12; add(box(surface('oak_planks', 0.5, 0.5, { dir: X }), x - s / 2, y, x + s / 2, y + s, -2.4, -2.4 + s)); if (false) add(box(new THREE.MeshStandardMaterial({ map: tex('awning_canvas'), roughness: 1 }), x - s / 2 - 0.04, y + s * 0.55, x + s / 2 + 0.04, y + s + 0.03, -2.44, -2.36 + s)); break; }
       case 'table': { add(box(wood, x - 1.2, y + 0.82, x + 1.2, y + 0.92, -2.6, -1.5)); if (Math.round(x) % 2) add(box(new THREE.MeshStandardMaterial({ map: tex('hessian'), roughness: 1 }), x - 0.7, y + 0.92, x + 0.7, y + 0.935, -2.64, -1.46)); for (const dx of [-1.05, 1.05]) for (const dz of [-2.5, -1.6]) add(box(wood, x + dx - 0.06, y, x + dx + 0.06, y + 0.82, dz - 0.06, dz + 0.06)); add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6), WAX)).position.set(x + 0.4, y + 1.07, -2); add(sprite(flameTex(), 0xffb050, 0.12, 0.2, x + 0.4, y + 1.3, -2)); add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.1, 0.22, 8), BRASS)).position.set(x - 0.4, y + 1.03, -2.1); break; }
@@ -721,6 +756,7 @@ export class World {
       case 'waterfall': { const h = Math.min(top - y, 14), t2 = tex('moat_water').clone(); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 4); const wf = add(plane(new THREE.MeshBasicMaterial({ map: t2, color: 0x9ad0e0, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 1.8, h, x, y + h / 2, ZB + 0.3)); add(sprite(glowTex(), 0xa0d8e8, 5, 2.5, x, y + 0.6, ZB + 0.8, 0.4)); room.anim.push(t => { t2.offset.y = t * 0.9; }); this.light(room, x, y + 2, -1, 0x5ab0d0, 7, 9); break; }
       case 'mushroom': { const col = [0x4ad0c0, 0x9a70ff, 0x70e060][Math.abs(Math.round(x)) % 3], cm = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.8, roughness: 0.5 }); for (let i = 0; i < 6; i++) { const h = rnd(0.25, 1.1), cx = x + rnd(-0.9, 0.9), cz = rnd(-2.7, -1.5); add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, h, 6), WAX)).position.set(cx, y + h / 2, cz); const cap = add(new THREE.Mesh(new THREE.SphereGeometry(0.1 + h * 0.28, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), cm)); cap.position.set(cx, y + h, cz); } add(sprite(glowTex(), col, 3, 2.4, x, y + 0.7, -2, 0.3)); this.light(room, x, y + 1.0, -1, col, 7, 8); break; }
     }
+    for (let k = n0; k < g.children.length; k++) g.children[k].traverse(o => { if (o.isMesh) o.renderOrder = 2; });
     if (room.arcade && /altar|sarcophagus|throne|organ|statue|fountain|furnace|coffin|pews|bigbell|bookshelf/.test(p.t) && (room.pillarX || []).some(px => Math.abs(px - x) < 3.2)) { for (let k = n0; k < g.children.length; k++) g.children[k].position.z += 1.0; for (let k = s0; k < room.sources.length; k++) room.sources[k].z += 1.0; }
     else if (room.arcade && !/window|rose|column|arch/.test(p.t)) { for (let k = n0; k < g.children.length; k++) { const o = g.children[k]; if (o.position.z < ZB + 0.95) o.position.z += 0.55; } for (let k = s0; k < room.sources.length; k++) if (room.sources[k].z < ZB + 1.5) room.sources[k].z += 0.55; }
   }
@@ -809,7 +845,9 @@ export function flameTex() { return _flame ||= canvasTex(32, 64, x => { const g 
 function rayTex() { return _ray ||= canvasTex(32, 128, (x) => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 128); const h = x.createLinearGradient(0, 0, 32, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = h; x.fillRect(0, 0, 32, 128); }); }
 // molten rock: dark crust islands over bright seams
 export function lavaTex() { return _lava ||= canvasTex(256, 256, (x) => { x.fillStyle = '#ff7a10'; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 60; i++) { const g = x.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, 'rgba(255,240,150,.9)'); g.addColorStop(1, 'rgba(255,120,0,0)'); x.save(); x.translate(Math.random() * 256, Math.random() * 256); x.scale(rnd(10, 40), rnd(10, 40)); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 1, 0, 7); x.fill(); x.restore(); } for (let i = 0; i < 90; i++) { x.fillStyle = `rgba(${rnd(20, 60) | 0},${rnd(4, 14) | 0},0,${rnd(0.5, 0.95)})`; x.beginPath(); const cx = Math.random() * 256, cy = Math.random() * 256, r = rnd(8, 26); for (let k = 0; k < 7; k++) { const a = k / 7 * 6.283, rr = r * rnd(0.6, 1.1); x[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.fill(); } }); }
-function cloudTex() { return _cloud ||= canvasTex(256, 128, (x) => { for (let i = 0; i < 46; i++) { const cx = rnd(30, 226), cy = rnd(40, 100), r = rnd(18, 46), g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 128); } }); }
+function cloudTex() { return _cloud ||= canvasTex(256, 128, (x) => { for (let i = 0; i < 46; i++) { const cx = rnd(30, 226), cy = rnd(40, 100), r = rnd(18, 46), g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 128); }
+  x.globalCompositeOperation = 'destination-in'; const h = x.createLinearGradient(0, 0, 256, 0); h.addColorStop(0, 'rgba(0,0,0,0)'); h.addColorStop(0.22, 'rgba(0,0,0,1)'); h.addColorStop(0.78, 'rgba(0,0,0,1)'); h.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = h; x.fillRect(0, 0, 256, 128);
+  const v = x.createLinearGradient(0, 0, 0, 128); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.3, 'rgba(0,0,0,1)'); v.addColorStop(0.8, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = v; x.fillRect(0, 0, 256, 128); }); } // feathered on every edge: no hard-ended cards
 // Leaded night glass: deep navy, moonlit toward the top, a few cool panes.
 function glassTex() {
   return _glass ||= canvasTex(64, 128, (x) => {
