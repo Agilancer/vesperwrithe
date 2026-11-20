@@ -4,19 +4,27 @@
 
 export const RARITY = { normal: 'normal', magic: 'magic', rare: 'rare', unique: 'unique' };
 
-// Attack styles map to animation sets in player.js. ranged: 'arrow' | 'boomerang'.
+// Attack styles. Frame windows were measured from the weapon tip's speed (see detectSwings in attacks.js) and checked
+// on the rig; grip: normal = blade up out of the thumb side, forward = along the forearm (thrusts). The Attack Viewer
+// (viewer.html) can override any of these per weapon class.
 export const STYLES = {
-  slash1h: { anim: 'sword_and_shield_slash', from: 9, to: 30, hit: [15, 22], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
-  slash2h: { anim: 'great_sword_slash', from: 30, to: 66, hit: [40, 54], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
-  smash:   { anim: 'standing_melee_attack_downward', from: 30, to: 62, hit: [42, 54], dur: 0.55, reach: 1.45, height: 2.1, yOff: 1.1 },
-  smash2h: { anim: 'standing_melee_attack_downward', from: 26, to: 64, hit: [42, 56], dur: 0.72, reach: 1.9, height: 2.4, yOff: 1.1 },
-  chop:    { anim: 'axe_standing_melee_attack_horizontal', from: 16, to: 40, hit: [24, 33], dur: 0.44, reach: 1.6, height: 1.4, yOff: 1.0 },
-  thrust:  { anim: 'stabbing', from: 22, to: 52, hit: [30, 44], dur: 0.48, reach: 2.6, height: 0.7, yOff: 1.15 },
-  lance:   { anim: 'stabbing', from: 18, to: 56, hit: [30, 46], dur: 0.66, reach: 3.2, height: 0.8, yOff: 1.15 },
-  stab:    { anim: 'stabbing', from: 26, to: 46, hit: [30, 40], dur: 0.26, reach: 1.1, height: 0.6, yOff: 1.1 },
-  punch:   { anim: 'axe_standing_melee_attack_backhand', from: 20, to: 40, hit: [26, 33], dur: 0.32, reach: 0.9, height: 0.8, yOff: 1.2 },
-  shoot:   { anim: 'stabbing', from: 20, to: 46, hit: [32, 34], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow' },
-  hurl:    { anim: 'axe_standing_melee_attack_horizontal', from: 16, to: 40, hit: [26, 28], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang' },
+  slash1h: { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [16, 24], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
+  slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
+  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
+  // maul: same overhead slam, slower with a longer recovery so the weight reads
+  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
+  // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
+  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
+  // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
+  // (frames 236-262, level at 246-257) with a forward grip pushes the point out level; its legs kick there, so it plays on the upper body
+  // only. Fists: the boxing set's straight, arm fully out f170-180. Daggers: a quick slash.
+  thrust:  { anim: 'fist_fight_a', from: 236, to: 262, hit: [246, 257], dur: 0.44, reach: 2.6, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
+  lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
+  stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
+  punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
+  // ranged classes: the missile leaves at the hit frame (bows loose arrows, boomerangs come back)
+  shoot:   { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [18, 19], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow', upperOnly: true },
+  hurl:    { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [17, 18], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang', upperOnly: true },
 };
 
 // How each weapon class plays. mult scales the level's base damage; cls is the label shown in the pack.

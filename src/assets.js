@@ -8,8 +8,39 @@ const texLoader = new THREE.TextureLoader();
 const gltfCache = new Map(), texCache = new Map();
 export let GRIPS = {}, WEAPONS = {};
 
+// --- phone safety -------------------------------------------------------------------------
+// Phones (iPhone Safari especially) kill the page when it runs out of memory ("A problem
+// repeatedly occurred"). Textures are the big cost, so every texture the game loads is capped
+// here, whatever size the source file is. ?lowmem=1 / ?lowmem=0 force the mode for testing.
+const q = new URLSearchParams(location.search).get('lowmem');
+export const LOW_MEM = q != null ? q === '1' :
+  /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || // iPadOS reports as a Mac
+  (navigator.deviceMemory != null && navigator.deviceMemory <= 4);
+export const TEX_MAX = LOW_MEM ? 1024 : 2048;
+const fitted = new WeakSet();
+export function fitTexture(t) {
+  const img = t?.image;
+  if (!img || fitted.has(t)) return;
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (!w || !h) return; // not decoded yet
+  fitted.add(t);
+  if (Math.max(w, h) <= TEX_MAX) return;
+  const k = TEX_MAX / Math.max(w, h), c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  img.close?.(); // free an ImageBitmap's memory right away
+  t.image = c; t.needsUpdate = true;
+  console.info(`[assets] texture ${w}x${h} reduced to ${c.width}x${c.height}`);
+}
+function fitMaterialTextures(root) {
+  root.traverse(o => {
+    for (const m of [].concat(o.material || [])) for (const v of Object.values(m)) if (v?.isTexture) fitTexture(v);
+  });
+}
+
 export function loadGLTF(url) {
-  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => gltfLoader.load(url, res, undefined, rej)));
+  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => gltfLoader.load(url, g => { fitMaterialTextures(g.scene); res(g); }, undefined, rej)));
   return gltfCache.get(url);
 }
 export async function cloneGLTF(url) {
@@ -23,8 +54,8 @@ export function surface(name, repX = 1, repY = 1, opts = {}) {
   if (texCache.has(key)) return texCache.get(key);
   const dir = opts.dir || 'assets/game/tex/';
   const mk = (suffix, srgb) => {
-    const t = texLoader.load(`${dir}${name}_${suffix}.webp`);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = 8;
+    const t = texLoader.load(`${dir}${name}_${suffix}.webp`, fitTexture);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = LOW_MEM ? 2 : 8;
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
@@ -33,6 +64,10 @@ export function surface(name, repX = 1, repY = 1, opts = {}) {
   texCache.set(key, m);
   return m;
 }
+
+// A plain colour/mask texture by URL, cached, with the phone memory cap applied.
+const plainCache = new Map();
+export function texture(url) { if (!plainCache.has(url)) { const t = texLoader.load(url, fitTexture); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = LOW_MEM ? 2 : 4; plainCache.set(url, t); } return plainCache.get(url); }
 
 export async function loadMeta() {
   const [g, w] = await Promise.all([fetch('assets/game/weapons/grips.json').then(r => r.json()), fetch('assets/game/weapons/weapons.json').then(r => r.json())]);

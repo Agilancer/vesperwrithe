@@ -4,6 +4,8 @@ A 2.5D side-scrolling action RPG set in **Castle Velscour** (Velscour universe):
 
 ## Run
 
+**Online:** https://agilancer.github.io/vesperwrithe/ (game) · https://agilancer.github.io/vesperwrithe/viewer.html (Attack Viewer). Every push to `main` republishes it (`.github/workflows/pages.yml`, built by `tools/build_site.py`).
+
 ```
 play.bat            # or: python tools/serve.py 8410  →  http://localhost:8410
 ```
@@ -40,6 +42,10 @@ Save coffins heal and record progress; warp mirrors link the districts once touc
 - **Affixes, sockets, gems**: Diablo 2-style prefixes/suffixes scaled by item level; 8 gems whose effect depends on the host (weapon / armour / shield).
 - **Levelling**: XP scaled by level difference (grinding trivial foes pays little), 3 attribute points per level to put into Strength (damage), Constitution (life), Intellect (mana, elemental damage) or Luck (crits, magic find).
 
+## Attack Viewer
+
+Open `viewer.html` (e.g. http://localhost:8410/viewer.html, works on phones too) to preview every attack animation on the hero with a real weapon in hand. Pick a weapon class, tap an animation, pick one of the swings it finds (or set start / hit / end frames by hand), choose the grip and swing time, then **Use for this weapon class**. The game uses your choice the next time it loads (saved in this browser). **Make starting weapon** swaps the weapon on the causeway pedestal (new game). **Copy config** gives the JSON to make your choices the built-in defaults (`STYLES` in `src/items.js`).
+
 ## Code map
 
 - `src/moves.js` + `tools/build_anims.py` — the hero's authored clips. The script runs in Blender on `assets/player/vesper_player_rig.blend` (`blender -b assets/player/vesper_player_rig.blend --python tools/build_anims.py`) and writes `assets/player/vesper_moves.glb` and `moves.json`: guard stance, stride-matched run, velocity-scrubbed jump, landing, and attack clips with wind-up / strike / follow-through / recovery, hit windows and cancel frames. `moves.js` maps weapon styles to chains of those clips, pins the finger grip and reaches the off hand onto two-handed weapons.
@@ -57,6 +63,9 @@ Save coffins heal and record progress; warp mirrors link the districts once touc
 - `docs/research/` — design research (SotN, the GBA/DS games, Bloodstained, Silksong, Hollow Knight, Metroid Dread, Blasphemous).
 
 ## Asset pipeline
+
+**Phone-safe budget:** textures ≤ 2048 px, `.glb` ≤ 30 MB. After adding assets run `python tools/check_assets.py` (add `--fix` to shrink oversize textures automatically). GitHub runs the same check on every push. At runtime `src/assets.js` also caps textures (1024 px on phones; test with `?lowmem=1`).
+
 
 - `assets/` — imported from the BM repo (`Agilancer/bm`): weapons (+ `weapons.json`, `grips.json` computed grip points), monsters, armor/knights, textures (`*_c` colour, `*_d` normal+height), interior sets, audio, music.
 - `assets/player/vesper_player.glb` — hero with 97 clips. Built in Blender (`assets/player/vesper_player_rig.blend`): every Mixamo FBX was imported and **retargeted in world space** onto the hero's rest pose (direct copying distorts because the source rest pose differs), hip motion scaled to the hero and made in-place. A `WeaponSocket_R` empty sits in the right palm; weapons are re-centred on their grip at runtime from `grips.json`.

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ROOMS, SW, SH, FLOOR, bounds, rowFloorY, roomSolids, moverOffset, DOOR_H, HOLE_W } from './rooms.js';
-import { surface, cloneGLTF, loadGLTF } from './assets.js';
+import { surface, cloneGLTF, loadGLTF, texture, LOW_MEM } from './assets.js';
 
 const T0 = 'assets/game/tex/', I = 'assets/game/interior/', X = 'assets/game/tex2/';
 // [texture, dir, tint]. back = far wall, floor/wall = room shell, block = solid masonry and ledges, rug = carpet runner.
@@ -97,8 +97,7 @@ function box(m, x0, y0, x1, y1, z0 = ZB, z1 = ZF) {
 }
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
 const BEAM = std(0x2a1c12, { roughness: 0.85 }), IRON = std(0x2a2522, { metalness: 0.75, roughness: 0.45 }), BRASS = std(0xb08a3a, { metalness: 0.9, roughness: 0.35 }), WAX = std(0xe8dcc0, { roughness: 0.6 }), DARK = std(0x15121a, { roughness: 0.7 });
-const texCache = new Map(), loader = new THREE.TextureLoader();
-function tex(name, dir = X) { const k = dir + name; if (!texCache.has(k)) { const t = loader.load(`${dir}${name}_c.webp`); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache.set(k, t); } return texCache.get(k); }
+function tex(name, dir = X) { return texture(`${dir}${name}_c.webp`); }
 // white-on-black mask textures become tinted decals
 function decal(name, color, opacity = 1) { return new THREE.MeshBasicMaterial({ color, alphaMap: tex(name), transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }); }
 // a hanging chain: the strip texture tiles down its length instead of stretching
@@ -112,7 +111,7 @@ let _kit; async function kit(name) { _kit ||= loadGLTF('assets/game/props/gothic
 export class World {
   constructor(scene) {
     this.scene = scene; this.rooms = []; this.solids = []; this.anim = []; this.pool = [];
-    for (let i = 0; i < 9; i++) { const L = new THREE.PointLight(0xff9a50, 0, 14, 1.6); scene.add(L); this.pool.push(L); }
+    for (let i = 0; i < (LOW_MEM ? 5 : 9); i++) { const L = new THREE.PointLight(0xff9a50, 0, 14, 1.6); scene.add(L); this.pool.push(L); } // fewer pooled lights on phones
   }
 
   // Room records and collision exist for the whole castle up front; meshes are raised when a room is first needed.
@@ -599,4 +598,27 @@ function glassTex() {
     for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(${120 + Math.random() * 60 | 0},${140 + Math.random() * 60 | 0},220,${0.08 + Math.random() * 0.12})`; x.fillRect((Math.random() * 4 | 0) * 16, (Math.random() * 8 | 0) * 16, 16, 16); }
     x.strokeStyle = 'rgba(10,8,16,.85)'; x.lineWidth = 1.5; for (let i = 16; i < 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke(); } for (let i = 16; i < 128; i += 16) { x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
   });
+}
+
+// Statue pose for the knight rig (it has no animations, so it would stand in a T-pose): upper arms down at the sides,
+// forearms brought forward across the body.
+function restPose(root) {
+  root.updateMatrixWorld(true);
+  const V = THREE.Vector3, Q = THREE.Quaternion;
+  const aim = (bone, child, dir) => {
+    const o = bone.getWorldPosition(new V()), c = child.getWorldPosition(new V());
+    const q = new Q().setFromUnitVectors(c.sub(o).normalize(), dir.clone().normalize());
+    const wq = q.multiply(bone.getWorldQuaternion(new Q())), pq = bone.parent.getWorldQuaternion(new Q());
+    bone.quaternion.copy(pq.invert().multiply(wq)); bone.updateMatrixWorld(true);
+  };
+  const b = n => root.getObjectByName(n);
+  // the model's forward: from the pelvis towards the toes
+  const fwd = b('ball_l') && b('foot_l') ? b('ball_l').getWorldPosition(new V()).sub(b('foot_l').getWorldPosition(new V())).setY(0).normalize() : new V(0, 0, 1);
+  for (const side of ['l', 'r']) {
+    const up = b('upperarm_' + side), lo = b('lowerarm_' + side), hand = b('hand_' + side);
+    if (!up || !lo || !hand) continue;
+    const out = up.getWorldPosition(new V()).sub(b('spine_03').getWorldPosition(new V())).setY(0).normalize();
+    aim(up, lo, new V(0, -1, 0).addScaledVector(out, 0.18).addScaledVector(fwd, 0.12));
+    aim(lo, hand, new V(0, -0.35, 0).addScaledVector(fwd, 1).addScaledVector(out, -0.55));
+  }
 }

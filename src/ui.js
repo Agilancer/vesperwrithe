@@ -35,7 +35,7 @@ export class UI {
     $('mpFill').style.width = (100 * s.mp / s.mpMax) + '%'; $('mpText').textContent = `${s.mp}`;
     $('xpFill').style.width = Math.min(100, 100 * s.xp / s.next) + '%';
     $('lvl').textContent = s.lvl; $('lvl').classList.toggle('pts', s.pts > 0);
-    const g = `${s.gold} <small>GOLD</small> &nbsp; ${s.potions} <small>POTIONS (Q)</small>`; if (g !== this._g) { this._g = g; $('gold').innerHTML = g; }
+    const g = `${s.gold} <small>GOLD</small>${document.body.classList.contains('touch') ? '' : ` &nbsp; ${s.potions} <small>${s.potions === 1 ? 'POTION' : 'POTIONS'} (Q)</small>`}`; if (g !== this._g) { this._g = g; $('gold').innerHTML = g; }
     if ((this.g.frame || 0) % 3 === 0) this.minimap();
   }
 

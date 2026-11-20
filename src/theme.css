@@ -221,3 +221,12 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .bellrow{flex:none;margin-top:8px;padding-top:12px;border-top:1px solid var(--hair);gap:5px 6px}
 .bellrow::before{content:"Bells of Velscour";flex-basis:100%;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
 .bellrow span{font-size:11px;padding:3px 8px;color:var(--dim);border-color:var(--hair)}
+
+/* ------------------------------------------------------------------ port review */
+#roomName{background:radial-gradient(ellipse 62% 100% at 50% 50%,rgba(2,6,9,.88),rgba(2,6,9,.62) 55%,transparent 100%);text-shadow:0 0 3px #000,0 2px 6px #000,0 0 26px rgba(116,230,216,.5)!important}
+.t-logo::before{background:linear-gradient(248deg,transparent 22%,rgba(2,8,11,.42) 55%,rgba(2,8,11,.7) 80%,rgba(2,8,11,.84) 100%)}
+.t-logo img{filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(14px -10px 26px rgba(190,250,240,.4)) drop-shadow(-12px 20px 30px rgba(0,0,0,.65))}
+#title .controls{font-size:12px;opacity:.64}#title .controls kbd{font-size:11px}
+#minimap{right:calc(20px + env(safe-area-inset-right));top:calc(18px + env(safe-area-inset-top))}
+#touch .ttop{right:calc(244px + env(safe-area-inset-right))}
+@media (max-height:520px){#touch .ttop{right:calc(186px + env(safe-area-inset-right))}}

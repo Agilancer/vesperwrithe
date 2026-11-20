@@ -1,0 +1,13 @@
+name: Phone-safe assets
+# Fails (red X on the commit) if a model or texture the game loads is too big for phones.
+# Fix locally with:  python tools/check_assets.py --fix
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pillow
+      - run: python tools/check_assets.py

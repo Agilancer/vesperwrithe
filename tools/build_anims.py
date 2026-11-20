@@ -4,15 +4,16 @@
 # assets/player/moves.json (hit windows, cancel points, stride speeds) that src/player.js reads.
 #
 # Why: the raw mocap was being scrubbed linearly through sub-ranges, so strikes landed in ~3 frames with no
-# anticipation or settle, "fall" was a skydiving pose and the thrust was a left-hand jab. Every clip here
-# starts and ends on the guard pose, has an eased wind-up, a readable strike arc in the side-view plane,
-# a held follow-through and a blended recovery.
+# anticipation or settle, the armed idle squared the chest to the camera and the run carried the sword upright.
+# Every attack clip here starts and ends on the guard pose, has an eased wind-up, a readable strike arc in the
+# side-view plane, a held follow-through and a blended recovery. The jump, thrusts, smashes and two-hand hold are
+# handled in src/player.js and src/attacks.js and are not rebuilt here.
 import bpy, re, json, math, os
 from mathutils import Quaternion, Vector, Matrix
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(bpy.data.filepath))) if bpy.data.filepath else os.getcwd()
 ROOT = os.path.dirname(ROOT) if os.path.basename(ROOT) == 'assets' else ROOT
-arm = bpy.data.objects['Armature']; ws = bpy.data.objects['WeaponSocket_R']
+arm = bpy.data.objects['Armature']
 # always work in the rig's own scene: the Blender instance may have another scene active
 sc = next(s for s in bpy.data.scenes if arm.name in s.objects); VL = sc.view_layers[0]
 PB = arm.pose.bones; BONES = [b.name for b in arm.data.bones]
@@ -64,11 +65,19 @@ def apply(Pz):
         if l is not None: pb.location = l
     VL.update()
 
+GRIP_TILT = 0.28  # must match GRIP.tilt in src/player.js (makeGrip): the blade runs across the fist, out of the thumb side
+
+def blade_axis():
+    """World direction of the held blade, built from the knuckles exactly as the game's grip is."""
+    MW = arm.matrix_world; h = lambda n: (MW @ PB[P + n].matrix).translation
+    across = (h('RightHandIndex1') - h('RightHandPinky1')).normalized(); fingers = (h('RightHandMiddle1') - h('RightHand')).normalized()
+    return (across * math.cos(GRIP_TILT) + fingers * math.sin(GRIP_TILT)).normalized()
+
 def aim_blade(Pz, dir_arm, w):
-    """Rotate the right hand so the blade (socket +Y) points along dir_arm (armature space: -Y fwd, +Z up, +X left)."""
+    """Rotate the right hand so the blade points along dir_arm (armature space: -Y fwd, +Z up, +X left)."""
     apply(Pz)
     MW = arm.matrix_world
-    d0 = (ws.matrix_world.to_3x3() @ Vector((0, 1, 0))).normalized(); d1 = (MW.to_3x3() @ Vector(dir_arm)).normalized()
+    d0 = blade_axis(); d1 = (MW.to_3x3() @ Vector(dir_arm)).normalized()
     R = Quaternion().slerp(d0.rotation_difference(d1), w)
     hb = PB[P + 'RightHand']; Mh = MW @ hb.matrix; pos = Mh.translation.copy()
     newW = Matrix.Translation(pos) @ R.to_matrix().to_4x4() @ Matrix.Translation(-pos) @ Mh
@@ -140,7 +149,8 @@ def attack(name, src, a0, s0, s1, s2, na=3, rate=1.0, nf=3, nr=7, legs='src', gu
         t = i / na; out.append(blend(G, S(a0 + (s0 - a0) * ease(t)), ease_out(t)))
     ns = max(1, round((s1 - s0) / rate))
     for i in range(1, ns + 1): out.append(S(s0 + (s1 - s0) * i / ns))
-    hit = [na + 1, na + ns + 1]
+    # live from the moment the blade comes over the top until it has landed (the cut finishes in the first follow-through frames)
+    hit = [na + 3, na + ns + 1 + min(3, nf)]
     for i in range(1, nf + 1): out.append(S(s1 + (s2 - s1) * ease_out(i / nf)))
     cancel = len(out)
     E = S(s2)
@@ -173,28 +183,20 @@ def build():
     def armed(p, t):
         p = blend(p, carry, 0.62, RARM)                       # stop pumping the sword arm; carry it low, a little swing left
         p = blend(p, carry, 0.5, LARM); p = blend(p, carry, 0.8, LFING)   # the shield arm stops punching forward as a fist
-        p = aim_blade(p, (-0.58, 0.68, -0.45), 0.92)           # blade trails behind and down, on the camera side so it stays readable
+        p = aim_blade(p, (-0.58, 0.68, -0.45), 0.92)          # blade trails behind and down, on the camera side so it stays readable
         return p
     loop('vw_run_armed', 'sword_and_shield_run', 1, 22, armed)
-    # ---- air: one scrub clip, 0 = launch, 0.5 = apex tuck, 1 = legs reaching for the floor ------------------
-    J = 'axe_unarmed_jump'; air = []
-    for i in range(21):
-        t = i / 20  # rise: legs long and trailing (26) -> apex: tuck (35) -> fall: legs reaching down, sword arm lifting (44)
-        air.append(pose(J, 26 + 9 * (t * 2) ** 1.7) if t < 0.5 else pose(J, 35 + 9 * ((t - 0.5) * 2) ** 0.6))
-    write('vw_air', air); META['clips']['vw_air'] = {'frames': 21}
-    land = [pose(J, 50 + (64 - 50) * ease_out(i / 9)) for i in range(10)]
-    write('vw_land', land); META['clips']['vw_land'] = {'frames': 10}
     # ---- attacks ------------------------------------------------------------------------------------------
     upright = lambda w: (lambda p, f: blend(p, pose(*GUARD), w, SPINE))   # cap the forward pitch so the head stays up
-    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=upright(0.45))
+    # link 1: keep the torso up, and turn the wrist as the cut lands so the blade finishes in the screen plane, pointing
+    # down and forward (the mocap ends with it foreshortened toward the camera, which read as a bow with no sword)
+    def cut1(p, f):
+        p = blend(p, pose(*GUARD), 0.6, SPINE)
+        return aim_blade(p, (-0.12, -0.80, -0.58), max(0, min(1, (f - 158) / 3)))
+    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=cut1)
     attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7, legs='guard', legs_w=0.85)
     attack('vw_slash3', 'standing_melee_attack_downward', 44, 49, 55, 58, na=4, rate=1.0, nf=4, nr=9)
-    # the source is a lunging cut: lock the weapon's axis onto the line of the lunge so spears and daggers actually stab
-    point = lambda p, f: aim_blade(p, (0.0, -1.0, 0.04), max(0, min(1, (f - 12) / 4)) * max(0, min(1, (26 - f) / 2)))
-    attack('vw_thrust', 'sword_and_shield_slash', 11, 16, 22, 26, na=4, rate=1.0, nf=4, nr=8, fix=point)
-    attack('vw_great', 'great_sword_slash', 40, 45, 53, 55, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
-    attack('vw_smash', 'standing_melee_run_jump_attack', 97, 102, 108, 110, na=5, rate=0.9, nf=3, nr=11, legs='guard', legs_w=0.8, fix=upright(0.3))
-    attack('vw_punch', 'axe_standing_melee_attack_backhand', 22, 27, 34, 38, na=3, rate=1.2, nf=3, nr=6, guard=('axe_unarmed_idle', 1))
+    attack('vw_great', 'great_sword_slash', 40, 45, 55, 58, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
     # ---- grip: finger curl used whenever a weapon is in hand ------------------------------------------------
     g = pose('sword_and_shield_idle', 1); rest = pose('axe_unarmed_idle', 1)
     write('vw_grip', [blend(rest, g, 1, RFING + LFING)] * 2); META['clips']['vw_grip'] = {'frames': 2}

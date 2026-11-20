@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07050a">
+<title>Attack Viewer</title>
+<link rel="stylesheet" href="src/viewer.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>Attack Viewer</h1>
+      <button id="listToggle" class="phone-only" aria-label="Show the animation list">Animations ▾</button>
+      <a href="index.html" class="link">Play ▸</a>
+    </header>
+    <section>
+      <label class="lab" for="kind">Weapon class</label>
+      <select id="kind"></select>
+      <div id="kindNow" class="now"></div>
+      <label class="lab" for="weapon">Preview weapon</label>
+      <select id="weapon"></select>
+    </section>
+    <section class="grow">
+      <div class="lab row">Attack animations <span id="count" class="dim"></span></div>
+      <div id="clips"></div>
+    </section>
+  </aside>
+  <main id="stage">
+    <canvas id="view"></canvas>
+    <div id="loading">Loading the hero…</div>
+    <div id="hud">
+      <div id="clipName"></div>
+      <div id="clipNote" class="dim"></div>
+    </div>
+    <div id="viewBtns">
+      <button id="camSide" class="on" title="Game camera">Game view</button>
+      <button id="camOrbit" title="Drag to orbit">Orbit</button>
+      <button id="showHit" class="on" title="Show the hit box">Hit box</button>
+    </div>
+  </main>
+  <footer id="bar">
+    <div id="swings"></div>
+    <div class="tl">
+      <button id="prevF" class="step" aria-label="Previous frame" title="Previous frame (,)">‹</button>
+      <button id="play" class="big" aria-label="Play">▶</button>
+      <button id="nextF" class="step" aria-label="Next frame" title="Next frame (.)">›</button>
+      <div id="track"><div id="win"></div><div id="hitwin"></div><input id="scrub" type="range" min="0" max="100" value="0" step="1"></div>
+      <span id="frame" class="mono">0 / 0</span>
+    </div>
+    <div class="ctrls">
+    <div class="opts">
+      <label class="chk"><input id="loopWin" type="checkbox" checked> Loop the swing only</label>
+      <label class="chk">Speed <select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>Game</option></select></label>
+      <label class="chk">Swing time <input id="dur" type="range" min="0.15" max="1.2" step="0.01" value="0.36"> <span id="durText" class="mono">0.36 s</span></label>
+      <label class="chk"><input id="upperOnly" type="checkbox"> Upper body only</label>
+      <label class="chk">Grip <select id="grip"><option value="normal">Normal (blade up from thumb)</option><option value="reverse">Reverse (blade down, ice-pick)</option><option value="forward">Forward (along the arm, spear)</option></select></label>
+    </div>
+    <div class="marks">
+      <button data-mark="from">Start ⟦</button>
+      <button data-mark="hit0">Hit on</button>
+      <button data-mark="hit1">Hit off</button>
+      <button data-mark="to">End ⟧</button>
+      <span id="markText" class="mono dim"></span>
+    </div>
+    <div class="act">
+      <button id="use" class="primary">Use for this weapon class</button>
+      <button id="reset">Reset class</button>
+      <button id="startBtn" title="Make the weapon on the causeway pedestal this one">Make starting weapon</button>
+      <button id="copy">Copy config</button>
+    </div>
+    </div>
+    <div id="msg" class="dim"></div>
+  </footer>
+</div>
+<script type="module" src="src/viewer.js"></script>
+</body>
+</html>

@@ -10,7 +10,8 @@ import { Player } from './player.js';
 import { Enemy, TYPES, ELEM_COL } from './enemies.js';
 import { UI } from './ui.js';
 import { initTouch } from './touch.js';
-import { loadMeta, weaponModel, audio, surface, loadGLTF } from './assets.js';
+import { loadMeta, weaponModel, audio, surface, loadGLTF, LOW_MEM } from './assets.js';
+import { startWeapon } from './attacks.js';
 import { makeItem, makeGem, makeUnique, rollDrop, tierItem, BASES, GEMS, DROP_GEMS, ECHOES } from './items.js';
 
 const CAMZ = 10.7, SAVE_KEY = 'vesperwrithe_save2';
@@ -82,16 +83,18 @@ const SHOT = { // look of each missile: colour, size, trail
 class Game {
   constructor() {
     const canvas = $('view');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: !!window.__keepBuffer });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-    this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // LOW_MEM (phones): smaller framebuffers and shadow map; the post-processing chain renders off-screen anyway, so skip MSAA there
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOW_MEM, powerPreference: LOW_MEM ? 'default' : 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_MEM ? 1.25 : 1.75));
+    this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = LOW_MEM ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.contextLost = true; const m = $('loadMsg'); $('title').classList.remove('hidden'); if (m) m.textContent = 'The graphics ran out of memory. Close other tabs, then reload the page.'; });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.15;
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x05040a);
     this.scene.fog = new THREE.Fog(0x0b0810, 16, 50);
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.5, 400);
     this.hemi = new THREE.HemisphereLight(0x8a90c0, 0x201418, 0.35); this.scene.add(this.hemi);
     this.moon = new THREE.DirectionalLight(0xaab8ff, 0.6); this.moon.castShadow = true;
-    Object.assign(this.moon.shadow.camera, { left: -16, right: 16, top: 11, bottom: -8, near: 1, far: 60 }); this.moon.shadow.mapSize.set(2048, 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
+    Object.assign(this.moon.shadow.camera, { left: -16, right: 16, top: 11, bottom: -8, near: 1, far: 60 }); this.moon.shadow.mapSize.setScalar(LOW_MEM ? 1024 : 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
     this.scene.add(this.moon, this.moon.target);
     this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.62); this.scene.add(this.camFill, this.camFill.target);
     this.backRim = new THREE.DirectionalLight(0x9fb4ff, 1.8); this.scene.add(this.backRim, this.backRim.target);
@@ -164,7 +167,7 @@ class Game {
   // ------------------------------------------------------------------ loot
   async spawnPlaced(room, it, key) {
     const x = room.b.x0 + it.x, y = room.b.y0 + (it.y ?? FLOOR);
-    const item = it.gem ? makeGem(it.gem) : it.up ? { up: it.up } : it.potion ? { potion: true } : it.gold ? { gold: it.gold } : it.unique ? makeUnique(it.unique) : it.tier ? tierItem(it.tier, it.rarity) : makeItem(it.base, { rarity: it.rarity, sockets: it.sockets });
+    const item = it.gem ? makeGem(it.gem) : it.up ? { up: it.up } : it.potion ? { potion: true } : it.gold ? { gold: it.gold } : it.unique ? makeUnique(it.unique) : it.tier ? tierItem(it.tier, it.rarity) : makeItem(it.tutorial ? startWeapon() : it.base, { rarity: it.rarity, sockets: it.sockets }); // the Attack Viewer can swap the first weapon
     if (it.pedestal) {
       const m = surface(it.altar ? 'marble' : 'ashlar', 1, 1, it.altar ? { dir: 'assets/game/interior/' } : {});
       const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
@@ -215,7 +218,7 @@ class Game {
     P.bag.push(it);
     if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
     else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast('Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
-    if (it.base === 'pilgrim_blade') { this.ui.prompt('Press I to open your pack, then Enter to equip the Pilgrim\'s Blade'); this.tutorial = 'equip'; }
+    if (it.base === startWeapon() && !this.flags.equipHint) { this.flags.equipHint = 1; this.ui.prompt(`Press I to open your pack, then Enter to equip the ${it.name}`); this.tutorial = 'equip'; }
   }
 
   makeChest(room, c, i) {
@@ -285,9 +288,9 @@ class Game {
   }
   // keep only the rooms around the pilgrim alive
   evict(cur) {
-    const live = this.world.rooms.filter(r => r.live); if (live.length <= 14) return;
+    const live = this.world.rooms.filter(r => r.live), cap = LOW_MEM ? 6 : 14; if (live.length <= cap) return;
     const near = new Set([cur, ...this.neighbours(cur)]);
-    for (const r of live.filter(r => !near.has(r)).sort((a, b) => (a.seen || 0) - (b.seen || 0)).slice(0, live.length - 9)) {
+    for (const r of live.filter(r => !near.has(r)).sort((a, b) => (a.seen || 0) - (b.seen || 0)).slice(0, live.length - (LOW_MEM ? 4 : 9))) {
       this.loot = this.loot.filter(L => { if (L.room !== r) return true; if (!L.key) return false; return false; });
       this.world.unload(r, r.enemies.map(e => e.root)); r.live = false; r.living = null; r.enemies = []; r.chests = []; r.bellObj = null;
     }
@@ -331,7 +334,7 @@ class Game {
     for (const e of room.enemies) {
       if (e.gone || hb.attack.hitIds.has(e.id)) continue;
       const roll = hb.roll ? { ...hb.roll } : P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
-      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.inv = Math.max(P.inv, 0.2); } }
+      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.inv = Math.max(P.inv, 0.2); } }
     }
     if (!hb.proj) for (const s of this.shots) if (!s.friendly && ['skull', 'bone', 'book', 'lob', 'web'].includes(s.kind) && s.x > hb.x0 - 0.3 && s.x < hb.x1 + 0.3 && s.y > hb.y0 - 0.3 && s.y < hb.y1 + 0.3) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 12, 4); audio.play('sword_parry_1', 0.4, 1.4); } // steel swats slow missiles from the air
     for (const bk of room.breakables) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
@@ -619,7 +622,8 @@ class Game {
     const rm = this.world.byId(id), P = this.player; if (!rm || rm === this.room) return;
     audio.play('wave_attack_2', 0.6, 0.5); $('fade').style.opacity = 1; this.cine = true;
     await this.ensureRoom(rm); await new Promise(r => setTimeout(r, 350));
-    P.pos.set(rm.warpAt.x, rm.warpAt.y); P.vel.set(0, 0); this.cine = false; await this.enterRoom(rm, true); this.fx.burst(P.pos.x, P.pos.y + 1, 0xd0b060, 40, 5);
+    await this.ensureRoom(rm); const wp = rm.warpAt || { x: rm.b.x0 + (rm.def.warp?.x ?? 5), y: rm.b.y0 + FLOOR }; // the room may have been unloaded while the screen faded
+    P.pos.set(wp.x, wp.y); P.vel.set(0, 0); this.cine = false; await this.enterRoom(rm, true); this.fx.burst(P.pos.x, P.pos.y + 1, 0xd0b060, 40, 5);
   }
   interact() {
     const P = this.player, r = this.room;
@@ -630,12 +634,13 @@ class Game {
   }
   promptFor() {
     const P = this.player, r = this.room; if (this.tutorial) return;
-    let t = ''; const near = (o, d = 1.8) => o && Math.abs(P.pos.x - o.x) < d && Math.abs(P.pos.y - o.y) < 1;
-    if (near(r.saveAt)) t = 'E — Rest at the coffin (heal & save)';
-    else if (near(r.warpAt)) t = 'E — Step through the mirror';
-    else if (near(r.shopAt, 2.2)) t = 'E — Trade with the Librarian';
-    else if (r.chests.some(c => !c.opened && near(c, 1.4))) t = 'E — Open';
+    let t = '', ctx = ''; const near = (o, d = 1.8) => o && Math.abs(P.pos.x - o.x) < d && Math.abs(P.pos.y - o.y) < 1, key = document.body.classList.contains('touch') ? '' : 'E — ';
+    if (near(r.saveAt)) { t = key + 'Rest at the coffin (heal & save)'; ctx = 'REST'; }
+    else if (near(r.warpAt)) { t = key + 'Step through the mirror'; ctx = 'TOUCH'; }
+    else if (near(r.shopAt, 2.2)) { t = key + 'Trade'; ctx = 'TRADE'; }
+    else if (r.chests.some(c => !c.opened && near(c, 1.4))) { t = key + 'Open the chest'; ctx = 'OPEN'; }
     else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text;
+    this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
   }
 
@@ -701,7 +706,7 @@ class Game {
 }
 
 const game = new Game(); window.game = game;
-initTouch(game.input, () => game.ui.open);
+game.touch = initTouch(game.input, () => { const P = game.player; return { menu: game.ui.open, ctx: game.ctxAction, potions: P.stats.potions, canDouble: P.has('djump') && !P.onGround && P.jumpsLeft > 0 && P.state === 'free' }; });
 // Debug helpers (console): sim(frames, heldKeys, pressedKeys) steps the game; tp(roomId, x, y) teleports; give(...bells) grants bells.
 window.sim = (n, keys = [], press = []) => { const I = game.input; press.forEach(k => I.pressed.add(k)); keys.forEach(k => I.keys.add(k)); for (let i = 0; i < n; i++) { if (i === 1) I.pressed.clear(); game.step(1 / 60); } keys.forEach(k => I.keys.delete(k)); };
 window.shot = (x, y, z, lx, ly, lz = 0) => { window.__pause = true; game.camera.position.set(x, y, z); game.camera.lookAt(lx, ly, lz); };
@@ -726,7 +731,7 @@ window.boot = () => new Promise(r => { const i = setInterval(() => { if (!$('sta
 game.load(t => $('loadMsg').textContent = t).then(() => {
   $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';
   $('startBtn').classList.remove('hidden');
-  const begin = async (fresh) => { audio.resume(); removeEventListener('keydown', k); $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) await game.newGame(true); game.start(); };
+  const begin = async (fresh) => { audio.resume(); removeEventListener('keydown', k); $('title').classList.add('hidden'); document.body.classList.add('playing'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) await game.newGame(true); game.start(); };
   if (game.readSave()) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem(SAVE_KEY); begin(true); }; }
   const k = e => { if (e.code === 'Enter') begin(false); if (e.code === 'KeyN') { localStorage.removeItem(SAVE_KEY); begin(true); } };
   $('startBtn').onclick = () => begin(false); addEventListener('keydown', k);
