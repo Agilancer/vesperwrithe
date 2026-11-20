@@ -41,7 +41,7 @@ export class UI {
       ctx.fillStyle = !seen ? 'rgba(120,170,170,.14)' : r.save ? '#b8485c' : r.warp ? '#d9c48a' : r.id === cur?.id ? '#4fb3aa' : '#1d4f55';
       ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
       ctx.strokeStyle = 'rgba(214,246,240,.62)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-      if (full && seen) { ctx.fillStyle = 'rgba(233,224,204,.85)'; ctx.font = `${Math.max(9, cell * 0.22)}px Palatino Linotype, Georgia`; ctx.fillText(r.name, x + 4, y + cell * 0.32); }
+      if (full && seen) { ctx.fillStyle = 'rgba(233,224,204,.85)'; ctx.font = `${Math.max(12, cell * 0.27)}px Palatino Linotype, Georgia`; ctx.fillText(r.name, x + 4, y + cell * 0.32); }
       if (seen) for (const d of r.doors) { ctx.fillStyle = '#000'; if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 3, oy + d.row * cell + cell * 0.55, 4, cell * 0.3); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 3, cell * 0.3, 4); }
     }
     if (this.g.objective) { const o = this.g.objective; ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(ox + o.c * cell, oy + o.r * cell, Math.max(3, cell * 0.18) * (1 + 0.25 * Math.sin(performance.now() / 160)), 0, 7); ctx.fill(); }

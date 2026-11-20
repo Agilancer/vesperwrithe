@@ -149,7 +149,8 @@ def attack(name, src, a0, s0, s1, s2, na=3, rate=1.0, nf=3, nr=7, legs='src', gu
         t = i / na; out.append(blend(G, S(a0 + (s0 - a0) * ease(t)), ease_out(t)))
     ns = max(1, round((s1 - s0) / rate))
     for i in range(1, ns + 1): out.append(S(s0 + (s1 - s0) * i / ns))
-    hit = [na + 1, na + ns + 1]
+    # live from the moment the blade comes over the top until it has landed (the cut finishes in the first follow-through frames)
+    hit = [na + 3, na + ns + 1 + min(3, nf)]
     for i in range(1, nf + 1): out.append(S(s1 + (s2 - s1) * ease_out(i / nf)))
     cancel = len(out)
     E = S(s2)
@@ -190,7 +191,7 @@ def build():
     attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=upright(0.45))
     attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7, legs='guard', legs_w=0.85)
     attack('vw_slash3', 'standing_melee_attack_downward', 44, 49, 55, 58, na=4, rate=1.0, nf=4, nr=9)
-    attack('vw_great', 'great_sword_slash', 40, 45, 53, 55, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
+    attack('vw_great', 'great_sword_slash', 40, 45, 55, 58, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
     # ---- grip: finger curl used whenever a weapon is in hand ------------------------------------------------
     g = pose('sword_and_shield_idle', 1); rest = pose('axe_unarmed_idle', 1)
     write('vw_grip', [blend(rest, g, 1, RFING + LFING)] * 2); META['clips']['vw_grip'] = {'frames': 2}

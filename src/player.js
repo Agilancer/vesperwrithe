@@ -188,6 +188,8 @@ export class Player {
     }
     sock.add(m); this[slot + 'Mesh'] = m;
     if (slot === 'weapon') this.setupTwoHand(base, grip || attackFor(base).grip);
+    // a faint cold edge-light so the blade reads against dark armour and dark rooms (element FX override it)
+    if (slot === 'weapon') m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x8fb4c8); o.material.emissiveIntensity = 0.16; } });
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
   }
 
@@ -381,7 +383,7 @@ export class Player {
     if (ci && this.inpX && this.onGround) this.facing = Math.sign(this.inpX); // re-aim between links
     const ias = 1 + (this.d?.ias || 0) / 100;
     const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
-    this.attack = { st, chain, ci, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)), swung: false };
+    this.attack = { st, chain, ci, t: ci ? (st.dur / ias) * 2 / (st.to - st.from) : 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)), swung: false };
     const fullBody = mode === 'idle' && !st.upperOnly;
     this.setLayer('upper', st.anim, ci ? 0.1 : 0.06, { manual: true, at: st.from / FPS, restart: true });
     if (fullBody) this.setLayer('lower', st.anim, ci ? 0.1 : 0.08, { manual: true, at: st.from / FPS, restart: true });
