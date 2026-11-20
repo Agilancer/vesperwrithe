@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { initBases } from './items.js';
 
 const gltfLoader = new GLTFLoader();
 const texLoader = new THREE.TextureLoader();
@@ -64,14 +65,22 @@ export function surface(name, repX = 1, repY = 1, opts = {}) {
   return m;
 }
 
+// A plain colour/mask texture by URL, cached, with the phone memory cap applied.
+const plainCache = new Map();
+export function texture(url) { if (!plainCache.has(url)) { const t = texLoader.load(url, fitTexture); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = LOW_MEM ? 2 : 4; plainCache.set(url, t); } return plainCache.get(url); }
+
 export async function loadMeta() {
   const [g, w] = await Promise.all([fetch('assets/game/weapons/grips.json').then(r => r.json()), fetch('assets/game/weapons/weapons.json').then(r => r.json())]);
   GRIPS = g; WEAPONS = w;
+  // the hand-made swords and greatswords: blade along +Y from the grip at the origin
+  const sw = (await fetch('assets/game/items/swords.json').then(r => r.json())).swords;
+  for (const [id, s] of Object.entries(sw)) { if (s.hands === 3 || !s.file || WEAPONS[id]) continue; WEAPONS[id] = { id, file: s.file, kind: s.hands === 2 ? 'great_sword' : 'sword' }; GRIPS[id] = { kind: WEAPONS[id].kind, grip: [0, 0, 0], dir: [0, 1, 0], len: s.frame?.y?.[1] || 1 }; }
+  initBases(w, sw);
 }
 
 // A weapon model re-centred on its grip with the blade along +Y, ready to parent to a hand socket.
 export async function weaponModel(modelId, scale = 1) {
-  const W = WEAPONS[modelId], G = GRIPS[modelId];
+  const W = WEAPONS[modelId] || WEAPONS.iron_sword, G = GRIPS[modelId] || GRIPS.iron_sword;
   const g = await loadGLTF(W.file);
   const inner = g.scene.clone(true);
   inner.traverse(o => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); } });

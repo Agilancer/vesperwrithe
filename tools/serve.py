@@ -8,6 +8,15 @@ class H(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
     def log_message(self, *a): pass
+    def do_POST(self):  # dev only: the game can save review screenshots to ./shots (localhost only)
+        import base64, re, urllib.parse
+        q = urllib.parse.urlparse(self.path)
+        if q.path != '/__shot' or self.client_address[0] not in ('127.0.0.1', '::1'): self.send_error(404); return
+        name = re.sub(r'[^A-Za-z0-9_.-]', '_', urllib.parse.parse_qs(q.query).get('name', ['shot'])[0])[:80]
+        data = self.rfile.read(int(self.headers.get('Content-Length', 0))).decode()
+        os.makedirs('shots', exist_ok=True)
+        open(os.path.join('shots', name + '.jpg'), 'wb').write(base64.b64decode(data.split(',', 1)[1]))
+        self.send_response(204); self.end_headers()
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 lan = '--lan' in sys.argv
 port = int(args[0]) if args else 8410

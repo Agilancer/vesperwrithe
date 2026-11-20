@@ -28,10 +28,13 @@
     <div class="bars">
       <div class="bar hp"><i id="hpFill"></i><b id="hpText">100</b></div>
       <div class="bar mp"><i id="mpFill"></i><b id="mpText">40</b></div>
+      <div class="bar xp"><i id="xpFill"></i></div>
+      <div id="bells"></div>
     </div>
   </div>
   <div id="gold">0 <small>GOLD</small></div>
-  <canvas id="minimap" width="200" height="120"></canvas>
+  <canvas id="minimap" width="216" height="132"></canvas>
+  <div id="bellGet"></div>
   <div id="roomName"></div>
   <div id="prompt"></div>
   <div id="toasts"></div>
@@ -40,7 +43,7 @@
 
 <div id="inv" class="hidden">
   <div class="inv-wrap">
-    <header><h2>Equipment</h2><span class="hint">I / Tab close &nbsp;·&nbsp; Arrows select &nbsp;·&nbsp; Enter equip &nbsp;·&nbsp; S socket gem</span></header>
+    <header><h2>Equipment</h2><span class="hint">I / Tab close &nbsp;·&nbsp; Arrows select &nbsp;·&nbsp; Enter equip &nbsp;·&nbsp; S socket gem &nbsp;·&nbsp; 1-4 spend points</span></header>
     <div class="inv-body">
       <div class="paper">
         <div class="stats" id="stats"></div>
@@ -55,7 +58,18 @@
   </div>
 </div>
 
-<div id="mapScreen" class="hidden"><h2 class="maptitle">Castle Velscour</h2><canvas id="bigmap" width="1200" height="700"></canvas><div class="maphint">M close · Castle Velscour — Pilgrim Causeway &amp; Blackthorn Gatehouse</div></div>
+<div id="mapScreen" class="hidden"><h2 class="maptitle">Castle Velscour</h2><canvas id="bigmap" width="1500" height="860"></canvas><div class="maphint" id="mapHint">M close</div></div>
+
+<div id="menu" class="hidden">
+  <div class="inv-wrap">
+    <header><h2 id="menuTitle"></h2><span class="hint" id="menuHint"></span></header>
+    <div class="inv-body two">
+      <div class="pack"><ul id="menuList"></ul></div>
+      <div class="detail" id="menuDetail"></div>
+    </div>
+  </div>
+</div>
+<div id="ending" class="hidden"></div>
 
 <div id="title">
   <div class="t-sky"></div>
