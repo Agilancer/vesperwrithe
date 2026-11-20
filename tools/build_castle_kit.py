@@ -370,8 +370,8 @@ def make_gatehouse():
     S.append(solid_face('gh_wall', [(-3.4, 0), (-gw / 2, 0)] + arch + [(gw / 2, 0), (3.4, 0), (3.4, 11.0), (-3.4, 11.0)], [], 0.9, 'stone', 0.0))
     T.append(solid_face('gh_tunnel', [(-gw / 2 - 0.3, 0)] + arch_xz(gw + 0.6, rise + 0.3, 22, spring) + [(gw / 2 + 0.3, 0)], [opening], 3.8, 'tunnel', 0.9))
     T.append(box('gh_back', -3.0, 4.6, -0.2, 3.0, 5.0, 7.2, 'tunnel')); T.append(box('gh_floor', -2.6, 0.0, -0.6, 2.6, 4.7, 0.01, 'tunnel'))
-    for i in range(10): x = -1.7 + i * 0.378; T.append(box('fpc', x - 0.04, 4.3, 0.0, x + 0.04, 4.38, 4.6, 'dark'))
-    for z in (0.8, 1.9, 3.0, 4.1): T.append(box('fpcr', -1.85, 4.28, z, 1.85, 4.4, z + 0.08, 'dark'))
+    for i in range(10): x = -1.7 + i * 0.378; T.append(box('fpc', x - 0.04, 4.3, 1.75, x + 0.04, 4.38, 4.6, 'dark')); T.append(cyl('fpct', x, 4.34, 1.45, 1.75, 0.05, 6, 'dark', 0.0))  # raised a third: teeth showing
+    for z in (1.85, 2.9, 3.95): T.append(box('fpcr', -1.85, 4.28, z, 1.85, 4.4, z + 0.08, 'dark'))
     T.append(miter_sweep('gh_arch', [(-gw / 2 - 0.36, 0)] + arch_xz(gw + 0.72, rise + 0.3, 30, spring) + [(gw / 2 + 0.36, 0)], roll_uv(0.6, 0.72), 0.0, False, 'trim'))
     T.append(miter_sweep('gh_hood', arch_xz(gw + 1.9, rise + 0.95, 30, spring), [(-0.12, 0), (-0.12, 0.2), (-0.02, 0.27), (0.1, 0.22), (0.12, 0)], 0.0, False, 'trim'))
     # raised portcullis: its lower rail and teeth hang in the arch head

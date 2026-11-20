@@ -58,7 +58,7 @@ def referenced_files():
             if v.get('file') and v.get('hands') != 3:
                 found.add(v['file'])
     found.update(f'assets/game/items/skull_0{i}.glb' for i in range(1, 9))
-    for d in ('assets/game/tex2', 'assets/game/items/icons'):
+    for d in ('assets/game/tex2', 'assets/game/tex3', 'assets/game/glass', 'assets/game/items/icons'):
         if os.path.isdir(d):
             found.update(f'{d}/{n}' for n in os.listdir(d) if n.endswith('.webp'))
     return sorted(f for f in found if os.path.exists(f))

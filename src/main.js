@@ -16,6 +16,15 @@ import { wantsTouch } from './touch.js';
 import { startWeapon } from './attacks.js';
 import { makeItem, makeGem, makeUnique, rollDrop, tierItem, BASES, GEMS, DROP_GEMS, ECHOES } from './items.js';
 
+const HUE = { // [interior ambient, shadow lift (rgb)]: each wing keeps its own cast against the warm torch pools
+  crypt: [0x2c3a34, [0.008, 0.022, 0.016]], catacomb: [0x2e3a32, [0.008, 0.02, 0.014]], royalcrypt: [0x2e383c, [0.01, 0.02, 0.022]], ossuary: [0x3a3828, [0.016, 0.016, 0.008]],
+  cistern: [0x20363e, [0.004, 0.02, 0.028]], aqueduct: [0x223a36, [0.004, 0.022, 0.02]], clock: [0x4a3a20, [0.024, 0.016, 0.004]],
+  throne: [0x4a262c, [0.03, 0.006, 0.012]], hollow: [0x4c2620, [0.03, 0.008, 0.006]], vestibule: [0x48302e, [0.024, 0.01, 0.012]],
+  library: [0x4c3a26, [0.022, 0.014, 0.006]], portrait: [0x48282c, [0.024, 0.008, 0.012]], servants: [0x463826, [0.02, 0.014, 0.006]],
+  chapel: [0x363252, [0.014, 0.012, 0.034]], shrine: [0x422e3a, [0.022, 0.01, 0.02]], mirror: [0x3c3a56, [0.016, 0.014, 0.036]],
+  prison: [0x3a3430, [0.016, 0.012, 0.01]], mine: [0x2a2c38, [0.01, 0.012, 0.026]], sanctum: [0x2c2650, [0.016, 0.008, 0.04]], observatory: [0x24304e, [0.006, 0.014, 0.04]],
+  belfry: [0x323a4c, [0.01, 0.014, 0.03]], menagerie: [0x3c3a28, [0.018, 0.016, 0.006]], forge: [0x4c2818, [0.034, 0.01, 0.002]], magma: [0x4c2014, [0.036, 0.008, 0.002]],
+};
 const CAMZ = 12.2, SAVE_KEY = 'vesperwrithe_save2';
 const $ = id => document.getElementById(id);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -105,12 +114,12 @@ class Game {
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1024, 576), 0.55, 0.5, 0.82); this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-    this.grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, time: { value: 0 }, aspect: { value: 16 / 9 }, warm: { value: 0 } },
+    this.grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, time: { value: 0 }, aspect: { value: 16 / 9 }, warm: { value: 0 }, lift: { value: new THREE.Vector3(0.012, 0.016, 0.034) } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform sampler2D tDiffuse; uniform float time, aspect, warm; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float time, aspect, warm; uniform vec3 lift; varying vec2 vUv;
         void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
           c.rgb = mix(vec3(l), c.rgb, 0.86);                                                     // a little desaturation
-          vec3 lift = vec3(0.012, 0.016, 0.034), hi = mix(vec3(1.03, 1.0, 0.94), vec3(1.06, 0.98, 0.88), warm);
+          vec3 hi = mix(vec3(1.03, 1.0, 0.94), vec3(1.06, 0.98, 0.88), warm);
           c.rgb = c.rgb * mix(vec3(0.97, 0.98, 1.04), hi, smoothstep(0.25, 0.85, l)) + lift * (1.0 - smoothstep(0.0, 0.35, l)); // cold shadows, warm light
           vec2 d = vUv - 0.5; d.x *= aspect; c.rgb *= mix(0.6, 1.0, smoothstep(0.98, 0.34, length(d)));                         // vignette
           float g = fract(sin(dot(floor(vUv * vec2(1920.0, 1080.0)) + time * 7.0, vec2(12.9898, 78.233))) * 43758.5453); c.rgb += (g - 0.5) * 0.028;
@@ -317,7 +326,7 @@ class Game {
     for (const bk of room.breakables) if (bk.broken && Math.random() < 0.6) { bk.broken = false; bk.grp.visible = true; }
     this.applyBells(room);
     const T = room.theme; this.scene.fog.color.setHex(T.fog[0]); this.scene.fog.near = T.fog[1]; this.scene.fog.far = T.fog[2]; this.scene.background.setHex(T.sky === 'moon' ? 0x141a30 : T.sky === 'storm' ? 0x0c1018 : T.fog[0]);
-    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.3); this.hemi.intensity = this.amb; this.hemi.color.setHex(open ? 0x8a90c0 : 0x4a4250); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
+    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.3); this.hemi.intensity = this.amb; const hue = HUE[room.def.theme] || [0x463e38, [0.012, 0.014, 0.018]]; this.hemi.color.setHex(open ? 0x8a90c0 : hue[0]); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.grade.uniforms.lift.value.set(...(open ? [0.012, 0.016, 0.034] : hue[1])); this.backRim.intensity = open ? 1.8 : 0; // indoors the back rim only painted the set cold this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
     if (!instant) { $('fade').style.opacity = 0.85; setTimeout(() => $('fade').style.opacity = 0, 90); } else $('fade').style.opacity = 0;
     this.snapCam = true;
     if (!old || old.def.name !== room.def.name) this.ui.roomName(room.def.name);

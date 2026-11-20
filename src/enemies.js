@@ -55,6 +55,7 @@ export class Enemy {
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
     try { await this.armUp(); } catch (e) { console.warn('arm', this.spec.t, e); }
+    this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; }); // weapons too: only stone hides the hero
     if (this.spec.illusion) this.setAlpha(0.55);
     this.room.group.add(this.root);
     this.play(this.state === 'buried' ? T.anim.rise : T.anim.idle, 0, this.state === 'buried' ? { paused: true } : {});

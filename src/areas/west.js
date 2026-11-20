@@ -16,7 +16,7 @@ export default [
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }],
     enemies: [{ t: 'zombie', x: 17, rise: true, drop: 'potion' }],
     breakables: [{ x: 9 }],
-    props: [{ t: 'torch', x: 4 }, { t: 'torch', x: 22 }, { t: 'banner', x: 13.3 }, { t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'windlass', x: 9.5 }, { t: 'barrel', x: 7 }, { t: 'crate', x: 20.5 }],
+    props: [{ t: 'torch', x: 4 }, { t: 'torch', x: 22 }, { t: 'banner', x: 13.3 }, { t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'windlass', x: 6.6 }, { t: 'barrel', x: 7 }, { t: 'crate', x: 20.5 }],
     lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' }] },
 
   { id: 'shaft', name: 'Blackthorn Shaft', area: '02', col: 13, row: -4, w: 1, h: 5, theme: 'shaft',
