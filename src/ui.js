@@ -173,7 +173,7 @@ export class UI {
     if (kind === 'warp') this.menu = { kind, title: 'The Mirror of Passage', hint: 'Enter step through · Esc close', rows: data.map(r => ({ label: r.def.name, sub: `Area ${r.def.area}`, act: () => { this.toggle('menu'); this.g.warpTo(r.def.id); } })) };
     else {
       const lvl = Math.max(2, s.lvl), stock = this._stock?.lvl === lvl ? this._stock.items : (this._stock = { lvl, items: [...Array.from({ length: 5 }, () => makeItem(randomBase(lvl + 1), { rarity: Math.random() < 0.3 ? 'rare' : 'magic', lvl: lvl + 1 })), ...Array.from({ length: 3 }, () => makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0]))] }).items;
-      const rows = [{ label: 'Potion of Vigor', sub: `${40 + lvl * 6}g`, cost: 40 + lvl * 6, act: r => { s.potions++; return true; }, keep: true }];
+      const rows = [{ label: 'Potion of Vigor', sub: `${40 + lvl * 6}g`, cost: 40 + lvl * 6, full: () => s.potions >= this.g.potionCap(), act: r => { s.potions++; return true; }, keep: true }];
       for (const it of stock) rows.push({ label: it.name, cls: 'q-' + it.rarity, sub: itemValue(it) + 'g', cost: itemValue(it), item: it, act: r => { P.bag.push(it); stock.splice(stock.indexOf(it), 1); return true; } });
       for (const it of P.bag) rows.push({ label: 'Sell: ' + it.name, cls: 'q-' + it.rarity, sub: '+' + Math.round(itemValue(it) * 0.3) + 'g', item: it, sell: true, act: r => { s.gold += Math.round(itemValue(it) * 0.3); P.bag = P.bag.filter(x => x !== it); audio.play('coins_gather_quick', 0.5); return true; } });
       this.menu = { kind, title: 'The Librarian', hint: 'Enter buy / sell · Esc close · “Knowledge is the only door that opens inward.”', rows };
@@ -184,7 +184,8 @@ export class UI {
     const m = this.menu, s = this.g.player.stats; if (!m) return;
     if (code === 'Escape') return this.toggle('menu');
     if (code === 'ArrowDown') this.sel = Math.min(m.rows.length - 1, this.sel + 1); else if (code === 'ArrowUp') this.sel = Math.max(0, this.sel - 1);
-    else if (code === 'Enter' || code === 'KeyE') { const r = m.rows[this.sel]; if (!r) return; if (r.cost && s.gold < r.cost) { audio.play('ui_cancel', 0.4); this.toast('Not enough gold.', ''); return; } if (r.cost) { s.gold -= r.cost; audio.play('coin_collect', 0.5); } r.act(r); if (m.kind === 'shop') return this.openMenu('shop'); return; }
+    else if (code === 'Enter' || code === 'KeyE') { const r = m.rows[this.sel]; if (!r) return; if (r.full?.()) { audio.play('ui_cancel', 0.4); this.toast(`Your flasks are full (${s.potions}/${this.g.potionCap()}).`, ''); return; }
+      if (r.cost && s.gold < r.cost) { audio.play('ui_cancel', 0.4); this.toast('Not enough gold.', ''); return; } if (r.cost) { s.gold -= r.cost; audio.play('coin_collect', 0.5); } r.act(r); if (m.kind === 'shop') return this.openMenu('shop'); return; }
     this.renderMenu();
   }
   renderMenu() {

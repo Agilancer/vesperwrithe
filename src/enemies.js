@@ -261,7 +261,7 @@ export class Enemy {
     else if (!quiet && !heavy && this.air) { this.vel.x = (pushDir || -this.facing) * 3; }
     if (this.boss && !this.spec.illusion) {
       const ph = this.hp < this.hpMax * 0.33 && (this.T.moves || []).some(m => m.phase === 3) ? 3 : this.hp < this.hpMax * 0.6 ? 2 : 1;
-      if (ph > this.phase) { this.phase = ph; this.mv = null; this.atk = null; this.state = 'intro'; this.t = 0; this.introT = 1.6; this.playFor(this.clipFor(this.T.anim.roar) || this.T.anim.idle, 1.6); this.invuln = true; setTimeout(() => this.invuln = false, 1200); if (this.flying) this.air = true; this.stun = 0; this.g.bossPhase?.(this, ph); }
+      if (ph > this.phase) { this.phase = ph; this.mv = null; this.atk = null; this.state = 'intro'; this.t = 0; this.introT = 1.6; this.playFor(this.clipFor(this.T.anim.roar) || this.T.anim.idle, 1.6); this.invuln = true; setTimeout(() => this.invuln = false, 1200); if (this.flying) this.air = true; this.stun = 0; this.hidden = false; this.setAlpha(1); this.g.bossPhase?.(this, ph); }
       this.g.bossUpdate?.(this);
     }
   }

@@ -334,7 +334,7 @@ class Game {
     for (const e of room.enemies) {
       if (e.gone || hb.attack.hitIds.has(e.id)) continue;
       const roll = hb.roll ? { ...hb.roll } : P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
-      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.inv = Math.max(P.inv, 0.2); } }
+      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.diveCd = 0.5; } }
     }
     if (!hb.proj) for (const s of this.shots) if (!s.friendly && ['skull', 'bone', 'book', 'lob', 'web'].includes(s.kind) && s.x > hb.x0 - 0.3 && s.x < hb.x1 + 0.3 && s.y > hb.y0 - 0.3 && s.y < hb.y1 + 0.3) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 12, 4); audio.play('sword_parry_1', 0.4, 1.4); } // steel swats slow missiles from the air
     for (const bk of room.breakables) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
@@ -371,7 +371,7 @@ class Game {
     const echo = P.d.echo, r = P.rollDamage(), d = Math.round(r.dmg * 1.5 * (1 + (P.d.int - 8) * 0.04)), x = P.pos.x, y = P.pos.y, f = P.facing, near = this.room.enemies.filter(e => !e.dead && !e.hidden && Math.abs(e.pos.x - x) < 11 && Math.abs(e.pos.y - y) < 6);
     this.fx.ring(x, y + 1.1, 0x9ab0ff, 4); audio.play('spell_impact_3', 0.5, 1.2);
     if (echo === 'chain') { for (const e of near.slice(0, 5)) { this.fx.line({ x, y: y + 1.2 }, { x: e.cx, y: e.cy }, 0xffe860); e.damage(d, 'lightning', true); } }
-    else if (echo === 'nova') { this.fx.ring(x, y + 1, 0x7ad8ff, 9); for (const e of near) if (Math.abs(e.pos.x - x) < 6) { e.chill = 4; e.stun = e.boss ? 0 : 1; e.damage(d, 'ice', true); } }
+    else if (echo === 'nova') { this.fx.ring(x, y + 1, 0x7ad8ff, 9); for (const e of near) if (Math.abs(e.pos.x - x) < 6) { e.chill = 4; if (!e.boss) e.stun = 1; e.damage(d, 'ice', true); } }
     else if (echo === 'star') for (let i = 0; i < 3; i++) this.shoot({ x: x + f * (3 + i * 2.5), y: y + 12, vx: 0, vy: -20, kind: 'star', dmg: d, friendly: true, life: 1.5, blast: 2 });
     else if (echo === 'bats') for (let i = 0; i < 5; i++) this.shoot({ x, y: y + 1.4, vx: f * 6, vy: 4 - i * 2, kind: 'bat', dmg: Math.round(d * 0.5), friendly: true, homing: 6, life: 3 });
     else if (echo === 'toll') { audio.play('title_bells', 0.6, 1.5); this.fx.ring(x, y + 1, 0xffe090, 12); for (const e of near) { e.stun = e.boss ? 1 : 2.2; e.stunStars = true; e.damage(d, null, true); } }
@@ -656,8 +656,8 @@ class Game {
     if (this.slowT > 0) { this.slowT -= dt; dt *= 0.3; }
     this.time += dt; this.playTime += dt;
     if (this.stopT > 0) { this.stopT -= dt; this.render(0); return; }
-    if (inp.interactP && P.onGround && P.state === 'free') this.interact();
-    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state === 'free' && !(P.drinkT > 0)) { P.stats.potions--; P.heal(Math.round(40 + P.stats.hpMax * 0.35)); P.poisoned = 0; P.drinkT = 0.4; P.attack = null; audio.play('heart_collect', 0.5); }
+    if (inp.interactP && !inp.attackP && P.onGround && P.state === 'free') this.interact(); // Up + Attack is the mana art, not a doorbell
+    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state === 'free' && !(P.drinkT > 0)) { P.stats.potions--; P.heal(Math.round(20 + P.stats.hpMax * 0.25)); P.poisoned = 0; P.drinkT = 0.4; P.attack = null; audio.play('heart_collect', 0.5); }
     if (P.drinkT > 0) { P.drinkT -= dt; inp = { ...inp, x: 0, jumpP: false, attackP: false, dashP: false, shield: false }; } // drinking roots you for a breath
     this.world.update(this.time, dt, this.room, this.camPos);
     P.update(dt, inp);

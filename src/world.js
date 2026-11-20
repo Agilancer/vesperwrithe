@@ -43,19 +43,19 @@ export const ZB = -3.4, ZF = 2.6; // back wall depth, front lip of floors
 // dressed alike and the whole Bellmourn texture library is in play. 'name' = tex2, 'name@T' = tex, 'name@I' = interior.
 const ALT = {
   outdoor:   { floor: 'road_flag@T road_stones@T road_1@T', block: 'stone@T' },
-  hall:      { back: 'wall_07@T wall_08@T wall_09@T wall_10@T ph_keep_wall@T ph_dressed@T', floor: 'pv_hall_flagstones_a pv_hall_flagstones_b pv_hall_flagstones_d road_flag@T', block: 'course@T stone@T' },
-  shaft:     { back: 'wall_11@T wall_12@T ph_granite@T ph_basalt@T', floor: 'road_stones@T' },
+  hall:      { floor: 'pv_hall_flagstones_a pv_hall_flagstones_b pv_hall_flagstones_d road_flag@T', block: 'course@T stone@T' },
+  shaft:     { floor: 'road_stones@T' },
   shrine:    { back: 'limewash@I pv_cream_limewash', floor: 'dye_flags' },
   gallery:   { back: 'panel2@I pv_ochre_panels pv_painted_panelling pv_linen_panels', floor: 'wood_a0@I wood_a1@I wood_a2@I wood_a3@I', block: 'pv_brown_oak' },
   crypt:     { back: 'cata_wall4@I cata_blood@I seep@I', floor: 'cata_floor3@I cata_floor4@I cata_v_floor@I', block: 'cata_rubble@I cata_roof@I' },
-  chapel:    { back: 'wall_13@T wall_14@T pv_warm_limestone ph_burnt_wall@T arcade@I tracery@I', floor: 'pv_hall_flagstones_b' },
-  throne:    { back: 'wall_15@T' },
-  courtyard: { floor: 'rutted_setts slum_cobbles', backWall: 'curtain_granite' },
-  servants:  { back: 'pv_aged_lime_plaster pv_aged_ochre_plaster pv_cream_limewash pv_wattle_plaster pv_timber_plaster ph_daub@T ph_grey_plaster@T', floor: 'char_planks ph_boards@T road_plank@T wood_b0@I wood_b1@I wood_b2@I wood_b3@I', wall: 'ph_poor_brick@T pv_cream_brick', block: 'pv_hearth_sandstone' },
-  aqueduct:  { back: 'ph_market_wall@T wall_16@T', floor: 'wharf_deck fen_1@T' },
+  chapel:    { back: 'pv_warm_limestone arcade@I tracery@I', floor: 'pv_hall_flagstones_b' },
+  throne:    {  },
+  courtyard: { backWall: 'curtain_granite' },
+  servants:  { back: 'pv_aged_lime_plaster pv_aged_ochre_plaster pv_cream_limewash pv_wattle_plaster pv_timber_plaster', floor: 'char_planks ph_boards@T road_plank@T wood_b0@I wood_b1@I wood_b2@I wood_b3@I', wall: 'ph_poor_brick@T pv_cream_brick', block: 'pv_hearth_sandstone' },
+  aqueduct:  { floor: 'wharf_deck fen_1@T' },
   cistern:   { floor: 'dye_flags', block: 'basalt_columns' },
   ossuary:   { back: 'skulls_a@I skulls_b@I', floor: 'cata_bones@I', block: 'bone_rubble' },
-  prison:    { back: 'wall_17@T ph_rich_brick@T', block: 'rust_1@T' },
+  prison:    { block: 'rust_1@T' },
   portrait:  { back: 'pv_green_damask pv_damask_wall pv_plum_fabric pv_textured_velvet pv_embossed_leather', floor: 'pv_honey_oak', wainscot: 'pv_linen_panels pv_brown_oak' },
   library:   { floor: 'wood_c0@I wood_c1@I', block: 'wood_c2@I wood_c3@I' },
   garden:    { floor: 'grass_1@T grass_2@T grass_3@T dirt_1@T pinefloor_1@T', block: 'leaves@T leaves_2@T leaves_3@T leaves_4@T moss_patches' },
@@ -67,8 +67,8 @@ const ALT = {
   forge:     { back: 'sooty_plaster fireback soot@I', floor: 'ash_1@T road_ash@T' },
   mirror:    { back: 'pv_linen_plaster pv_rose_plaster pv_sage_plaster pv_smoke_plaster pv_taupe_limewash pv_linen_wallcloth' },
   rampart:   { floor: 'frost_1@T snow_1@T', backWall: 'curtain_granite' },
-  belfry:    { back: 'wall_18@T wall_19@T', floor: 'road_plank@T' },
-  sanctum:   { back: 'wall_20@T' },
+  belfry:    { floor: 'road_plank@T' },
+  sanctum:   {  },
 };
 const DIRS = { T: T0, I };
 let SEED = 0; // set per room while it is being raised
@@ -101,7 +101,7 @@ function tex(name, dir = X) { return texture(`${dir}${name}_c.webp`); }
 // white-on-black mask textures become tinted decals
 function decal(name, color, opacity = 1) { return new THREE.MeshBasicMaterial({ color, alphaMap: tex(name), transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }); }
 // a hanging chain: the strip texture tiles down its length instead of stretching
-function chain(color, w, h, x, y, z) { const t = tex('chain_strip').clone(); t.needsUpdate = true; t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, Math.max(1, Math.round(h / (w * 3.2)))); const m = new THREE.MeshStandardMaterial({ color, alphaMap: t, alphaTest: 0.12, metalness: 0.7, roughness: 0.5, side: THREE.DoubleSide, emissive: color, emissiveIntensity: 0.12 }); return plane(m, Math.max(w, 0.34) * 3.2, h, x, y, z); }
+function chain(color, w, h, x, y, z) { color = 0x6a6a6a; const t = tex('chain_strip').clone(); t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, Math.max(1, Math.round(h / (w * 3.2)))); const m = new THREE.MeshStandardMaterial({ color, alphaMap: t, alphaTest: 0.12, metalness: 0.8, roughness: 0.55, side: THREE.DoubleSide }); return plane(m, Math.max(w, 0.34) * 3.2, h, x, y, z); }
 function plane(m, w, h, x, y, z) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); return p; }
 const sprite = (map, color, sx, sy, x, y, z, opacity = 1) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity })); s.scale.set(sx, sy, 1); s.position.set(x, y, z); return s; };
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -158,7 +158,7 @@ export class World {
           // carried on corbels and raking struts back to the wall, with a carved strip under the lip
           const cm = mat(S_.wall, 1, 1), cs = new THREE.MeshStandardMaterial({ map: stripTex('corbel_strip', Math.max(1, Math.round(w / 2))), roughness: 0.85 });
           add(plane(cs, w, 0.42, (s.x0 + s.x1) / 2, s.y0 - 0.08, 1.71));
-          for (const bx of w > 4.5 ? [s.x0 + 0.5, (s.x0 + s.x1) / 2, s.x1 - 0.5] : [s.x0 + 0.5, s.x1 - 0.5]) { add(box(cm, bx - 0.25, s.y0 - 0.6, bx + 0.25, s.y0, ZB, -1.4)); const st = box(BEAM, bx - 0.11, 0, bx + 0.11, 1.9, -0.11, 0.11); st.position.set(bx, s.y0 - 0.95, -2.55); st.rotation.x = -0.72; add(st); }
+          for (const bx of w > 4.5 ? [s.x0 + 0.5, (s.x0 + s.x1) / 2, s.x1 - 0.5] : [s.x0 + 0.5, s.x1 - 0.5]) add(box(cm, bx - 0.25, s.y0 - 0.6, bx + 0.25, s.y0, ZB, -1.4)); // stone corbels run back into the wall
           break;
         }
         case 'block': {
@@ -176,7 +176,7 @@ export class World {
         }
         case 'gate': this.gate(room, s); break;
         case 'echo': {
-          const m = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0xb090ff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+          const m = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0xb090ff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
           m.scale.set(s.x1 - s.x0, 0.3, 3); m.position.set((s.x0 + s.x1) / 2, s.y1 - 0.15, 0); m.visible = false; s.mesh = m; add(m);
           const edge = box(new THREE.MeshBasicMaterial({ color: 0xe0d0ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }), s.x0, s.y1 - 0.04, s.x1, s.y1, 1.45, 1.52); m.attach(edge);
           break;
@@ -192,7 +192,7 @@ export class World {
     }
     // back wall, or open sky
     if (T.back) { const p = plane(mat(S_.back, W, H), W, H + 3, b.x0 + W / 2, b.y0 + H / 2, ZB); p.receiveShadow = true; add(p); }
-    this.dress(room, seed);
+    room.hung = []; // wall pieces already placed: { x0, x1, y }
     if (T.sky) this.sky(room, T.sky);
     if (T.backWall) { // curtain wall behind open-air rooms, crenellated against the sky
       const h = Math.min(H - 1, 9); add(box(mat(S_.backWall, W, h), b.x0, b.y0, b.x1, b.y0 + h, ZB - 1.2, ZB));
@@ -218,6 +218,7 @@ export class World {
     for (const w of def.water) this.water(room, b.x0 + w.x, b.y0 + w.y, w.w, w.h);
     for (const bl of room.blades) this.blade(room, bl);
     for (const p of def.props) { try { await this.prop(room, p); } catch (e) { console.warn('prop', def.id, p.t, e); } }
+    SEED = seed; this.dress(room, seed);
     // SotN-style breakable candle stands in the play plane
     for (const bk of def.breakables) {
       const x = b.x0 + bk.x, y = b.y0 + (bk.y ?? FLOOR), grp = new THREE.Group(); grp.position.set(x, y, 0.2);
@@ -248,6 +249,12 @@ export class World {
     const rs = (n => () => (n = Math.imul(n ^ (n >>> 15), 2246822519) + 0x9e3779b9 >>> 0) / 4294967296)(seed || 1), pick = a => a[Math.floor(rs() * a.length)], rr = (a, c) => a + rs() * (c - a);
     const add = o => { g.add(o); return o; }, zw = ZB + 0.035, stripM = (name, rep, dir) => new THREE.MeshStandardMaterial({ map: stripTex(name, rep, dir), roughness: 0.9 });
     const indoors = !!T.back, stone = !/library|portrait|gallery|servants|mirror|hollow/.test(th);
+    const free = (x, hw, y) => !room.hung.some(o => Math.abs(o.y - y) < 6 && x + hw + 1.2 > o.x0 && x - hw - 1.2 < o.x1), hang = (x, hw, y) => { for (const dx of [0, 3, -3, 6, -6]) if (x + dx > b.x0 + 2 && x + dx < b.x1 - 2 && free(x + dx, hw, y)) { room.hung.push({ x0: x + dx - hw, x1: x + dx + hw, y }); return x + dx; } return null; };
+    if (T.backWall) { const h = Math.min(H - 1, 9), rep = Math.max(1, Math.round(W / 3));
+      add(plane(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), W, 1.3, b.x0 + W / 2, b.y0 + FLOOR + 0.65, zw - 0.01));
+      add(plane(stripM('string_course', rep), W, 0.55, b.x0 + W / 2, b.y0 + FLOOR + 4.4, zw)); add(plane(stripM('frieze_strip', rep), W, 0.5, b.x0 + W / 2, b.y0 + h - 0.6, zw));
+      add(plane(new THREE.MeshBasicMaterial({ map: gradTex(), transparent: true, depthWrite: false }), W, h, b.x0 + W / 2, b.y0 + h / 2, zw + 0.012));
+      for (let x = b.x0 + rr(4, 8); x < b.x1 - 4; x += rr(7, 12)) if (rs() < 0.7) { const sz = rr(3, 4.6); add(plane(decal(rs() < 0.5 ? 'lichen_spots' : 'damp_rise', 0x0a100c, rr(0.4, 0.7)), sz, sz, x, b.y0 + FLOOR + rr(1.8, 5.5), zw + 0.02)); } }
     if (indoors) {
       // darker plinth, courses at every storey, frieze under the vault, and the wall falling into shadow overhead
       add(plane(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }), W, 1.2, b.x0 + W / 2, b.y0 + FLOOR + 0.6, zw - 0.01));
@@ -263,7 +270,7 @@ export class World {
     for (const d of def.doors) if ((d.side === 'W' || d.side === 'E') && !def.open) {
       const dir = d.side === 'W' ? 1 : -1, x = (d.side === 'W' ? b.x0 : b.x1) + dir * 0.5, y = rowFloorY(d.row) + FLOOR, [ln, ld] = pick(leaves).split('@');
       add(plane(new THREE.MeshStandardMaterial({ map: tex(ln, ld ? DIRS[ld] : X), roughness: 0.8, metalness: /iron/.test(ln) ? 0.5 : 0 }), 1.7, 3.5, x + dir * 1.0, y + 1.75, zw + 0.02));
-      add(plane(stripM('quoins', 1), 0.55, DOOR_H, x + dir * 2.15, y + DOOR_H / 2, zw + 0.02)).material.map = (() => { const t = tex('quoins').clone(); t.needsUpdate = true; t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.25, 2); return t; })();
+      add(plane(stripM('quoins', 1), 0.55, DOOR_H, x + dir * 2.15, y + DOOR_H / 2, zw + 0.02)).material.map = (() => { const t = tex('quoins').clone(); t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.25, 2); return t; })();
       add(plane(stripM('voussoirs', 1), 3.0, 0.6, x + dir * 1.2, y + DOOR_H + 0.3, zw + 0.02));
     }
     // railings along raised door ledges
@@ -274,11 +281,11 @@ export class World {
     const floorD = { aqueduct: ['puddles', 0x7ab0c0], cistern: ['puddles', 0x6aa8c0], courtyard: ['puddles', 0x8090b0], rampart: ['puddles', 0x8a98b8], forge: ['ash_dust', 0xd0c8c0], magma: ['ash_dust', 0x1a1210], mine: ['ash_dust', 0x8a8478], catacomb: ['ash_dust', 0xb0a890], crypt: ['puddles', 0x6a8a90], prison: ['puddles', 0x7a6a50], garden: ['ash_dust', 0x1a2410], menagerie: ['torn_rags', 0x8a7a5a], servants: ['torn_rags', 0x9a8a6a] }[th];
     if (floorD) for (let x = b.x0 + rr(3, 8); x < b.x1 - 3; x += rr(7, 13)) { const p = plane(decal(floorD[0], floorD[1], floorD[0] === 'puddles' ? 0.4 : 0.5), rr(2.4, 4), 2.6, x, b.y0 + FLOOR + 0.016, rr(-1.4, 0.6)); p.rotation.x = -Math.PI / 2; add(p); }
     if (/aqueduct|prison/.test(th)) for (let x = b.x0 + 6; x < b.x1 - 4; x += 13.3) { const p = plane(new THREE.MeshStandardMaterial({ map: tex('drain_cover'), metalness: 0.6, roughness: 0.6 }), 1.3, 1.3, x, b.y0 + FLOOR + 0.02, -1.6); p.rotation.x = -Math.PI / 2; add(p); add(plane(stripM('gutter_strip', 4), 12, 0.5, x, b.y0 + FLOOR + 0.25, zw + 0.03)); }
-    if (th === 'servants') for (let x = b.x0 + rr(5, 9); x < b.x1 - 4; x += rr(9, 14)) add(plane(new THREE.MeshStandardMaterial({ map: tex('jar_shelves'), roughness: 0.85 }), 3.2, 3.2, x, b.y0 + FLOOR + 3.2, zw + 0.03));
+    if (th === 'servants') for (let x = b.x0 + rr(5, 9); x < b.x1 - 4; x += rr(9, 14)) { const hx = hang(x, 1.7, b.y0 + FLOOR); if (hx !== null) add(plane(new THREE.MeshStandardMaterial({ map: tex('jar_shelves'), roughness: 0.85 }), 3.2, 3.2, hx, b.y0 + FLOOR + 3.2, zw + 0.03)); }
     // boss arenas: braziers at the wings, war banners behind, a pool of light on the floor
     if (def.boss) { const fy = b.y0 + (def.enemies.find(e => e.boss)?.y ?? FLOOR), ex = b.x0 + (def.enemies.find(e => e.boss)?.x ?? W / 2);
       for (const x of [b.x0 + 3.2, b.x1 - 3.2]) { add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.24, 0.4, 10), IRON)).position.set(x, fy + 1.25, -2.2); add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.3, 1.1, 8), IRON)).position.set(x, fy + 0.55, -2.2); this.flame(room, x, fy + 1.85, -2.2, 0.85, 18); }
-      for (const dx of [-4.5, 4.5]) { const ban = new THREE.Mesh(bannerGeo(2.2, 5), new THREE.MeshStandardMaterial({ map: tex('war_banner'), roughness: 0.9, side: THREE.DoubleSide })); ban.position.set(ex + dx, Math.min(b.y1 - 4, fy + 6.2), ZB + 0.1); add(ban); }
+      for (const dx of [-4.5, 4.5]) { const hx = hang(ex + dx, 1.2, fy); if (hx === null) continue; const ban = new THREE.Mesh(bannerGeo(2.2, 5), new THREE.MeshStandardMaterial({ map: tex('war_banner'), roughness: 0.9, side: THREE.DoubleSide })); ban.position.set(hx, Math.min(b.y1 - 4, fy + 6.2), ZB + 0.1); add(ban); }
       const pool = plane(new THREE.MeshBasicMaterial({ map: glowTex(), color: T.trim, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }), 16, 5, ex, fy + 0.02, -0.4); pool.rotation.x = -Math.PI / 2; add(pool); }
   }
 
@@ -331,8 +338,10 @@ export class World {
     g.add(far);
     // nearer curtain of the castle: crenellated walls, turrets with lit slits, and drifting fog between the layers
     const mid = new THREE.MeshBasicMaterial({ color: storm ? 0x0d0f18 : 0x121830, fog: false }), near = new THREE.Group();
+    const FACADES = ['wall_07', 'wall_08', 'wall_09', 'wall_10', 'wall_11', 'wall_12', 'wall_13', 'wall_14', 'wall_15', 'wall_16', 'wall_17', 'wall_18', 'wall_19', 'wall_20', 'ph_keep_wall', 'ph_dressed', 'ph_granite', 'ph_basalt', 'ph_burnt_wall', 'ph_daub', 'ph_grey_plaster', 'ph_poor_brick', 'ph_market_wall', 'ph_rich_brick', 'ph_soot_brick'];
+    const facade = () => { const t = texture(`${T0}${FACADES[Math.floor(Math.random() * FACADES.length)]}_c.webp`).clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 2); return new THREE.MeshBasicMaterial({ map: t, color: storm ? 0x20242e : 0x2a3350, fog: false }); };
     for (let x = b.x0 - 30; x < b.x1 + 30; x += 7) { const h = rnd(4, 9) - drop * 0.5, tower = Math.random() < 0.35; near.add(box(mid, x, b.y0 - 30, x + 7.05, b.y0 + h, -64, -62)); for (let k = 0; k < 4; k++) near.add(box(mid, x + k * 1.8, b.y0 + h, x + k * 1.8 + 0.9, b.y0 + h + 0.8, -64, -62));
-      if (tower) { const tw = rnd(3, 4.5), thh = h + rnd(6, 13); near.add(box(mid, x + 1, b.y0 - 30, x + 1 + tw, b.y0 + thh, -63, -61)); const cap = new THREE.Mesh(new THREE.ConeGeometry(tw * 0.75, tw * 1.3, 6), mid); cap.position.set(x + 1 + tw / 2, b.y0 + thh + tw * 0.65, -62); near.add(cap); for (let k = 0; k < 3; k++) near.add(plane(new THREE.MeshBasicMaterial({ color: 0xffa040, fog: false }), 0.28, 0.8, x + 1 + tw / 2 + rnd(-0.8, 0.8), b.y0 + h + rnd(1, thh - h - 1), -60.9)); } }
+      if (tower) { const tw = rnd(3, 4.5), thh = h + rnd(6, 13); near.add(box(mid, x + 1, b.y0 - 30, x + 1 + tw, b.y0 + thh, -63, -61)); near.add(plane(facade(), tw, 9, x + 1 + tw / 2, b.y0 + thh - 4.5, -60.95)); const cap = new THREE.Mesh(new THREE.ConeGeometry(tw * 0.75, tw * 1.3, 6), mid); cap.position.set(x + 1 + tw / 2, b.y0 + thh + tw * 0.65, -62); near.add(cap); for (let k = 0; k < 3; k++) near.add(plane(new THREE.MeshBasicMaterial({ color: 0xffa040, fog: false }), 0.28, 0.8, x + 1 + tw / 2 + rnd(-0.8, 0.8), b.y0 + h + rnd(1, thh - h - 1), -60.9)); } }
     g.add(near);
     const fogM = new THREE.MeshBasicMaterial({ map: cloudTex(), color: storm ? 0x39405a : 0x6a7aa8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), cards = [];
     for (let i = 0; i < 5; i++) { const c = plane(fogM, rnd(50, 90), rnd(8, 14), b.x0 + rnd(-20, b.x1 - b.x0 + 20), b.y0 + rnd(-4, 6) - drop * 0.3, -40 - i * 5); g.add(c); cards.push(c); }
@@ -362,7 +371,7 @@ export class World {
     room.group.add(box(IRON, x, y - 0.02, x + w, y + 0.05, -1.3, 1.3));
   }
   lava(room, x, y, w, h) {
-    const t = lavaTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4));
+    const t = lavaTex().clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4));
     const m = new THREE.MeshBasicMaterial({ map: t, color: 0xffffff, fog: false });
     const body = box(m, x, y, x + w, y + h - 0.08, ZB + 0.05, ZF - 0.05); body.castShadow = false; room.group.add(body);
     const top = plane(m, w, ZF - ZB - 0.1, x + w / 2, y + h - 0.07, (ZB + ZF) / 2); top.rotation.x = -Math.PI / 2; room.group.add(top);
@@ -399,7 +408,8 @@ export class World {
   }
 
   async prop(room, p) {
-    const b = room.b, g = room.group, T = room.theme; let x = b.x0 + p.x; const y = b.y0 + (p.y ?? FLOOR), top = b.y1 - FLOOR, ceil = Math.min(top, y + 6.6);
+    const b = room.b, g = room.group, T = room.theme; let x = b.x0 + p.x; const y = b.y0 + (p.y ?? FLOOR), top = b.y1 - FLOOR, ceil = top - y < 13 ? top : y + 6.6;
+    { const hw = { window: p.big ? 2.2 : 1.6, rosewindow: 2.6, banner: 1.2, tapestry: 2, painting: 1.5, mirror: 1.3, bookshelf: 1.9, skullwall: 2.2, furnace: 1.9, organ: 2.6, ivy: 2.5, throne: 1.4, statue: 1 }[p.t]; if (hw) (room.hung ||= []).push({ x0: x - hw, x1: x + hw, y }); }
     const add = o => { g.add(o); return o; }, wood = surface('wood', 1, 1), stone = mat(T.wall, 1, 1);
     switch (p.t) {
       case 'torch': this.torch(room, x, y + 2.6); break;
@@ -466,13 +476,13 @@ export class World {
         break;
       }
       case 'chain': add(chain(0x9a9590, 0.35, top - y, x, (top + y) / 2, ZB + 1.2)); break;
-      case 'hook': { const len = Math.min(3.2, top - y - 2.2); add(chain(0x9a9590, 0.28, len, x, top - len / 2, -1.4)); const hk = add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 5, 12, 4.2), IRON)); hk.position.set(x, top - len - 0.15, -1.4); if (Math.round(x) % 2) { const pts = [[0.02, 0.55], [0.05, 0.4], [0.16, 0.2], [0.24, -0.05], [0.22, -0.3], [0.1, -0.45], [0, -0.48]].map(([r, yy]) => new THREE.Vector2(r, yy)); const meat = add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), std(0x7a3028, { roughness: 0.55 }))); meat.position.set(x, top - len - 0.75, -1.4); const bone = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 5), std(0xe0d8c0))); bone.position.set(x, top - len - 0.2, -1.4); } break; }
+      case 'hook': { const len = Math.min(3.2, top - y - 2.2); add(chain(0x9a9590, 0.28, len, x, top - len / 2, -1.4)); const hk = add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 5, 12, 4.2), IRON)); hk.position.set(x, top - len - 0.15, -1.4); if (Math.round(x) % 2) { const pts = [[0.03, 0.34], [0.06, 0.26], [0.17, 0.12], [0.23, -0.05], [0.2, -0.22], [0.1, -0.32], [0, -0.34]].map(([r, yy]) => new THREE.Vector2(r, yy)); const meat = add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), std(0x9a5a4a, { roughness: 0.6 }))); meat.position.set(x, top - len - 0.75, -1.4); const bone = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 5), std(0xe0d8c0))); bone.position.set(x, top - len - 0.2, -1.4); } break; }
       case 'cage': { const cy = Math.min(top - 2.2, y + 4.2), len = top - cy - 1; add(chain(0x9a9590, 0.3, len, x, top - len / 2, -1.3)); const c = add(new THREE.Group()); c.position.set(x, cy, -1.3); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2, 5), IRON); bar.position.set(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7); c.add(bar); } for (const ry of [-0.5, 0.4]) c.add(new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.03, 5, 20), IRON).rotateX(Math.PI / 2).translateZ(-ry)); if (Math.round(x) % 2) { const sk = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), std(0xd8d0b8)); sk.position.set(0.1, -0.82, 0); c.add(sk); } add(new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.5, 10), IRON)).position.set(x, cy + 1.25, -1.3); add(new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 10), IRON)).position.set(x, cy - 1, -1.3); room.anim.push(t => { c.rotation.y = Math.sin(t * 0.5 + x) * 0.3; }); break; }
       case 'pews': for (let i = 0; i < 3; i++) { const px = x + i * 2.2 - 2.2; add(box(wood, px - 0.9, y, px + 0.9, y + 0.5, -2.8, -2.3)); add(box(wood, px - 0.9, y + 0.5, px + 0.9, y + 1.2, -2.85, -2.75)); } break;
       case 'throne': { const m = surface('oxblood_marble', 1, 1, { dir: X }); add(box(m, x - 3, y, x + 3, y + 0.6, ZB + 0.1, ZB + 3)); add(box(m, x - 1, y + 0.6, x + 1, y + 1.4, ZB + 0.5, ZB + 2)); add(box(m, x - 1, y + 1.4, x + 1, y + 5, ZB + 0.3, ZB + 0.7)); add(box(BRASS, x - 1.15, y + 4.9, x + 1.15, y + 5.2, ZB + 0.25, ZB + 0.75)); for (const dx of [-1, 1]) add(new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 6), BRASS)).position.set(x + dx * 0.95, y + 5.6, ZB + 0.5); break; }
       case 'gatearch': { const m = surface('ashlar', 2, 4); add(box(m, x - 4, y, x - 2.2, y + 11, -3.2, 0.2)); add(box(m, x + 0.1, y, x + 2.2, y + 11, -3.2, 0.2)); add(box(m, x - 4, y + 5.2, x + 2.2, y + 7, -3.2, 0.2)); for (let i = 0; i < 4; i++) { const c = add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), m)); c.position.set(x - 3.1 + (i % 2) * 4.2, y + 12.2 + (i > 1 ? 3 : 0), -1.5); if (i > 1) c.scale.setScalar(0.5); } this.torch(room, x - 2.6, y + 3.0); break; }
       case 'portcullis': for (let i = 0; i < 6; i++) add(box(IRON, x + 0.15 * i - 0.4, y + 3.9, x + 0.15 * i - 0.35, y + 6.5, -2.6 + i * 0.7, -2.5 + i * 0.7)); break;
-      case 'bookshelf': { const w = 3.2, h = Math.min(4.6, top - y - 0.4); add(box(surface('pv_dark_walnut', 1, 1, { dir: X }), x - w / 2 - 0.12, y, x + w / 2 + 0.12, y + h + 0.15, ZB + 0.02, ZB + 0.7)); const t2 = tex('book_spines').clone(); t2.needsUpdate = true; t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 3.2); add(plane(new THREE.MeshStandardMaterial({ map: t2, roughness: 0.85 }), w, h, x, y + h / 2 + 0.05, ZB + 0.72)); break; }
+      case 'bookshelf': { const w = 3.2, h = Math.min(4.6, top - y - 0.4); add(box(surface('pv_dark_walnut', 1, 1, { dir: X }), x - w / 2 - 0.12, y, x + w / 2 + 0.12, y + h + 0.15, ZB + 0.02, ZB + 0.7)); const t2 = tex('book_spines').clone(); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 3.2); add(plane(new THREE.MeshStandardMaterial({ map: t2, roughness: 0.85 }), w, h, x, y + h / 2 + 0.05, ZB + 0.72)); break; }
       case 'sarcophagus': { const k = await kit('sarcophagus'); if (k) { const mm = surface('mausoleum_marble', 1, 1, { dir: X }); k.traverse(c => { if (c.isMesh) c.material = Array.isArray(c.material) ? c.material.map(() => mm) : mm; }); k.scale.setScalar(0.92); k.position.set(x, y, -2.0); add(k); break; } const m = surface('mausoleum_marble', 1, 1, { dir: X }); add(box(m, x - 1.3, y, x + 1.3, y + 0.9, -2.6, -1.3)); add(box(m, x - 1.4, y + 0.9, x + 1.4, y + 1.1, -2.7, -1.2)); const eff = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 1.5, 4, 8), m)); eff.rotation.z = Math.PI / 2; eff.position.set(x, y + 1.25, -1.95); break; }
       case 'coffin': { const c = add(box(std(0x2a1410, { roughness: 0.5 }), x - 0.45, y, x + 0.45, y + 2.1, ZB + 0.15, ZB + 0.6)); c.rotation.z = (Math.round(x) % 2 ? 1 : -1) * 0.08; add(box(BRASS, x - 0.2, y + 1.3, x + 0.2, y + 1.36, ZB + 0.6, ZB + 0.63)); add(box(BRASS, x - 0.03, y + 1.0, x + 0.03, y + 1.6, ZB + 0.6, ZB + 0.63)); break; }
       case 'bones': { const bm = std(0xd8d0b8, { roughness: 0.8 }); for (let i = 0; i < 9; i++) { const c = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, rnd(0.4, 0.8), 5), bm)); c.position.set(x + rnd(-0.8, 0.8), y + rnd(0.05, 0.25), rnd(-2.4, -1.2)); c.rotation.set(rnd(0, 3), rnd(0, 3), Math.PI / 2 + rnd(-0.5, 0.5)); } const sk = await cloneGLTF('assets/game/items/skull_0' + (1 + Math.abs(Math.round(x)) % 8) + '.glb'); fitHeight(sk.scene, 0.34); sk.scene.position.set(x + 0.2, y + 0.12, -1.6); sk.scene.rotation.y = rnd(-1, 1); add(sk.scene); break; }
@@ -507,7 +517,7 @@ export class World {
       case 'altar': { const m = surface('mausoleum_marble', 1, 1, { dir: X }); add(box(m, x - 1.5, y, x + 1.5, y + 1.0, -2.8, -1.6)); add(box(std(0x7a1018, { roughness: 0.9 }), x - 1.0, y + 1.0, x + 1.0, y + 1.03, -2.85, -1.5)); for (const dx of [-1.1, 1.1]) { add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), BRASS)).position.set(x + dx, y + 1.3, -2.2); add(sprite(flameTex(), 0xffb050, 0.14, 0.24, x + dx, y + 1.75, -2.2)); } this.light(room, x, y + 1.9, -1.4, 0xffa860, 7, 8); break; }
       case 'arch': { const h = Math.min(6, top - y - 0.6); for (const dx of [-2.2, 2.2]) add(box(stone, x + dx - 0.35, y, x + dx + 0.35, y + h - 2.2, ZB + 0.05, ZB + 0.8)); const a = add(new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.35, 6, 20, Math.PI), stone)); a.position.set(x, y + h - 2.2, ZB + 0.42); break; }
       case 'column': if (!(room.pillarX || []).some(px => Math.abs(px - x) < 2.2)) add(this.pillar(x, y, Math.min(top - y, 12), T)); break;
-      case 'waterfall': { const h = Math.min(top - y, 14), t2 = tex('moat_water').clone(); t2.needsUpdate = true; t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 4); const wf = add(plane(new THREE.MeshBasicMaterial({ map: t2, color: 0x9ad0e0, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), 2.4, h, x, y + h / 2, ZB + 0.3)); add(sprite(glowTex(), 0xa0d8e8, 5, 2.5, x, y + 0.6, ZB + 0.8, 0.4)); room.anim.push(t => { t2.offset.y = t * 0.9; }); this.light(room, x, y + 2, -1, 0x5ab0d0, 7, 9); break; }
+      case 'waterfall': { const h = Math.min(top - y, 14), t2 = tex('moat_water').clone(); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 4); const wf = add(plane(new THREE.MeshBasicMaterial({ map: t2, color: 0x9ad0e0, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 1.8, h, x, y + h / 2, ZB + 0.3)); add(sprite(glowTex(), 0xa0d8e8, 5, 2.5, x, y + 0.6, ZB + 0.8, 0.4)); room.anim.push(t => { t2.offset.y = t * 0.9; }); this.light(room, x, y + 2, -1, 0x5ab0d0, 7, 9); break; }
       case 'mushroom': { const col = [0x4ad0c0, 0x9a70ff, 0x70e060][Math.abs(Math.round(x)) % 3], cm = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.8, roughness: 0.5 }); for (let i = 0; i < 6; i++) { const h = rnd(0.25, 1.1), cx = x + rnd(-0.9, 0.9), cz = rnd(-2.7, -1.5); add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, h, 6), WAX)).position.set(cx, y + h / 2, cz); const cap = add(new THREE.Mesh(new THREE.SphereGeometry(0.1 + h * 0.28, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), cm)); cap.position.set(cx, y + h, cz); } add(sprite(glowTex(), col, 3, 2.4, x, y + 0.7, -2, 0.3)); this.light(room, x, y + 1.0, -1, col, 7, 8); break; }
     }
   }
@@ -580,7 +590,7 @@ function bannerGeo(w, h) {
 let _flame, _glow, _ray, _lava, _cloud, _glass, _mirror, _grad;
 const stripCache = new Map();
 // a horizontal moulding strip that tiles along its length
-function stripTex(name, rep, dir = X) { const k = name + rep; if (!stripCache.has(k)) { const t = tex(name, dir).clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping; t.repeat.set(Math.max(1, rep), 1); stripCache.set(k, t); } return stripCache.get(k); }
+function stripTex(name, rep, dir = X) { const k = name + rep; if (!stripCache.has(k)) { const t = tex(name, dir).clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(Math.max(1, rep), 1); stripCache.set(k, t); } return stripCache.get(k); }
 function mirrorTex() { return _mirror ||= canvasTex(64, 128, x => { const g = x.createLinearGradient(0, 0, 64, 128); g.addColorStop(0, '#39405c'); g.addColorStop(0.45, '#10121e'); g.addColorStop(0.55, '#1c2034'); g.addColorStop(1, '#5a6288'); x.fillStyle = g; x.fillRect(0, 0, 64, 128); x.globalAlpha = 0.25; x.fillStyle = '#c8d4ff'; x.beginPath(); x.moveTo(8, 128); x.lineTo(30, 0); x.lineTo(40, 0); x.lineTo(18, 128); x.fill(); x.globalAlpha = 0.5; x.fillStyle = '#0a0a12'; x.beginPath(); x.ellipse(36, 92, 9, 26, 0, 0, 7); x.fill(); x.beginPath(); x.arc(36, 58, 7, 0, 7); x.fill(); }); }
 // soft black fade used to ground the tops and bottoms of tall walls
 function gradTex() { return _grad ||= canvasTex(4, 128, x => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(0,0,0,.62)'); g.addColorStop(0.3, 'rgba(0,0,0,.12)'); g.addColorStop(0.78, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.38)'); x.fillStyle = g; x.fillRect(0, 0, 4, 128); }); }
