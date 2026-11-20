@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#07050a">
 <title>Vesperwrithe</title>
 <link rel="stylesheet" href="src/style.css">
+<link rel="stylesheet" href="src/theme.css">
+<link rel="preload" as="image" href="assets/ui/logo.webp">
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/build/three.module.js",
@@ -56,7 +58,7 @@
   </div>
 </div>
 
-<div id="mapScreen" class="hidden"><canvas id="bigmap" width="1500" height="860"></canvas><div class="maphint" id="mapHint">M close</div></div>
+<div id="mapScreen" class="hidden"><h2 class="maptitle">Castle Velscour</h2><canvas id="bigmap" width="1500" height="860"></canvas><div class="maphint" id="mapHint">M close</div></div>
 
 <div id="menu" class="hidden">
   <div class="inv-wrap">
@@ -70,20 +72,23 @@
 <div id="ending" class="hidden"></div>
 
 <div id="title">
-  <div class="t-inner">
-    <h1>VESPERWRITHE</h1>
-    <p class="sub">Castle Velscour</p>
+  <div class="t-sky"></div>
+  <div class="t-moon"></div>
+  <div class="t-rays"></div>
+  <canvas class="t-fog back"></canvas>
+  <h1 class="t-logo"><img src="assets/ui/logo.webp" alt="Vesperwrithe" draggable="false"></h1>
+  <canvas class="t-fog front"></canvas>
+  <div class="t-menu">
     <p id="loadMsg">Summoning the castle…</p>
     <button id="startBtn" class="hidden">Enter the Castle</button>
     <button id="newBtn" class="hidden">New Journey</button>
-    <div class="controls">
-      <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd>/<kbd>K</kbd> jump</span>
-      <span><kbd>J</kbd> attack</span><span><kbd>L</kbd> shield / off-hand</span><span><kbd>Shift</kbd> backdash</span><span><kbd>Q</kbd> potion</span>
-      <span><kbd>E</kbd> interact</span><span><kbd>I</kbd> inventory</span><span><kbd>M</kbd> map</span><span>Gamepad supported</span><span>Seven silent bells wait in the castle. Each one teaches you a new way to move.</span>
-      <span class="touch-only">Touch: d-pad left · ATK / JUMP / GUARD / DASH right · ▲ interact</span>
-    </div>
+  </div>
+  <div class="controls">
+    <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd> jump</span><span><kbd>J</kbd> attack</span><span><kbd>L</kbd> guard</span><span><kbd>Shift</kbd> dash</span><span><kbd>Q</kbd> potion</span><span><kbd>E</kbd> interact</span><span><kbd>I</kbd> pack</span><span><kbd>M</kbd> map</span>
+    <span class="touch-only">Touch controls on screen</span>
   </div>
 </div>
+<script type="module" src="src/title.js"></script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

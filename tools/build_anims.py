@@ -102,7 +102,29 @@ def write(name, poses):
     return a
 
 META = {'fps': 30, 'clips': {}}
-GUARD = ('sword_and_shield_idle', 1)
+GUARD = ('vw_guard', 1)
+SPINE = [P + n for n in ('Spine', 'Spine1', 'Spine2')]
+LEGS = [b for b in LOWER if b != HIPS]
+
+def yaw_hips(Pz, deg):
+    """Turn the whole figure about the vertical through the hips (world space)."""
+    apply(Pz); MW = arm.matrix_world; hb = PB[HIPS]; M = MW @ hb.matrix; pos = M.translation.copy()
+    hb.matrix = MW.inverted() @ (Matrix.Translation(pos) @ Matrix.Rotation(math.radians(deg), 4, 'Z') @ Matrix.Translation(-pos) @ M); VL.update()
+    out = dict(Pz); out[HIPS] = (hb.rotation_quaternion.copy(), Pz[HIPS][1]); return out
+
+def chest_yaw(Pz):
+    """Degrees the chest is turned away from the travel axis (+ = toward the figure's left)."""
+    apply(Pz); MW = arm.matrix_world
+    l = (MW @ PB[P + 'LeftArm'].matrix).translation - (MW @ PB[P + 'RightArm'].matrix).translation
+    f = l.cross(Vector((0, 0, 1))); return math.degrees(math.atan2(f.x, -f.y))
+
+def guard_pose(f):
+    """Sword-ready stance for a side-scroller: the mocap guard squares the chest to the camera in a wide squat, so turn
+    it to a three-quarter profile, narrow the feet and keep the blade up in front of the lead leg."""
+    p = pose('sword_and_shield_idle', f)
+    p = blend(p, pose('axe_unarmed_idle', 1), 0.42, LEGS)
+    a = chest_yaw(p); p = yaw_hips(p, -(a - math.copysign(min(abs(a), 30), a)))
+    return aim_blade(p, (-0.10, -0.62, 0.78), 0.6)
 
 def attack(name, src, a0, s0, s1, s2, na=3, rate=1.0, nf=3, nr=7, legs='src', guard=GUARD, legs_w=1.0, fix=None):
     """a0→s0 wind-up (blending in from guard), s0→s1 strike at `rate` source frames per frame, s1→s2 eased
@@ -143,28 +165,35 @@ def loop(name, src, f0, f1, fn=None):
 
 def build():
     arm.animation_data.action = None
+    g = [guard_pose(f) for f in range(1, 110)]
+    write('vw_guard', g); META['clips']['vw_guard'] = {'frames': len(g)}; _cache.pop('vw_guard', None)
     # ---- locomotion ---------------------------------------------------------------------------------------
     loop('vw_run', 'running', 1, 43)
     carry = pose('axe_unarmed_jump', 8)  # sword arm relaxed low at the side
     def armed(p, t):
         p = blend(p, carry, 0.62, RARM)                       # stop pumping the sword arm; carry it low, a little swing left
-        p = aim_blade(p, (0.28, 0.80, -0.52), 0.85)           # blade trails behind and down, tip out of the legs' way
+        p = blend(p, carry, 0.5, LARM); p = blend(p, carry, 0.8, LFING)   # the shield arm stops punching forward as a fist
+        p = aim_blade(p, (-0.58, 0.68, -0.45), 0.92)           # blade trails behind and down, on the camera side so it stays readable
         return p
     loop('vw_run_armed', 'sword_and_shield_run', 1, 22, armed)
     # ---- air: one scrub clip, 0 = launch, 0.5 = apex tuck, 1 = legs reaching for the floor ------------------
     J = 'axe_unarmed_jump'; air = []
     for i in range(21):
-        t = i / 20; air.append(pose(J, 29 + (43 - 29) * t))
+        t = i / 20  # rise: legs long and trailing (26) -> apex: tuck (35) -> fall: legs reaching down, sword arm lifting (44)
+        air.append(pose(J, 26 + 9 * (t * 2) ** 1.7) if t < 0.5 else pose(J, 35 + 9 * ((t - 0.5) * 2) ** 0.6))
     write('vw_air', air); META['clips']['vw_air'] = {'frames': 21}
     land = [pose(J, 50 + (64 - 50) * ease_out(i / 9)) for i in range(10)]
     write('vw_land', land); META['clips']['vw_land'] = {'frames': 10}
     # ---- attacks ------------------------------------------------------------------------------------------
-    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=3, nr=7, legs='guard', legs_w=0.55)
-    attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7)
+    upright = lambda w: (lambda p, f: blend(p, pose(*GUARD), w, SPINE))   # cap the forward pitch so the head stays up
+    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=upright(0.45))
+    attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7, legs='guard', legs_w=0.85)
     attack('vw_slash3', 'standing_melee_attack_downward', 44, 49, 55, 58, na=4, rate=1.0, nf=4, nr=9)
-    attack('vw_thrust', 'sword_and_shield_slash', 11, 16, 22, 26, na=4, rate=1.0, nf=4, nr=8)
-    attack('vw_great', 'great_sword_slash', 40, 45, 53, 57, na=5, rate=0.9, nf=4, nr=10)
-    attack('vw_smash', 'standing_melee_run_jump_attack', 97, 102, 108, 111, na=5, rate=0.9, nf=5, nr=10, legs='guard', legs_w=0.8)
+    # the source is a lunging cut: lock the weapon's axis onto the line of the lunge so spears and daggers actually stab
+    point = lambda p, f: aim_blade(p, (0.0, -1.0, 0.04), max(0, min(1, (f - 12) / 4)) * max(0, min(1, (26 - f) / 2)))
+    attack('vw_thrust', 'sword_and_shield_slash', 11, 16, 22, 26, na=4, rate=1.0, nf=4, nr=8, fix=point)
+    attack('vw_great', 'great_sword_slash', 40, 45, 53, 55, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
+    attack('vw_smash', 'standing_melee_run_jump_attack', 97, 102, 108, 110, na=5, rate=0.9, nf=3, nr=11, legs='guard', legs_w=0.8, fix=upright(0.3))
     attack('vw_punch', 'axe_standing_melee_attack_backhand', 22, 27, 34, 38, na=3, rate=1.2, nf=3, nr=6, guard=('axe_unarmed_idle', 1))
     # ---- grip: finger curl used whenever a weapon is in hand ------------------------------------------------
     g = pose('sword_and_shield_idle', 1); rest = pose('axe_unarmed_idle', 1)
@@ -186,3 +215,7 @@ def export():
                               export_animations=True, export_animation_mode='NLA_TRACKS', export_force_sampling=True, export_skins=False,
                               export_optimize_animation_size=False, export_yup=True)
     for t in list(ad.nla_tracks): ad.nla_tracks.remove(t)
+
+
+if bpy.app.background:  # blender -b assets/player/vesper_player_rig.blend --python tools/build_anims.py
+    build(); export()

@@ -42,6 +42,9 @@ Save coffins heal and record progress; warp mirrors link the districts once touc
 
 ## Code map
 
+- `src/moves.js` + `tools/build_anims.py` — the hero's authored clips. The script runs in Blender on `assets/player/vesper_player_rig.blend` (`blender -b assets/player/vesper_player_rig.blend --python tools/build_anims.py`) and writes `assets/player/vesper_moves.glb` and `moves.json`: guard stance, stride-matched run, velocity-scrubbed jump, landing, and attack clips with wind-up / strike / follow-through / recovery, hit windows and cancel frames. `moves.js` maps weapon styles to chains of those clips, pins the finger grip and reaches the off hand onto two-handed weapons.
+- `src/title.js` + `src/theme.css` — the title screen (logo, WebGL mist, moonlight) and the UI theme that every HUD element and panel takes from the logo.
+
 - `src/rooms.js` — grid constants, the bells, room expansion and shared collision (`roomSolids`). `docs/ROOM_SPEC.md` is the authoring format.
 - `src/areas/*.js` — the six districts (pure data).
 - `tools/validate_rooms.mjs` — proves the castle: door reciprocity, overlaps, catalog names, and a jump-model walk that collects the bells in order and reports anything unreachable. `node tools/validate_rooms.mjs --map --acts`.

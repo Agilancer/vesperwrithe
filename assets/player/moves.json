@@ -1,13 +1,16 @@
 {
  "fps": 30,
  "clips": {
+  "vw_guard": {
+   "frames": 109
+  },
   "vw_run": {
    "frames": 43,
-   "speed": 0.0
+   "speed": 2.068
   },
   "vw_run_armed": {
    "frames": 22,
-   "speed": 0.0
+   "speed": 3.788
   },
   "vw_air": {
    "frames": 21
@@ -16,12 +19,12 @@
    "frames": 10
   },
   "vw_slash1": {
-   "frames": 20,
+   "frames": 24,
    "hit": [
     4,
     10
    ],
-   "cancel": 13
+   "cancel": 15
   },
   "vw_slash2": {
    "frames": 20,
@@ -48,20 +51,20 @@
    "cancel": 15
   },
   "vw_great": {
-   "frames": 29,
+   "frames": 32,
    "hit": [
     6,
     15
    ],
-   "cancel": 19
+   "cancel": 22
   },
   "vw_smash": {
-   "frames": 28,
+   "frames": 27,
    "hit": [
     6,
     13
    ],
-   "cancel": 18
+   "cancel": 16
   },
   "vw_punch": {
    "frames": 19,

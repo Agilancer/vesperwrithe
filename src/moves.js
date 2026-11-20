@@ -7,11 +7,11 @@ import { STYLES } from './items.js';
 // side-view plane, a held follow-through and a blended recovery. A style is a chain of [clip, seconds]:
 // pressing attack again after a clip's cancel frame flows into the next link.
 const MOVESET = {
-  slash1h: [['vw_slash1', 0.5], ['vw_slash2', 0.5], ['vw_slash3', 0.62]],
+  slash1h: [['vw_slash1', 0.6], ['vw_slash2', 0.5], ['vw_slash3', 0.62]],
   slash2h: [['vw_great', 0.74]],
   smash:   [['vw_smash', 0.64]],
   smash2h: [['vw_smash', 0.82]],
-  chop:    [['vw_slash3', 0.54], ['vw_slash1', 0.5]],
+  chop:    [['vw_slash3', 0.54], ['vw_slash1', 0.6]],
   thrust:  [['vw_thrust', 0.54]],
   lance:   [['vw_thrust', 0.72]],
   stab:    [['vw_thrust', 0.34], ['vw_slash2', 0.36]],

@@ -14,7 +14,7 @@ const FPS = 30;
 const ELEM_COLOR = { fire: 0xff5a1a, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a };
 
 const ANIM = {
-  idle: 'axe_unarmed_idle', idleArmed: 'sword_and_shield_idle', jog: 'vw_run', jogArmed: 'vw_run_armed', air: 'vw_air', land: 'vw_land',
+  idle: 'axe_unarmed_idle', idleArmed: 'vw_guard', jog: 'vw_run', jogArmed: 'vw_run_armed', air: 'vw_air', land: 'vw_land',
   jump: 'axe_unarmed_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
   backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'sitting',
   block: 'sword_and_shield_block_idle', crouchBlock: 'sword_and_shield_crouch_block_idle', pickup: 'axe_unarmed_equip_over_shoulder',
@@ -129,6 +129,9 @@ export class Player {
     // Socket lives under a 1.8× scaled rig; weapons are authored at true metres, so divide that scale out.
     const m = await weaponModel(base.model, base.scale / 1.8);
     if (slot === 'offhand') this.placeShield(m);
+    // The socket was authored in Blender with the blade along its +Y; the glTF axis swap turns that into the socket's -Z here.
+    // Mounting along the socket's own +Y (as before) left every blade ~90deg off the hand, so cuts trailed behind the swing.
+    else m.rotation.set(-Math.PI / 2, 0, 0);
     sock.add(m); this[slot + 'Mesh'] = m;
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
   }
@@ -155,7 +158,7 @@ export class Player {
     const e = elems[0]?.elem; if (!e) return;
     const col = ELEM_COLOR[e];
     m.traverse(o => { if (o.isMesh) { o.material.emissive = new THREE.Color(col); o.material.emissiveIntensity = 0.35; } });
-    const grp = new THREE.Group(); const len = m.userData.len * 1.8 / m.scale.x;
+    const grp = new THREE.Group(); const len = m.userData.len / m.scale.x; // blade length in the weapon's own units
     const mat = new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
     grp.userData.parts = [];
     for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(mat.clone()); s.userData = { t: Math.random(), along: 0.15 + Math.random() * 0.85 }; grp.add(s); grp.userData.parts.push(s); }
@@ -234,7 +237,7 @@ export class Player {
       // attack / dive
       if (inp.attackP && !this.onGround && inp.down && abil.has('dive') && !this.inWater) { this.state = 'dive'; this.attack = null; this.diveAtk = { hitIds: new Set(), st: STYLES.smash }; audio.play('wave_attack_1', 0.5, 0.6); }
       else if (inp.attackP && !attacking) this.startAttack();
-      else if (inp.attackP && attacking) this.attack.queued = true; // buffered: flows into the next link of the chain
+      else if (inp.attackP && this.attack) this.attack.queued = true; // buffered: flows into the next link of the chain
       this.inpX = dir;
     }
     if (this.attack) this.updateAttack(dt);
@@ -339,11 +342,11 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1];
-    if (f >= st.hit[0] - 3 && f <= st.hit[1] + 2) this.trailOn = true; 
+    if (st.anim !== 'vw_thrust' && f >= st.hit[0] - 1 && f <= st.hit[1] + 1) this.trailOn = true; // the ribbon belongs to the cut, not the wind-up
     if (A.active && sty.ranged) { if (!A.shot) { A.shot = true; this.g.playerShoot(this, sty.ranged); } }
     else if (A.active) { if (!A.proc) { A.proc = true; this.g.onSwing(this, A); } this.g.playerHits(this.hitbox()); }
     // a planted swing steps into the cut; chains flow on a buffered press; holding a direction walks out of the recovery
-    if (A.mode === 'idle' && this.onGround && !sty.ranged && f >= st.hit[0] - 2 && f <= st.hit[0] + 1) this.vel.x = this.facing * (A.heavy ? 1.6 : 2.6);
+    if (A.mode === 'idle' && this.onGround && !sty.ranged && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); } // step into the cut, eased out
     if (st.cancel !== undefined && f >= st.cancel) {
       if (A.queued && sty.chain && A.ci < sty.chain.length - 1) { this.trail.end(); this.attack = null; this.startAttack(A.ci + 1); return; }
       if (this.inpX && !A.queued && f >= st.cancel + 2) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); return; }
@@ -447,7 +450,7 @@ export class Player {
     this.grip.apply(this.armed, !!this.equip.offhand || !!two);
     const hold = two && (this.attack || (this.state === 'free' && this.onGround && Math.abs(this.vel.x) < 0.4)) ? 1 : 0;
     this.ikW += (hold - this.ikW) * Math.min(1, dt * 14);
-    if (two && this.ikW > 0.01) { this.root.position.set(this.pos.x, this.pos.y, 0); this.root.updateMatrixWorld(true); const polearm = /spear|lance/.test(wb.kind || wb.style), tgt = this.weaponMesh.localToWorld(new THREE.Vector3(0, (polearm ? 0.42 : -0.17) * 1.8 / this.weaponMesh.scale.x, 0)); reach(this.armL[0], this.armL[1], this.armL[2], tgt, this.ikW); }
+    if (two && this.ikW > 0.01) { this.root.position.set(this.pos.x, this.pos.y, 0); this.root.updateMatrixWorld(true); const polearm = /spear|lance/.test(wb.kind || wb.style), tgt = this.weaponMesh.localToWorld(new THREE.Vector3(0, (polearm ? 0.42 : -0.17) / (this.weaponMesh.scale.x * 1.8), 0)); reach(this.armL[0], this.armL[1], this.armL[2], tgt, this.ikW); }
     this.root.updateMatrixWorld(true); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
@@ -485,7 +488,7 @@ class Trail {
   }
   push(weapon, elem) {
     if (!weapon) return;
-    const len = weapon.userData.len * 1.8 / weapon.scale.x;
+    const len = weapon.userData.len / weapon.scale.x; // was 1.8x too long: the ribbon overshot the tip
     const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.35, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
     // fill big per-frame jumps with arc-interpolated samples so the ribbon curves instead of fanning into a flat card
     const prev = this.pts[0];

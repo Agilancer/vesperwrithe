@@ -49,11 +49,11 @@ export class UI {
       if (!this.g.visited.has(r.id)) continue;
       const x = ox + r.col * cell, y = oy + r.row * cell, w = r.w * cell, h = r.h * cell;
       if (x > cw || y > ch || x + w < 0 || y + h < 0) continue;
-      ctx.fillStyle = r.save ? '#b5243a' : r.warp ? '#c9a23a' : r.shop ? '#3aa06a' : r.secret ? '#6a3aa6' : r.id === cur?.id ? '#3b47c9' : '#2a33a6';
+      ctx.fillStyle = r.save ? '#b8485c' : r.warp ? '#d9c48a' : r.shop ? '#58b98a' : r.secret ? '#8f78d8' : r.id === cur?.id ? '#4fb3aa' : '#1d4f55';
       ctx.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      ctx.strokeStyle = 'rgba(220,220,240,.8)'; ctx.lineWidth = big ? 1.2 : 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.strokeStyle = 'rgba(214,246,240,.62)'; ctx.lineWidth = big ? 1.2 : 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
       for (const d of r.doors) { ctx.fillStyle = '#05050a'; const t = Math.max(2, cell * 0.3); if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 2, oy + d.row * cell + cell * 0.55, 3, t); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 2, t, 3); }
-      if (big && r.boss && !Object.keys(flags).some(k => k.startsWith('boss:' + r.id + ':'))) { ctx.fillStyle = '#ff5040'; ctx.font = `bold ${Math.max(9, cell * 0.7)}px Georgia`; ctx.fillText('☠', x + w / 2 - cell * 0.3, y + h / 2 + cell * 0.25); }
+      if (big && r.boss && !Object.keys(flags).some(k => k.startsWith('boss:' + r.id + ':'))) { ctx.fillStyle = '#ff5040'; ctx.font = `bold ${Math.max(9, cell * 0.7)}px Palatino Linotype, Georgia`; ctx.fillText('☠', x + w / 2 - cell * 0.3, y + h / 2 + cell * 0.25); }
       if (big && r.bell && !this.g.player.has(r.bell.id) && Object.keys(flags).some(k => k.startsWith('boss:' + r.id + ':'))) { ctx.fillStyle = hex(BELLS[r.bell.id].color); ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, cell * 0.3, 0, 7); ctx.fill(); }
     }
     if ((performance.now() / 300 | 0) % 2) { ctx.fillStyle = '#fff'; const s = big ? 5 : 4; ctx.fillRect(ox + pc * cell - s / 2, oy + (pr - 1 + 0.7) * cell - s / 2, s, s); }
@@ -62,7 +62,7 @@ export class UI {
   bigmap() {
     const c = $('bigmap'), ctx = c.getContext('2d'), cell = Math.floor(Math.min((c.width - 40) / (C1 - C0), (c.height - 40) / (R1 - R0)));
     this.drawMap(ctx, c.width, c.height, cell, (C0 + C1) / 2, (R0 + R1) / 2, true);
-    ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over';
+    // no opaque backing: the themed chart paper (grid + vignette) behind the canvas shows through
     const pct = Math.round(100 * this.g.visited.size / ROOMS.length), cur = this.g.room?.def;
     $('mapHint').innerHTML = `M close · Castle Velscour — ${cur ? cur.name : ''} · explored ${pct}% (${this.g.visited.size}/${ROOMS.length} chambers) · <span style="color:#e06a7a">■</span> save <span style="color:#c9a23a">■</span> mirror <span style="color:#3aa06a">■</span> librarian <span style="color:#9a6ae0">■</span> secret`;
   }
