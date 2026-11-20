@@ -8,43 +8,50 @@ A 2.5D side-scrolling action RPG set in **Castle Velscour** (Velscour universe):
 play.bat            # or: python tools/serve.py 8410  →  http://localhost:8410
 ```
 
-Controls: ←/→ move · ↓ crouch · Space/K jump (again in the air = double jump) · J attack · hold L shield · Shift backdash (with a Vesper Onyx socketed: Shift in mid-air = Shade Dash) · E interact (save coffin, chests) · Q potion · I/Tab pack · M map. Gamepad: A jump, X attack, LB/LT shield, RB/RT dash, Y interact, B potion, Start pack, Back map.
+Controls: ←/→ move · ↓ crouch · Space/K jump · J attack · hold L shield · Shift backdash · E interact (save coffin, chests, mirrors, the Librarian) · Q potion · I/Tab pack (1-4 spend attribute points, S socket a gem, U unequip) · M map. Gamepad: A jump, X attack, LB/LT shield, RB/RT dash, Y interact, B potion, Start pack, Back map.
 
-**Phone / tablet:** touch controls appear automatically on touch devices (force with `?touch=1`, hide with `?touch=0`). Play in landscape. To play on a phone over your network, run `python tools/serve.py 8410 --lan` and open the address it prints on the phone (same Wi-Fi; allow Python through the Windows firewall if asked).
-- **Left:** d-pad. Slide your finger between directions; ▲ interacts and ▼ crouches.
-- **Right:** ATK, JUMP, GUARD, DASH.
-- **Top:** POTION, MAP, PACK.
-- **In the pack:** JUMP = OK (equip), ATK = GEM (socket), GUARD/DASH = BACK.
+**Phone / tablet:** touch controls appear automatically on touch devices (force with `?touch=1`, hide with `?touch=0`). Play in landscape. To play on a phone over your network, run `python tools/serve.py 8410 --lan` and open the address it prints on the phone.
 
-## What's in the slice
+## The castle
 
-The first ten rooms around START on `Castle_Velscour_Labeled` (1 map square = 1 screen, 13.33 m × 7.5 m):
+102 rooms (581 map squares) across 24 named areas, laid out as six districts in `src/areas/`. You begin with a single jump. Seven silent **bells** hang in the castle; each one a boss guards, and each teaches a new way to move that opens new ground:
 
-| # | Room | Notes |
-|---|------|-------|
-| 1 | Pilgrim Causeway | Moonlit bridge, the **Pilgrim's Blade** waits on a pedestal right in front of you |
-| 2 | Blackthorn Gatehouse | First enemy: a Shambler claws out of the floor |
-| 3 | Blackthorn Shaft | 9-screen climb on varied one-way ledges, a knight, a Shambler and a side alcove with a Topaz cache |
-| 4 | Hall of Lost Pilgrims | Zombies, a knight, a kite shield chest, a pit to the Undercroft and a **blackthorn gate** that only fire burns |
-| 5 | Votive Shrine | Save coffin (heal + save) |
-| 6 | Mirror of Passage | Warp mirror (dormant), big chest with the unique **Gravesong** pike — behind the thorns |
-| 7 | Gallery of Saints | Knights; a hole in the floor drops into the boss hall |
-| 8 | Undercroft Well | Sapphire + a Silver Lance, double-jump climb back out |
-| 9 | Collapsed Chapel | Climb to the altar for the **Ruby** (fire) |
-| 10 | Hall of the Oathbreaker | Boss: Sir Caddoc (Possessed Knight); drops the **Vesper Onyx** (Shade Dash) |
+| Bell | Ability | Guardian | Where |
+|------|---------|----------|-------|
+| Bell of the Low Hour | **Slide** (↓ + Shift) under low stone | Oathbreaker Sir Caddoc | Hall of the Oathbreaker |
+| Vesper Bell | **Double jump** | Sirelle, Queen of the Belfry Roost (flying) | Prison of Bells |
+| Drowned Bell | **Dive** (↓ + attack in the air): shatters cracked floors, sink in deep water | The Drowned Hydra | Cistern of Echoes |
+| Briar Bell | **Thornstep**: kick off walls | Gravehart, the Antlered Grief (lure its charge into the pillars) | Thornbound Gardens |
+| Cinder Bell | **Ember Ward**: wade through molten rock | Brannoch, the Cinder Warden | Emberworks |
+| Bell of Echoes | **Echo Sight**: hidden ledges appear, false walls vanish | Malgrave, the Last Archivist (hides among mirror-copies) | Forbidden Athenaeum |
+| Tempest Bell | **Shade Dash** (Shift + direction / in the air): pass spirit gates and foes | Vhalgor, Storm of the Belfry (a flying dragon) | Tempest Belfry |
 
-Gating loop: Ruby (chapel) → socket into a weapon → fire visibly wreathes the blade → burn the blackthorn in the Hall → Mirror of Passage.
+Then the Starless Sanctum tests every bell in turn on the way to **Velscour, King of the Hollow Sun**. Optional minibosses guard treasure along the way (the Moonbitten Warden, the Larder Ogre, the Sluice Maw, the Brood-Mother, three more dragons, the Ossein Colossus, the Abyssal Mouth).
+
+Districts: `west.js` (Causeway, Gatehouse, Chapel of Cinders, Moonlit Courtyard, Grand Vestibule, Servants Quarter) · `waterworks.js` (Sunken Aqueduct, Fungal Reservoir, Cistern of Echoes, Catacombs of the Nameless, Royal Crypts) · `towers.js` (Ossuary Stair, Prison of Bells, Portrait Gallery, Forbidden Athenaeum, Scribes Labyrinth) · `gardens.js` (Thornbound Gardens, Royal Menagerie, Clockwork Arsenal, Pendulum Spire, Mirror Palace) · `depths.js` (Obsidian Mines, Emberworks, Execution Foundry, Magma Reliquary) · `heights.js` (Astral Observatory, Gargoyle Ramparts, Tempest Belfry, Starless Sanctum, Throne of the Hollow Sun).
+
+Save coffins heal and record progress; warp mirrors link the districts once touched; the Librarian in the Athenaeum buys and sells. Life and mana vessels are hidden in secrets (cracked walls, false walls, echo ledges, drowned vaults).
+
+## Monsters, weapons, RPG
+
+- **Bestiary** (`src/catalog.js`): 45 enemy types built from every Bellmourn monster model — shamblers, dead children, thralls, goblins and kobolds (armed, bone-throwing), warlocks, shield knights, lancers, spiders that drop from ceilings, harpies and werebats, weeping-angel mannequins, necromancers that raise the dead, goatmen, plague knights and giants, burrowing worms, fire- and frost-breathing dragonlings, witches, night demons that step out behind you, silver paladins — each with its own behaviour archetype in `src/enemies.js`, plus a move-list boss engine with phases (charges, leaps, slams, breath cones and floor-sweeping breath, volleys, rains, eruptions, summons, blinks, mirror images, dive-bombs, strafing runs).
+- **Weapons**: all 252 Bellmourn weapon and shield models plus the 12 hand-made swords and greatswords are item bases (no staffs): swords, greatswords, axes, greataxes, maces, mauls, spears, lances, daggers, **bows** (arrows), **boomerangs** (return to hand), kite and tower shields. Item level 1-30 by class.
+- **Random abilities ("echoes")**: magic and rare weapons roll one of 20 — Vesper Crescent (every third swing throws a wave), Twin Knell, Stormcall chain lightning, Winter's Toll nova on kill, Cinderbrand, Red Thirst, Headsman execute, Gravefall, Belfry Brood bats on crit, Bellringer stun, Briarbite, Falling Star, Blood Frenzy, Soul Harvest, Shade-Twin, Far-Reaching, Guardbreaker, Volley, Piercing, Circling. 20 uniques have fixed ones.
+- **Affixes, sockets, gems**: Diablo 2-style prefixes/suffixes scaled by item level; 8 gems whose effect depends on the host (weapon / armour / shield).
+- **Levelling**: XP scaled by level difference (grinding trivial foes pays little), 3 attribute points per level to put into Strength (damage), Constitution (life), Intellect (mana, elemental damage) or Luck (crits, magic find).
 
 ## Code map
 
-- `src/touch.js` — on-screen touch controls (multi-touch d-pad + action buttons) that feed the shared input.
-- `src/main.js` — game loop, input (keyboard + gamepad), camera, rooms/transitions, loot, chests, save, boss flow, FX.
-- `src/player.js` — SotN-tuned physics (`PHYS`), animation state machine with **upper/lower body layering** (attacks while idle / moving / jumping / crouching), weapons on hand sockets, swing trails, element FX.
-- `src/enemies.js` — Shambler (zombie), Velscour Knight (blocks, telegraphs), Possessed Knight boss (charge, enrage).
-- `src/items.js` — bases, rarities, affixes, sockets, gems (effect depends on host: weapon / armor / shield) and attack styles per weapon class.
-- `src/world.js` — room geometry from `rooms.js`, themes, props, lights.
-- `src/rooms.js` — the ten rooms, laid on the map grid.
-- `docs/research/castlevania_design_research.md` — series research (SotN, GBA/DS trilogy, Bloodstained, newest entry) to consult whenever new systems are added.
+- `src/rooms.js` — grid constants, the bells, room expansion and shared collision (`roomSolids`). `docs/ROOM_SPEC.md` is the authoring format.
+- `src/areas/*.js` — the six districts (pure data).
+- `tools/validate_rooms.mjs` — proves the castle: door reciprocity, overlaps, catalog names, and a jump-model walk that collects the bells in order and reports anything unreachable. `node tools/validate_rooms.mjs --map --acts`.
+- `src/world.js` — raises a room's geometry on demand from its data: 31 area themes, hazards (spikes, lava, water, pendulum blades, moving platforms), gates, ~50 prop types, a pooled lighting system (constant light count), far rooms are unloaded.
+- `src/catalog.js` — themes, props and the bestiary. `src/enemies.js` — behaviours and bosses.
+- `src/items.js` — bases, affixes, echoes, uniques, gems. `src/player.js` — SotN-tuned physics, bell abilities, layered animation.
+- `src/main.js` — loop, input, camera, missiles, eruptions, shockwaves, boss arenas, bells, loot, shop, warps, save. `src/ui.js` — HUD, pack, map, menus. `src/touch.js` — touch controls.
+- `tools/build_textures.py` — converts the raw Bellmourn texture batches (190 colour-only PNGs) into game-ready colour + generated normal/height maps in `assets/game/tex2/`.
+- `assets/game/props/gothic_kit.glb` — tracery windows, rose window, chandelier and sarcophagus modelled in Blender.
+- `docs/research/` — design research (SotN, the GBA/DS games, Bloodstained, Silksong, Hollow Knight, Metroid Dread, Blasphemous).
 
 ## Asset pipeline
 

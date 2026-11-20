@@ -1,157 +1,285 @@
-// Itemization: Diablo 2-style bases, rarities, affixes and sockets, with gems that change what gear does.
-// A gem's effect depends on what it sits in (weapon / armor / shield), like D2 gems; some gems grant whole abilities.
+// Itemization: Diablo 2-style bases, rarities, affixes and sockets, gems that change what gear does, and
+// randomly rolled weapon "echoes" (special abilities). Every weapon model in the Bellmourn library is a base.
+// Pure data + logic (no three.js) so tools can import it.
 
 export const RARITY = { normal: 'normal', magic: 'magic', rare: 'rare', unique: 'unique' };
 
-// Attack styles map to animation sets in player.js.
+// Attack styles map to animation sets in player.js. ranged: 'arrow' | 'boomerang'.
 export const STYLES = {
   slash1h: { anim: 'sword_and_shield_slash', from: 9, to: 30, hit: [15, 22], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
   slash2h: { anim: 'great_sword_slash', from: 30, to: 66, hit: [40, 54], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
   smash:   { anim: 'standing_melee_attack_downward', from: 30, to: 62, hit: [42, 54], dur: 0.55, reach: 1.45, height: 2.1, yOff: 1.1 },
+  smash2h: { anim: 'standing_melee_attack_downward', from: 26, to: 64, hit: [42, 56], dur: 0.72, reach: 1.9, height: 2.4, yOff: 1.1 },
   chop:    { anim: 'axe_standing_melee_attack_horizontal', from: 16, to: 40, hit: [24, 33], dur: 0.44, reach: 1.6, height: 1.4, yOff: 1.0 },
   thrust:  { anim: 'stabbing', from: 22, to: 52, hit: [30, 44], dur: 0.48, reach: 2.6, height: 0.7, yOff: 1.15 },
   lance:   { anim: 'stabbing', from: 18, to: 56, hit: [30, 46], dur: 0.66, reach: 3.2, height: 0.8, yOff: 1.15 },
   stab:    { anim: 'stabbing', from: 26, to: 46, hit: [30, 40], dur: 0.26, reach: 1.1, height: 0.6, yOff: 1.1 },
   punch:   { anim: 'axe_standing_melee_attack_backhand', from: 20, to: 40, hit: [26, 33], dur: 0.32, reach: 0.9, height: 0.8, yOff: 1.2 },
+  shoot:   { anim: 'stabbing', from: 20, to: 46, hit: [32, 34], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow' },
+  hurl:    { anim: 'axe_standing_melee_attack_horizontal', from: 16, to: 40, hit: [26, 28], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang' },
 };
 
-// Weapon bases. model = BM weapons.json id; kind drives the grip in assets/game/weapons/grips.json.
+// How each weapon class plays. mult scales the level's base damage; cls is the label shown in the pack.
+const KINDS = {
+  sword:       { slot: 'weapon', hands: 1, style: 'slash1h', mult: 1.0, sockets: 3, scale: 0.85, cls: 'Sword' },
+  great_sword: { slot: 'weapon', hands: 2, style: 'slash2h', mult: 1.85, sockets: 4, scale: 1.0, cls: 'Greatsword' },
+  axe:         { slot: 'weapon', hands: 1, style: 'chop', mult: 1.15, sockets: 2, scale: 0.9, cls: 'Axe' },
+  great_axe:   { slot: 'weapon', hands: 2, style: 'slash2h', mult: 1.95, sockets: 4, scale: 1.0, cls: 'Greataxe' },
+  mace:        { slot: 'weapon', hands: 1, style: 'smash', mult: 1.35, sockets: 2, scale: 0.95, cls: 'Mace' },
+  great_mace:  { slot: 'weapon', hands: 2, style: 'smash2h', mult: 2.2, sockets: 4, scale: 1.0, cls: 'Maul' },
+  spear:       { slot: 'weapon', hands: 2, style: 'thrust', mult: 1.45, sockets: 3, scale: 0.95, cls: 'Spear' },
+  lance:       { slot: 'weapon', hands: 2, style: 'lance', mult: 2.0, sockets: 4, scale: 0.95, cls: 'Lance' },
+  dagger:      { slot: 'weapon', hands: 1, style: 'stab', mult: 0.62, sockets: 1, scale: 0.85, cls: 'Dagger' },
+  bow:         { slot: 'weapon', hands: 2, style: 'shoot', mult: 0.95, sockets: 3, scale: 0.85, cls: 'Bow' },
+  boomerang:   { slot: 'weapon', hands: 1, style: 'hurl', mult: 0.8, sockets: 2, scale: 1.0, cls: 'Boomerang' },
+  kite:        { slot: 'offhand', sockets: 3, scale: 0.85, cls: 'Kite Shield', block: 0.62 },
+  tower:       { slot: 'offhand', sockets: 3, scale: 0.8, cls: 'Tower Shield', block: 0.78 },
+};
+export const MAX_ILVL = 30;
+const dmgAt = (lvl, mult) => { const avg = (7 + lvl * 2.9) * mult; return [Math.max(1, Math.round(avg * 0.8)), Math.round(avg * 1.2)]; };
+
 export const BASES = {
-  pilgrim_blade:  { name: 'Pilgrim\'s Blade', slot: 'weapon', model: 'iron_sword', kind: 'sword', hands: 1, style: 'slash1h', dmg: [7, 10], sockets: [1, 1], scale: 0.82, lvl: 1 },
-  short_sword:    { name: 'Short Sword', slot: 'weapon', model: 'copper_sword', kind: 'sword', hands: 1, style: 'slash1h', dmg: [8, 12], sockets: [0, 2], scale: 0.8, lvl: 1 },
-  falchion:       { name: 'Falchion', slot: 'weapon', model: 'falchion', kind: 'sword', hands: 1, style: 'slash1h', dmg: [10, 15], sockets: [0, 2], scale: 0.85, lvl: 3 },
-  knight_sword:   { name: 'Velscour Longsword', slot: 'weapon', model: 'crossguard_sword', kind: 'sword', hands: 1, style: 'slash1h', dmg: [11, 16], sockets: [0, 3], scale: 0.9, lvl: 4 },
-  bone_dagger:    { name: 'Bone Dagger', slot: 'weapon', model: 'bone_dagger', kind: 'dagger', hands: 1, style: 'stab', dmg: [5, 8], sockets: [0, 1], scale: 0.8, lvl: 1 },
-  flanged_mace:   { name: 'Flanged Mace', slot: 'weapon', model: 'flanged_mace', kind: 'mace', hands: 1, style: 'smash', dmg: [11, 18], sockets: [0, 2], scale: 0.95, lvl: 2 },
-  morning_star:   { name: 'Morning Star', slot: 'weapon', model: 'morning_star', kind: 'mace', hands: 1, style: 'smash', dmg: [13, 20], sockets: [0, 2], scale: 0.95, lvl: 4 },
-  hatchet:        { name: 'Iron Hatchet', slot: 'weapon', model: 'iron_hatchet', kind: 'axe', hands: 1, style: 'chop', dmg: [9, 14], sockets: [0, 2], scale: 0.9, lvl: 2 },
-  iron_greataxe:  { name: 'Iron Greataxe', slot: 'weapon', model: 'iron_greataxe', kind: 'great_axe', hands: 2, style: 'slash2h', dmg: [20, 31], sockets: [0, 4], scale: 1.0, lvl: 4 },
-  iron_maul:      { name: 'Iron Maul', slot: 'weapon', model: 'great_studded_mace', kind: 'great_mace', hands: 2, style: 'smash', dmg: [22, 34], sockets: [0, 4], scale: 1.0, lvl: 5 },
-  iron_spear:     { name: 'Iron Spear', slot: 'weapon', model: 'iron_spear', kind: 'spear', hands: 2, style: 'thrust', dmg: [14, 22], sockets: [0, 3], scale: 0.95, lvl: 2 },
-  black_pike:     { name: 'Black Pike', slot: 'weapon', model: 'black_pike', kind: 'spear', hands: 2, style: 'thrust', dmg: [17, 26], sockets: [0, 3], scale: 1.0, lvl: 5 },
-  silver_lance:   { name: 'Silver Lance', slot: 'weapon', model: 'silver_lance', kind: 'lance', hands: 2, style: 'lance', dmg: [24, 36], sockets: [0, 4], scale: 0.95, lvl: 5 },
-  kite_shield:    { name: 'Kite Shield', slot: 'offhand', model: 'kite_greenwood', kind: 'kite', def: 6, block: 0.6, sockets: [0, 2], scale: 0.85, lvl: 1 },
-  dawnstar_kite:  { name: 'Dawnstar Kite', slot: 'offhand', model: 'kite_dawnstar', kind: 'kite', def: 9, block: 0.7, sockets: [0, 3], scale: 0.85, lvl: 4 },
-  leather_cap:    { name: 'Leather Cap', slot: 'head', def: 2, sockets: [0, 1], lvl: 1 },
-  iron_helm:      { name: 'Iron Helm', slot: 'head', def: 5, sockets: [0, 2], lvl: 3 },
-  padded_jerkin:  { name: 'Padded Jerkin', slot: 'body', def: 4, sockets: [0, 2], lvl: 1 },
-  pilgrim_mail:   { name: 'Pilgrim Mail', slot: 'body', def: 9, sockets: [0, 3], lvl: 3 },
-  wool_cloak:     { name: 'Wool Cloak', slot: 'cloak', def: 1, sockets: [0, 1], lvl: 1 },
-  iron_ring:      { name: 'Iron Ring', slot: 'ring', sockets: [0, 0], lvl: 1 },
+  // armour and trinkets have no models; icon = a Bellmourn wardrobe icon
+  leather_cap:   { name: 'Leather Cap', slot: 'head', def: 2, sockets: [0, 1], lvl: 1, icon: 'ash_hood_head' },
+  iron_helm:     { name: 'Iron Helm', slot: 'head', def: 6, sockets: [0, 2], lvl: 5, icon: 'knight_helm_head' },
+  great_helm:    { name: 'Great Helm', slot: 'head', def: 13, sockets: [0, 2], lvl: 14, icon: 'night_hood_head' },
+  crown_helm:    { name: 'Crowned Helm', slot: 'head', def: 22, sockets: [1, 3], lvl: 24, icon: 'crimson_pointed_head' },
+  padded_jerkin: { name: 'Padded Jerkin', slot: 'body', def: 4, sockets: [0, 2], lvl: 1, icon: 'ash_jacket_chest' },
+  pilgrim_mail:  { name: 'Pilgrim Mail', slot: 'body', def: 11, sockets: [0, 3], lvl: 6, icon: 'moss_coat_chest' },
+  knight_plate:  { name: 'Knight\'s Plate', slot: 'body', def: 24, sockets: [0, 3], lvl: 15, icon: 'night_coat_chest' },
+  royal_plate:   { name: 'Royal Plate', slot: 'body', def: 40, sockets: [1, 4], lvl: 25, icon: 'crimson_long_chest' },
+  wool_cloak:    { name: 'Wool Cloak', slot: 'cloak', def: 1, sockets: [0, 1], lvl: 1, icon: 'ash_cowl_shoulders' },
+  night_cloak:   { name: 'Night Cloak', slot: 'cloak', def: 5, sockets: [0, 2], lvl: 10, icon: 'night_mantle_shoulders' },
+  royal_mantle:  { name: 'Royal Mantle', slot: 'cloak', def: 11, sockets: [1, 2], lvl: 22, icon: 'crimson_mantle_shoulders' },
+  iron_ring:     { name: 'Iron Ring', slot: 'ring', sockets: [0, 0], lvl: 1, ring: true },
+  silver_ring:   { name: 'Silver Ring', slot: 'ring', sockets: [0, 1], lvl: 8, ring: true },
+  gold_ring:     { name: 'Gold Ring', slot: 'ring', sockets: [1, 1], lvl: 16, ring: true },
+  signet_ring:   { name: 'Velscour Signet', slot: 'ring', sockets: [1, 2], lvl: 24, ring: true },
 };
+const ALIAS = { short_sword: 'copper_sword', knight_sword: 'crossguard_sword', kite_shield: 'kite_greenwood', dawnstar_kite: 'kite_dawnstar', iron_maul_2h: 'great_studded_mace' };
 
-// Gems: one effect per host. elem = visible elemental attack on the weapon. ability = new power while socketed anywhere.
+// Build weapon/shield bases from the Bellmourn catalogues. Called once after the JSON is fetched (or by tools).
+export function initBases(weapons, swords = {}) {
+  const groups = {};
+  for (const w of Object.values(weapons)) (groups[w.kind] ||= []).push(w);
+  for (const [id, s] of Object.entries(swords)) { if (s.hands === 3 || !s.file) continue; (groups[s.hands === 2 ? 'great_sword' : 'sword'] ||= []).push({ id, name: id.split('_').map(t => t[0].toUpperCase() + t.slice(1)).join(' '), tier: 2, extra: true }); }
+  for (const [kind, list] of Object.entries(groups)) {
+    const K = KINDS[kind]; if (!K) continue;
+    list.sort((a, b) => (a.tier ?? 1) - (b.tier ?? 1)); // plain iron first, relic steel last
+    list.forEach((w, i) => {
+      const lvl = Math.max(1, Math.round(1 + (i / Math.max(1, list.length - 1)) * (MAX_ILVL - 2)));
+      const b = { name: w.name, slot: K.slot, model: w.id, kind, cls: K.cls, hands: K.hands, style: K.style, sockets: [0, K.sockets], scale: K.scale, lvl };
+      if (K.slot === 'weapon') b.dmg = dmgAt(lvl, K.mult);
+      else { b.def = Math.round((kind === 'tower' ? 6 : 4) + lvl * (kind === 'tower' ? 1.25 : 0.95)); b.block = Math.min(0.92, K.block + lvl * 0.004); if (kind === 'tower') b.heavy = true; }
+      BASES[w.id] = b;
+    });
+  }
+  BASES.pilgrim_blade = { ...BASES.iron_sword, name: 'Pilgrim\'s Blade', dmg: [7, 10], sockets: [1, 1], lvl: 1, noDrop: true };
+  for (const [a, t] of Object.entries(ALIAS)) if (BASES[t]) BASES[a] = { ...BASES[t], noDrop: true };
+  return BASES;
+}
+
+// Gems: one effect per host. elem = visible elemental attack on the weapon.
 export const GEMS = {
   ruby:     { name: 'Ruby', color: 0xff3a2a, css: '#ff3a2a',
-    weapon: { elem: 'fire', elemDmg: [4, 8], text: 'Adds 4-8 fire damage · burns Blackthorn' },
-    armor: { res: { fire: 15 }, text: '+15% fire resistance' }, shield: { text: 'Blocking erupts in flame (6 dmg)', blockBurst: 'fire' } },
+    weapon: { elem: 'fire', elemDmg: [4, 8], text: 'Adds fire damage · burns Blackthorn' },
+    armor: { res: { fire: 15 }, text: '+15% fire resistance' }, shield: { text: 'Blocking erupts in flame', blockBurst: 'fire' } },
   sapphire: { name: 'Sapphire', color: 0x3aa0ff, css: '#3aa0ff',
-    weapon: { elem: 'ice', elemDmg: [3, 6], text: 'Adds 3-6 cold damage · chills foes (slow)' },
+    weapon: { elem: 'ice', elemDmg: [3, 6], text: 'Adds cold damage · chills foes (slow)' },
     armor: { res: { ice: 15 }, text: '+15% cold resistance' }, shield: { text: 'Blocking chills attackers', blockBurst: 'ice' } },
   topaz:    { name: 'Topaz', color: 0xffd23a, css: '#ffd23a',
-    weapon: { elem: 'lightning', elemDmg: [1, 12], text: 'Adds 1-12 lightning damage · arcs to a nearby foe' },
+    weapon: { elem: 'lightning', elemDmg: [1, 12], text: 'Adds lightning damage · arcs to a nearby foe' },
     armor: { mf: 15, text: '+15% better chance of magic items' }, shield: { text: 'Blocking discharges a spark', blockBurst: 'lightning' } },
   emerald:  { name: 'Emerald', color: 0x3aff6a, css: '#3aff6a',
-    weapon: { elem: 'poison', elemDmg: [6, 6], text: 'Adds 6 poison damage over 2s' },
-    armor: { dex: 3, text: '+3 Agility' }, shield: { text: '+10% poison resistance' } },
+    weapon: { elem: 'poison', elemDmg: [6, 6], text: 'Adds poison damage over 2s' },
+    armor: { dex: 3, text: '+3 Agility' }, shield: { res: { poison: 20 }, text: '+20% poison resistance' } },
   skull:    { name: 'Chipped Skull', color: 0xe8e0d0, css: '#e8e0d0',
     weapon: { leech: 0.06, text: '6% of damage leeched as life' },
-    armor: { regen: 1, text: 'Regenerate 1 life / 2s' }, shield: { text: '+5% life on block' } },
-  onyx:     { name: 'Vesper Onyx', color: 0x8a3aff, css: '#b07aff', ability: 'shadeDash',
-    weapon: { text: 'Grants SHADE DASH (Shift in mid-air) · +2 damage', flat: 2 },
-    armor: { text: 'Grants SHADE DASH (Shift in mid-air)' }, shield: { text: 'Grants SHADE DASH (Shift in mid-air)' } },
+    armor: { regen: 1, text: 'Regenerate life' }, shield: { regen: 1, text: 'Regenerate life' } },
+  onyx:     { name: 'Vesper Onyx', color: 0x8a3aff, css: '#b07aff',
+    weapon: { crit: 8, flat: 2, text: '+8% critical chance · +2 damage' },
+    armor: { crit: 4, text: '+4% critical chance' }, shield: { crit: 4, text: '+4% critical chance' } },
+  diamond:  { name: 'Diamond', color: 0xe8f4ff, css: '#e8f4ff',
+    weapon: { dmgPct: 18, text: '+18% damage' },
+    armor: { hp: 20, text: '+20 life' }, shield: { def: 6, text: '+6 defense' } },
+  amethyst: { name: 'Amethyst', color: 0xc060ff, css: '#c060ff',
+    weapon: { str: 4, text: '+4 Strength' },
+    armor: { mp: 12, text: '+12 mana' }, shield: { mp: 8, text: '+8 mana' } },
+};
+export const DROP_GEMS = ['ruby', 'sapphire', 'topaz', 'emerald', 'skull', 'onyx', 'diamond', 'amethyst'];
+
+// Weapon echoes: rolled at random on magic+ weapons. k = who can carry it (m = melee, r = ranged, a = any).
+export const ECHOES = {
+  crescent:  { k: 'm', name: 'Vesper Crescent', text: 'Every third swing looses a crescent of force' },
+  twin:      { k: 'a', name: 'Twin Knell', text: 'Each hit strikes again as an echo (35%)' },
+  chain:     { k: 'a', name: 'Stormcall', text: '25% chance: lightning leaps between three foes' },
+  nova:      { k: 'a', name: 'Winter\'s Toll', text: 'Slain foes burst in a freezing nova' },
+  ignite:    { k: 'a', name: 'Cinderbrand', text: 'Hits set foes ablaze' },
+  vampire:   { k: 'a', name: 'Red Thirst', text: 'Kills restore 5% of your life' },
+  execute:   { k: 'a', name: 'Headsman', text: 'Slays lesser foes below 18% life outright' },
+  quake:     { k: 'm', name: 'Gravefall', text: 'Air attacks crack the ground where you land' },
+  bats:      { k: 'a', name: 'Belfry Brood', text: 'Critical hits loose three hunting bats' },
+  toll:      { k: 'a', name: 'Bellringer', text: 'Every eighth hit tolls a bell that stuns all foes' },
+  briar:     { k: 'm', name: 'Briarbite', text: '30% chance: thorns erupt beneath the foe' },
+  star:      { k: 'a', name: 'Falling Star', text: '15% chance to call down a star' },
+  frenzy:    { k: 'm', name: 'Blood Frenzy', text: '+4% damage per consecutive hit (max +48%)' },
+  harvest:   { k: 'a', name: 'Soul Harvest', text: 'Kills restore 4 mana and spill extra gold' },
+  shade:     { k: 'm', name: 'Shade-Twin', text: 'Backdashing leaves a shade that repeats your strike' },
+  long:      { k: 'm', name: 'Far-Reaching', text: '+35% reach' },
+  sunder:    { k: 'm', name: 'Guardbreaker', text: 'Strikes ignore raised shields' },
+  multishot: { k: 'r', name: 'Volley', text: 'Looses three missiles in a fan' },
+  pierce:    { k: 'r', name: 'Piercing', text: 'Missiles pass through foes' },
+  orbit:     { k: 'r', name: 'Circling', text: 'A spectral twin of the weapon orbits you' },
 };
 
 const PREFIX = [
   { n: 'Jagged', t: 'weapon', s: { dmgPct: [10, 25] }, f: v => `+${v.dmgPct}% damage` },
-  { n: 'Cruel', t: 'weapon', s: { dmgPct: [26, 50] }, lvl: 4, f: v => `+${v.dmgPct}% damage` },
-  { n: 'Smoldering', t: 'weapon', s: { fire: [2, 5] }, f: v => `+${v.fire} fire damage`, elem: 'fire' },
-  { n: 'Rimed', t: 'weapon', s: { ice: [2, 4] }, f: v => `+${v.ice} cold damage`, elem: 'ice' },
+  { n: 'Cruel', t: 'weapon', s: { dmgPct: [26, 50] }, lvl: 6, f: v => `+${v.dmgPct}% damage` },
+  { n: 'Merciless', t: 'weapon', s: { dmgPct: [51, 85] }, lvl: 16, f: v => `+${v.dmgPct}% damage` },
+  { n: 'Smoldering', t: 'weapon', s: { fire: [2, 5] }, sc: 1, f: v => `+${v.fire} fire damage`, elem: 'fire' },
+  { n: 'Rimed', t: 'weapon', s: { ice: [2, 4] }, sc: 1, f: v => `+${v.ice} cold damage`, elem: 'ice' },
+  { n: 'Crackling', t: 'weapon', s: { lightning: [1, 6] }, sc: 1, lvl: 4, f: v => `+${v.lightning} lightning damage`, elem: 'lightning' },
+  { n: 'Venomous', t: 'weapon', s: { poison: [3, 5] }, sc: 1, lvl: 4, f: v => `+${v.poison} poison damage`, elem: 'poison' },
+  { n: 'Keen', t: 'weapon', s: { crit: [4, 10] }, f: v => `+${v.crit}% critical chance` },
   { n: 'Sturdy', t: 'armor', s: { defPct: [10, 30] }, f: v => `+${v.defPct}% defense` },
-  { n: 'Blessed', t: 'any', s: { hp: [5, 15] }, f: v => `+${v.hp} life` },
-  { n: 'Sanguine', t: 'any', s: { mp: [4, 10] }, f: v => `+${v.mp} mana` },
+  { n: 'Adamant', t: 'armor', s: { defPct: [31, 60] }, lvl: 12, f: v => `+${v.defPct}% defense` },
+  { n: 'Blessed', t: 'any', s: { hp: [5, 15] }, sc: 1, f: v => `+${v.hp} life` },
+  { n: 'Sanguine', t: 'any', s: { mp: [4, 10] }, sc: 0.5, f: v => `+${v.mp} mana` },
+  { n: 'Scholar\'s', t: 'any', s: { xpPct: [5, 12] }, lvl: 5, f: v => `+${v.xpPct}% experience` },
+  { n: 'Warding', t: 'armor', s: { res_fire: [8, 20] }, lvl: 8, f: v => `+${v.res_fire}% fire resistance` },
+  { n: 'Wintering', t: 'armor', s: { res_ice: [8, 20] }, lvl: 8, f: v => `+${v.res_ice}% cold resistance` },
 ];
 const SUFFIX = [
   { n: 'of the Leech', t: 'weapon', s: { leechPct: [3, 6] }, f: v => `${v.leechPct}% life stolen per hit` },
   { n: 'of Quickness', t: 'weapon', s: { ias: [10, 20] }, f: v => `+${v.ias}% attack speed` },
-  { n: 'of the Bear', t: 'any', s: { str: [1, 4] }, f: v => `+${v.str} Strength` },
-  { n: 'of the Fox', t: 'any', s: { dex: [1, 4] }, f: v => `+${v.dex} Agility` },
-  { n: 'of Warding', t: 'armor', s: { def: [2, 6] }, f: v => `+${v.def} defense` },
+  { n: 'of Alacrity', t: 'weapon', s: { ias: [21, 35] }, lvl: 12, f: v => `+${v.ias}% attack speed` },
+  { n: 'of the Bear', t: 'any', s: { str: [1, 4] }, sc: 0.25, f: v => `+${v.str} Strength` },
+  { n: 'of the Fox', t: 'any', s: { dex: [1, 4] }, sc: 0.25, f: v => `+${v.dex} Agility` },
+  { n: 'of the Ox', t: 'any', s: { con: [1, 4] }, sc: 0.25, f: v => `+${v.con} Constitution` },
+  { n: 'of the Owl', t: 'any', s: { int: [1, 4] }, sc: 0.25, f: v => `+${v.int} Intellect` },
+  { n: 'of the Raven', t: 'any', s: { lck: [1, 4] }, sc: 0.25, f: v => `+${v.lck} Luck` },
+  { n: 'of Warding', t: 'armor', s: { def: [2, 6] }, sc: 0.5, f: v => `+${v.def} defense` },
   { n: 'of Fortune', t: 'any', s: { gold: [10, 40] }, f: v => `+${v.gold}% gold found` },
-  { n: 'of Thorns', t: 'armor', s: { thorns: [2, 5] }, f: v => `Attackers take ${v.thorns} damage` },
+  { n: 'of Seeking', t: 'any', s: { mf: [8, 25] }, lvl: 4, f: v => `+${v.mf}% better chance of magic items` },
+  { n: 'of Thorns', t: 'armor', s: { thorns: [2, 5] }, sc: 1, f: v => `Attackers take ${v.thorns} damage` },
+  { n: 'of Mending', t: 'armor', s: { regen: [1, 2] }, lvl: 6, f: v => `Regenerate ${v.regen} life / 2s` },
+  { n: 'of Slaying', t: 'weapon', s: { critDmg: [20, 50] }, lvl: 8, f: v => `+${v.critDmg}% critical damage` },
 ];
-const RARE_A = ['Grim', 'Doom', 'Vesper', 'Ash', 'Bone', 'Wraith', 'Hollow', 'Thorn', 'Gloom', 'Raven'];
-const RARE_B = ['Bite', 'Song', 'Mark', 'Edge', 'Ward', 'Shroud', 'Spike', 'Knell', 'Vigil', 'Fang'];
+const RARE_A = ['Grim', 'Doom', 'Vesper', 'Ash', 'Bone', 'Wraith', 'Hollow', 'Thorn', 'Gloom', 'Raven', 'Dusk', 'Knell', 'Sorrow', 'Cinder', 'Pale', 'Dread'];
+const RARE_B = ['Bite', 'Song', 'Mark', 'Edge', 'Ward', 'Shroud', 'Spike', 'Knell', 'Vigil', 'Fang', 'Toll', 'Grasp', 'Oath', 'Weeper', 'Thirst', 'Requiem'];
 
 const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
 let uid = 1;
+export const isRanged = b => !!STYLES[b?.style]?.ranged;
+
+function rollEcho(base) { const k = isRanged(base) ? 'r' : 'm'; return pick(Object.keys(ECHOES).filter(e => ECHOES[e].k === 'a' || ECHOES[e].k === k)); }
 
 export function makeItem(baseId, opts = {}) {
-  const base = BASES[baseId];
+  const base = BASES[baseId]; if (!base) return makeItem('iron_sword', opts);
   const it = { uid: uid++, base: baseId, rarity: opts.rarity || 'normal', affixes: [], gems: [], name: base.name };
   const [s0, s1] = base.sockets || [0, 0];
   it.sockets = opts.sockets ?? (it.rarity === 'normal' ? r(s0, s1) : it.rarity === 'magic' ? Math.min(s1, r(0, 2)) : Math.min(s1, r(0, 1)));
-  const host = base.slot === 'weapon' ? 'weapon' : 'armor';
-  const pool = l => l.filter(a => (a.t === 'any' || a.t === host) && (a.lvl || 0) <= (opts.lvl || 99));
-  const roll = a => { const v = {}; for (const [k, [lo, hi]] of Object.entries(a.s)) v[k] = r(lo, hi); return { n: a.n, v, text: a.f(v), elem: a.elem }; };
+  const host = base.slot === 'weapon' ? 'weapon' : 'armor', ilvl = opts.lvl ?? base.lvl;
+  const pool = l => l.filter(a => (a.t === 'any' || a.t === host) && (a.lvl || 0) <= ilvl + 2);
+  // flat stats (sc) grow with item level so late gear stays worth reading
+  const roll = a => { const v = {}, m = a.sc ? 1 + ilvl * 0.12 * a.sc : 1; for (const [k, [lo, hi]] of Object.entries(a.s)) v[k] = Math.round(r(lo, hi) * m); return { n: a.n, v, text: a.f(v), elem: a.elem }; };
   if (it.rarity === 'magic') {
     const p = Math.random() < 0.7 ? roll(pick(pool(PREFIX))) : null, s = Math.random() < 0.7 || !p ? roll(pick(pool(SUFFIX))) : null;
     if (p) it.affixes.push(p); if (s) it.affixes.push(s);
     it.name = [p?.n, base.name, s?.n].filter(Boolean).join(' ');
   } else if (it.rarity === 'rare') {
-    const n = r(3, 4), used = new Set();
+    const n = r(3, 5), used = new Set();
     for (let i = 0; i < n; i++) { const a = pick(pool(i % 2 ? SUFFIX : PREFIX)); if (used.has(a.n)) continue; used.add(a.n); it.affixes.push(roll(a)); }
     it.name = `${pick(RARE_A)} ${pick(RARE_B)}`;
   }
+  if (base.slot === 'weapon' && !opts.noEcho) { const ch = { normal: 0.1, magic: 0.5, rare: 1 }[it.rarity] ?? 0; if (opts.echo || Math.random() < ch) it.echo = opts.echo || rollEcho(base); }
   if (opts.name) it.name = opts.name;
   return it;
 }
+
+const U = (base, name, sockets, echo, ...aff) => ({ base, name, sockets, echo, affixes: aff.map(([v, text, elem]) => ({ n: 'u', v, text, elem })) });
 export const UNIQUES = {
-  gravesong: { base: 'black_pike', name: 'Gravesong', sockets: 2, affixes: [{ n: 'u', v: { dmgPct: 70 }, text: '+70% damage' }, { n: 'u', v: { fire: 6 }, text: '+6 fire damage', elem: 'fire' }, { n: 'u', v: { leechPct: 5 }, text: '5% life stolen per hit' }, { n: 'u', v: { str: 4 }, text: '+4 Strength' }] },
+  gravesong:   U('black_pike', 'Gravesong', 2, 'vampire', [{ dmgPct: 70 }, '+70% damage'], [{ fire: 6 }, '+6 fire damage', 'fire'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ str: 4 }, '+4 Strength']),
+  vespertine:  U('dusk_sword', 'Vespertine', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ crit: 12 }, '+12% critical chance'], [{ ias: 20 }, '+20% attack speed'], [{ mp: 30 }, '+30 mana']),
+  cinderfall:  U('inferno_greataxe', 'Cinderfall', 3, 'star', [{ dmgPct: 110 }, '+110% damage'], [{ fire: 28 }, '+28 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ res_fire: 30 }, '+30% fire resistance']),
+  rimeheart:   U('glacier_maul', 'Rimeheart', 3, 'nova', [{ dmgPct: 80 }, '+80% damage'], [{ ice: 14 }, '+14 cold damage', 'ice'], [{ con: 8 }, '+8 Constitution'], [{ hp: 60 }, '+60 life']),
+  stormcall:   U('voidbolt_sword', 'Stormcall', 3, 'chain', [{ dmgPct: 120 }, '+120% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 10 }, '+10% critical chance']),
+  thornkiss:   U('thornvine_sword', 'Thornkiss', 2, 'briar', [{ dmgPct: 85 }, '+85% damage'], [{ poison: 16 }, '+16 poison damage', 'poison'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ dex: 6 }, '+6 Agility']),
+  kingsgrief:  U('wheel_greatsword', 'King\'s Grief', 4, 'quake', [{ dmgPct: 140 }, '+140% damage'], [{ str: 14 }, '+14 Strength'], [{ critDmg: 60 }, '+60% critical damage'], [{ hp: 80 }, '+80 life']),
+  moonsickle:  U('crescent_dagger', 'Moonsickle', 1, 'twin', [{ dmgPct: 120 }, '+120% damage'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 18 }, '+18% critical chance'], [{ lck: 8 }, '+8 Luck']),
+  widowmaker:  U('nightshade_bow', 'Widowmaker', 3, 'pierce', [{ dmgPct: 90 }, '+90% damage'], [{ poison: 14 }, '+14 poison damage', 'poison'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 8 }, '+8 Agility']),
+  seraphwing:  U('seraph_bow', 'Seraphwing', 3, 'multishot', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 16 }, '+16 fire damage', 'fire'], [{ ias: 25 }, '+25% attack speed'], [{ mp: 40 }, '+40 mana']),
+  homeward:    U('gold_lion_boomerang', 'Homeward', 2, 'orbit', [{ dmgPct: 110 }, '+110% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ gold: 60 }, '+60% gold found'], [{ lck: 8 }, '+8 Luck']),
+  lionheart_aegis: U('kite_lionheart', 'Lionheart Aegis', 3, null, [{ defPct: 80 }, '+80% defense'], [{ hp: 60 }, '+60 life'], [{ thorns: 20 }, 'Attackers take 20 damage'], [{ str: 6 }, '+6 Strength']),
+  worldtree:   U('tower_world_tree', 'Worldtree Bulwark', 3, null, [{ defPct: 100 }, '+100% defense'], [{ regen: 4 }, 'Regenerate 4 life / 2s'], [{ res_fire: 25 }, '+25% fire resistance'], [{ res_ice: 25 }, '+25% cold resistance']),
+  dragonspine: U('dragon_lance', 'Dragonspine', 4, 'ignite', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 20 }, '+20 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ critDmg: 40 }, '+40% critical damage']),
+  bonecrown:   U('bonecrown_mace', 'Bonecrown', 2, 'toll', [{ dmgPct: 80 }, '+80% damage'], [{ con: 8 }, '+8 Constitution'], [{ leechPct: 4 }, '4% life stolen per hit'], [{ xpPct: 15 }, '+15% experience']),
+  krakenmaw:   U('kraken_mace', 'Krakenmaw', 2, 'nova', [{ dmgPct: 75 }, '+75% damage'], [{ ice: 8 }, '+8 cold damage', 'ice'], [{ hp: 40 }, '+40 life'], [{ str: 5 }, '+5 Strength']),
+  redthirst:   U('bloodletter', 'The Red Thirst', 1, 'frenzy', [{ dmgPct: 130 }, '+130% damage'], [{ leechPct: 9 }, '9% life stolen per hit'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 10 }, '+10% critical chance']),
+  sunsplitter: U('solar_greataxe', 'Sunsplitter', 4, 'star', [{ dmgPct: 120 }, '+120% damage'], [{ fire: 24 }, '+24 fire damage', 'fire'], [{ str: 12 }, '+12 Strength'], [{ crit: 10 }, '+10% critical chance']),
+  hollowsun:   U('sunguard_sword', 'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 160 }, '+160% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
+  lastlight:   U('radiant_lance', 'Last Light', 4, 'sunder', [{ dmgPct: 150 }, '+150% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
-export function makeUnique(id) { const U = UNIQUES[id]; const it = makeItem(U.base, { rarity: 'unique', sockets: U.sockets }); it.affixes = U.affixes.map(a => ({ ...a })); it.name = U.name; return it; }
+export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.echo) it.echo = u.echo; it.uniq = id; return it; }
 export function makeGem(gemId) { return { uid: uid++, gem: gemId, name: GEMS[gemId].name, rarity: 'gem' }; }
+
+// A random base suited to an item level (within a band below it), optionally of a slot.
+export function randomBase(level, slot) {
+  const ids = Object.keys(BASES).filter(k => { const b = BASES[k]; return !b.noDrop && b.lvl <= level + 1 && b.lvl >= level - 7 && (!slot || b.slot === slot); });
+  return ids.length ? pick(ids) : 'iron_sword';
+}
+export function tierItem(tier, rarity) { const lvl = Math.min(MAX_ILVL, Math.max(1, tier * 4 - 1)); return makeItem(randomBase(lvl), { rarity: rarity || (Math.random() < 0.35 ? 'rare' : 'magic'), lvl }); }
 
 export function rollDrop(level, mf = 0) {
   const x = Math.random() * 100;
-  if (x < 45) return null;
-  if (x < 62) return { gold: r(5, 18) * level };
-  if (x < 72) return { potion: true };
-  if (x < 78) return makeGem(pick(['ruby', 'sapphire', 'topaz', 'emerald', 'skull']));
-  const ids = Object.keys(BASES).filter(k => BASES[k].lvl <= level + 1 && k !== 'pilgrim_blade');
+  if (x < 42) return null;
+  if (x < 62) return { gold: r(4, 12) * Math.max(1, Math.round(level * 0.8)) };
+  if (x < 71) return { potion: true };
+  if (x < 77) return makeGem(pick(DROP_GEMS));
   const q = Math.random() * 100 - mf * 0.3;
-  const rarity = q < 6 ? 'rare' : q < 30 ? 'magic' : 'normal';
-  return makeItem(pick(ids), { rarity, lvl: level });
+  const rarity = q < 7 ? 'rare' : q < 34 ? 'magic' : 'normal';
+  return makeItem(randomBase(Math.min(MAX_ILVL, level)), { rarity, lvl: level });
 }
-function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 
 export function itemHost(it) { const s = BASES[it.base]?.slot; return s === 'weapon' ? 'weapon' : s === 'offhand' ? 'shield' : 'armor'; }
+export const ELEMS = ['fire', 'ice', 'lightning', 'poison'];
 
 // Everything an item gives, flattened.
 export function itemStats(it) {
-  const base = BASES[it.base], o = { dmg: base.dmg ? [...base.dmg] : null, def: base.def || 0, block: base.block || 0, elems: [], abilities: [], lines: [] };
-  let dmgPct = 0;
+  const base = BASES[it.base], o = { dmg: base.dmg ? [...base.dmg] : null, def: base.def || 0, block: base.block || 0, elems: [], lines: [] };
+  let dmgPct = 0, defPct = 0;
+  const add = (k, v) => { o[k] = (o[k] || 0) + v; };
   for (const a of it.affixes) {
     for (const [k, v] of Object.entries(a.v)) {
-      if (k === 'dmgPct') dmgPct += v; else if (k === 'fire' || k === 'ice') o.elems.push({ elem: k, dmg: [v, v] });
-      else if (k === 'defPct') o.def = Math.round(o.def * (1 + v / 100)); else o[k] = (o[k] || 0) + v;
+      if (k === 'dmgPct') dmgPct += v; else if (ELEMS.includes(k)) o.elems.push({ elem: k, dmg: k === 'lightning' ? [1, v * 2] : [v, v] });
+      else if (k === 'defPct') defPct += v; else add(k, v);
     }
     o.lines.push({ text: a.text, cls: 'aff' });
   }
   const host = itemHost(it);
   for (const g of it.gems) {
-    const G = GEMS[g], e = G[host];
-    if (e.elem) o.elems.push({ elem: e.elem, dmg: e.elemDmg });
-    if (e.leech) o.leechPct = (o.leechPct || 0) + e.leech * 100;
+    const G = GEMS[g], e = G[host], sc = 1 + (base.lvl || 1) * 0.1; // gems bite harder in better steel
+    if (e.elem) o.elems.push({ elem: e.elem, dmg: e.elemDmg.map(d => Math.round(d * sc)) });
+    if (e.leech) add('leechPct', e.leech * 100);
     if (e.flat && o.dmg) { o.dmg[0] += e.flat; o.dmg[1] += e.flat; }
-    if (e.res) for (const [k, v] of Object.entries(e.res)) o['res_' + k] = (o['res_' + k] || 0) + v;
-    for (const k of ['mf', 'dex', 'regen']) if (e[k]) o[k] = (o[k] || 0) + e[k];
+    if (e.dmgPct) dmgPct += e.dmgPct;
+    if (e.res) for (const [k, v] of Object.entries(e.res)) add('res_' + k, v);
+    for (const k of ['mf', 'dex', 'regen', 'crit', 'hp', 'mp', 'str', 'def']) if (e[k]) add(k, e[k]);
     if (e.blockBurst) o.blockBurst = e.blockBurst;
-    if (G.ability) o.abilities.push(G.ability);
     o.lines.push({ text: `${G.name}: ${e.text}`, cls: 'gem', css: G.css });
   }
   if (o.dmg && dmgPct) o.dmg = o.dmg.map(d => Math.round(d * (1 + dmgPct / 100)));
+  if (defPct) o.def = Math.round(o.def * (1 + defPct / 100));
+  if (it.echo) { o.echo = it.echo; o.lines.push({ text: `${ECHOES[it.echo].name}: ${ECHOES[it.echo].text}`, cls: 'echo' }); }
   return o;
+}
+
+// What a shop charges / pays.
+export function itemValue(it) {
+  if (it.gem) return 120;
+  const b = BASES[it.base], m = { normal: 1, magic: 2.5, rare: 6, unique: 20 }[it.rarity] || 1;
+  return Math.round((20 + (b.lvl || 1) * 14) * m * (1 + it.sockets * 0.15) * (it.echo ? 1.5 : 1));
 }
 
 export const SLOTS = [
