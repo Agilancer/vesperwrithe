@@ -29,7 +29,7 @@ const KINDS = {
   great_mace:  { slot: 'weapon', hands: 2, style: 'smash2h', mult: 2.2, sockets: 4, scale: 1.0, cls: 'Maul' },
   spear:       { slot: 'weapon', hands: 2, style: 'thrust', mult: 1.45, sockets: 3, scale: 0.95, cls: 'Spear' },
   lance:       { slot: 'weapon', hands: 2, style: 'lance', mult: 2.0, sockets: 4, scale: 0.95, cls: 'Lance' },
-  dagger:      { slot: 'weapon', hands: 1, style: 'stab', mult: 0.62, sockets: 1, scale: 0.85, cls: 'Dagger' },
+  dagger:      { slot: 'weapon', hands: 1, style: 'stab', mult: 0.8, sockets: 1, scale: 0.85, cls: 'Dagger' },
   bow:         { slot: 'weapon', hands: 2, style: 'shoot', mult: 0.95, sockets: 3, scale: 0.85, cls: 'Bow' },
   boomerang:   { slot: 'weapon', hands: 1, style: 'hurl', mult: 0.8, sockets: 2, scale: 1.0, cls: 'Boomerang' },
   kite:        { slot: 'offhand', sockets: 3, scale: 0.85, cls: 'Kite Shield', block: 0.62 },
@@ -148,6 +148,8 @@ const PREFIX = [
   { n: 'Scholar\'s', t: 'any', s: { xpPct: [5, 12] }, lvl: 5, f: v => `+${v.xpPct}% experience` },
   { n: 'Warding', t: 'armor', s: { res_fire: [8, 20] }, lvl: 8, f: v => `+${v.res_fire}% fire resistance` },
   { n: 'Wintering', t: 'armor', s: { res_ice: [8, 20] }, lvl: 8, f: v => `+${v.res_ice}% cold resistance` },
+  { n: 'Grounded', t: 'armor', s: { res_lightning: [8, 20] }, lvl: 12, f: v => `+${v.res_lightning}% lightning resistance` },
+  { n: 'Antidotal', t: 'armor', s: { res_poison: [8, 20] }, lvl: 6, f: v => `+${v.res_poison}% poison resistance` },
 ];
 const SUFFIX = [
   { n: 'of the Leech', t: 'weapon', s: { leechPct: [3, 6] }, f: v => `${v.leechPct}% life stolen per hit` },
@@ -198,34 +200,39 @@ export function makeItem(baseId, opts = {}) {
   return it;
 }
 
-const U = (base, name, sockets, echo, ...aff) => ({ base, name, sockets, echo, affixes: aff.map(([v, text, elem]) => ({ n: 'u', v, text, elem })) });
+const U = (base, lvl, name, sockets, echo, ...aff) => ({ base, lvl, name, sockets, echo, affixes: aff.map(([v, text, elem]) => ({ n: 'u', v, text, elem })) });
 export const UNIQUES = {
-  gravesong:   U('black_pike', 'Gravesong', 2, 'vampire', [{ dmgPct: 70 }, '+70% damage'], [{ fire: 6 }, '+6 fire damage', 'fire'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ str: 4 }, '+4 Strength']),
-  vespertine:  U('dusk_sword', 'Vespertine', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ crit: 12 }, '+12% critical chance'], [{ ias: 20 }, '+20% attack speed'], [{ mp: 30 }, '+30 mana']),
-  cinderfall:  U('inferno_greataxe', 'Cinderfall', 3, 'star', [{ dmgPct: 110 }, '+110% damage'], [{ fire: 28 }, '+28 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ res_fire: 30 }, '+30% fire resistance']),
-  rimeheart:   U('glacier_maul', 'Rimeheart', 3, 'nova', [{ dmgPct: 80 }, '+80% damage'], [{ ice: 14 }, '+14 cold damage', 'ice'], [{ con: 8 }, '+8 Constitution'], [{ hp: 60 }, '+60 life']),
-  stormcall:   U('voidbolt_sword', 'Stormcall', 3, 'chain', [{ dmgPct: 120 }, '+120% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 10 }, '+10% critical chance']),
-  thornkiss:   U('thornvine_sword', 'Thornkiss', 2, 'briar', [{ dmgPct: 85 }, '+85% damage'], [{ poison: 16 }, '+16 poison damage', 'poison'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ dex: 6 }, '+6 Agility']),
-  kingsgrief:  U('wheel_greatsword', 'King\'s Grief', 4, 'quake', [{ dmgPct: 140 }, '+140% damage'], [{ str: 14 }, '+14 Strength'], [{ critDmg: 60 }, '+60% critical damage'], [{ hp: 80 }, '+80 life']),
-  moonsickle:  U('crescent_dagger', 'Moonsickle', 1, 'twin', [{ dmgPct: 120 }, '+120% damage'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 18 }, '+18% critical chance'], [{ lck: 8 }, '+8 Luck']),
-  widowmaker:  U('nightshade_bow', 'Widowmaker', 3, 'pierce', [{ dmgPct: 90 }, '+90% damage'], [{ poison: 14 }, '+14 poison damage', 'poison'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 8 }, '+8 Agility']),
-  seraphwing:  U('seraph_bow', 'Seraphwing', 3, 'multishot', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 16 }, '+16 fire damage', 'fire'], [{ ias: 25 }, '+25% attack speed'], [{ mp: 40 }, '+40 mana']),
-  homeward:    U('gold_lion_boomerang', 'Homeward', 2, 'orbit', [{ dmgPct: 110 }, '+110% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ gold: 60 }, '+60% gold found'], [{ lck: 8 }, '+8 Luck']),
-  lionheart_aegis: U('kite_lionheart', 'Lionheart Aegis', 3, null, [{ defPct: 80 }, '+80% defense'], [{ hp: 60 }, '+60 life'], [{ thorns: 20 }, 'Attackers take 20 damage'], [{ str: 6 }, '+6 Strength']),
-  worldtree:   U('tower_world_tree', 'Worldtree Bulwark', 3, null, [{ defPct: 100 }, '+100% defense'], [{ regen: 4 }, 'Regenerate 4 life / 2s'], [{ res_fire: 25 }, '+25% fire resistance'], [{ res_ice: 25 }, '+25% cold resistance']),
-  dragonspine: U('dragon_lance', 'Dragonspine', 4, 'ignite', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 20 }, '+20 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ critDmg: 40 }, '+40% critical damage']),
-  bonecrown:   U('bonecrown_mace', 'Bonecrown', 2, 'toll', [{ dmgPct: 80 }, '+80% damage'], [{ con: 8 }, '+8 Constitution'], [{ leechPct: 4 }, '4% life stolen per hit'], [{ xpPct: 15 }, '+15% experience']),
-  krakenmaw:   U('kraken_mace', 'Krakenmaw', 2, 'nova', [{ dmgPct: 75 }, '+75% damage'], [{ ice: 8 }, '+8 cold damage', 'ice'], [{ hp: 40 }, '+40 life'], [{ str: 5 }, '+5 Strength']),
-  redthirst:   U('bloodletter', 'The Red Thirst', 1, 'frenzy', [{ dmgPct: 130 }, '+130% damage'], [{ leechPct: 9 }, '9% life stolen per hit'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 10 }, '+10% critical chance']),
-  sunsplitter: U('solar_greataxe', 'Sunsplitter', 4, 'star', [{ dmgPct: 120 }, '+120% damage'], [{ fire: 24 }, '+24 fire damage', 'fire'], [{ str: 12 }, '+12 Strength'], [{ crit: 10 }, '+10% critical chance']),
-  hollowsun:   U('sunguard_sword', 'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 160 }, '+160% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
-  lastlight:   U('radiant_lance', 'Last Light', 4, 'sunder', [{ dmgPct: 150 }, '+150% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
+  gravesong:   U('black_pike', 5, 'Gravesong', 2, 'vampire', [{ dmgPct: 70 }, '+70% damage'], [{ fire: 6 }, '+6 fire damage', 'fire'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ str: 4 }, '+4 Strength']),
+  vespertine:  U('dusk_sword', 13, 'Vespertine', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ crit: 12 }, '+12% critical chance'], [{ ias: 20 }, '+20% attack speed'], [{ mp: 30 }, '+30 mana']),
+  cinderfall:  U('inferno_greataxe', 20, 'Cinderfall', 3, 'star', [{ dmgPct: 110 }, '+110% damage'], [{ fire: 28 }, '+28 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ res_fire: 30 }, '+30% fire resistance']),
+  rimeheart:   U('glacier_maul', 30, 'Rimeheart', 3, 'nova', [{ dmgPct: 80 }, '+80% damage'], [{ ice: 14 }, '+14 cold damage', 'ice'], [{ con: 8 }, '+8 Constitution'], [{ hp: 60 }, '+60 life']),
+  stormcall:   U('voidbolt_sword', 28, 'Stormcall', 3, 'chain', [{ dmgPct: 120 }, '+120% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 10 }, '+10% critical chance']),
+  thornkiss:   U('thornvine_sword', 17, 'Thornkiss', 2, 'briar', [{ dmgPct: 85 }, '+85% damage'], [{ poison: 16 }, '+16 poison damage', 'poison'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ dex: 6 }, '+6 Agility']),
+  kingsgrief:  U('wheel_greatsword', 29, 'King\'s Grief', 4, 'quake', [{ dmgPct: 140 }, '+140% damage'], [{ str: 14 }, '+14 Strength'], [{ critDmg: 60 }, '+60% critical damage'], [{ hp: 80 }, '+80 life']),
+  moonsickle:  U('crescent_dagger', 20, 'Moonsickle', 1, 'twin', [{ dmgPct: 120 }, '+120% damage'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 18 }, '+18% critical chance'], [{ lck: 8 }, '+8 Luck']),
+  widowmaker:  U('nightshade_bow', 19, 'Widowmaker', 3, 'pierce', [{ dmgPct: 90 }, '+90% damage'], [{ poison: 14 }, '+14 poison damage', 'poison'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 8 }, '+8 Agility']),
+  seraphwing:  U('seraph_bow', 27, 'Seraphwing', 3, 'multishot', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 16 }, '+16 fire damage', 'fire'], [{ ias: 25 }, '+25% attack speed'], [{ mp: 40 }, '+40 mana']),
+  homeward:    U('gold_lion_boomerang', 20, 'Homeward', 2, 'orbit', [{ dmgPct: 110 }, '+110% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ gold: 60 }, '+60% gold found'], [{ lck: 8 }, '+8 Luck']),
+  lionheart_aegis: U('kite_lionheart', 30, 'Lionheart Aegis', 3, null, [{ defPct: 80 }, '+80% defense'], [{ hp: 60 }, '+60 life'], [{ thorns: 20 }, 'Attackers take 20 damage'], [{ str: 6 }, '+6 Strength']),
+  worldtree:   U('tower_world_tree', 17, 'Worldtree Bulwark', 3, null, [{ defPct: 100 }, '+100% defense'], [{ regen: 4 }, 'Regenerate 4 life / 2s'], [{ res_fire: 25 }, '+25% fire resistance'], [{ res_ice: 25 }, '+25% cold resistance']),
+  dragonspine: U('dragon_lance', 25, 'Dragonspine', 4, 'ignite', [{ dmgPct: 100 }, '+100% damage'], [{ fire: 20 }, '+20 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ critDmg: 40 }, '+40% critical damage']),
+  bonecrown:   U('bonecrown_mace', 16, 'Bonecrown', 2, 'toll', [{ dmgPct: 80 }, '+80% damage'], [{ con: 8 }, '+8 Constitution'], [{ leechPct: 4 }, '4% life stolen per hit'], [{ xpPct: 15 }, '+15% experience']),
+  krakenmaw:   U('kraken_mace', 14, 'Krakenmaw', 2, 'nova', [{ dmgPct: 75 }, '+75% damage'], [{ ice: 8 }, '+8 cold damage', 'ice'], [{ hp: 40 }, '+40 life'], [{ str: 5 }, '+5 Strength']),
+  redthirst:   U('bloodletter', 26, 'The Red Thirst', 1, 'frenzy', [{ dmgPct: 130 }, '+130% damage'], [{ leechPct: 9 }, '9% life stolen per hit'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 10 }, '+10% critical chance']),
+  sunsplitter: U('solar_greataxe', 27, 'Sunsplitter', 4, 'star', [{ dmgPct: 120 }, '+120% damage'], [{ fire: 24 }, '+24 fire damage', 'fire'], [{ str: 12 }, '+12 Strength'], [{ crit: 10 }, '+10% critical chance']),
+  hollowsun:   U('sunguard_sword', 30, 'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 160 }, '+160% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
+  lastlight:   U('radiant_lance', 30, 'Last Light', 4, 'sunder', [{ dmgPct: 150 }, '+150% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
-export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.echo) it.echo = u.echo; it.uniq = id; return it; }
+export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }
+// A unique is forged at its own level whatever common steel it is modelled on.
+export const itemLevel = it => it.lvl || BASES[it.base]?.lvl || 1;
+export const itemReq = it => Math.max(1, itemLevel(it) - 4);
 export function makeGem(gemId) { return { uid: uid++, gem: gemId, name: GEMS[gemId].name, rarity: 'gem' }; }
 
 // A random base suited to an item level (within a band below it), optionally of a slot.
 export function randomBase(level, slot) {
+  if (!slot) { const r = Math.random(); slot = r < 0.5 ? 'weapon' : r < 0.65 ? 'offhand' : r < 0.74 ? 'head' : r < 0.84 ? 'body' : r < 0.92 ? 'cloak' : 'ring'; }
+  if (slot !== 'weapon' && slot !== 'offhand') { const a = Object.keys(BASES).filter(k => BASES[k].slot === slot && BASES[k].lvl <= level + 1); return a.length ? a[a.length - 1 - (Math.random() < 0.3 && a.length > 1 ? 1 : 0)] : 'iron_ring'; }
   const ids = Object.keys(BASES).filter(k => { const b = BASES[k]; return !b.noDrop && b.lvl <= level + 1 && b.lvl >= level - 7 && (!slot || b.slot === slot); });
   return ids.length ? pick(ids) : 'iron_sword';
 }
@@ -247,7 +254,8 @@ export const ELEMS = ['fire', 'ice', 'lightning', 'poison'];
 
 // Everything an item gives, flattened.
 export function itemStats(it) {
-  const base = BASES[it.base], o = { dmg: base.dmg ? [...base.dmg] : null, def: base.def || 0, block: base.block || 0, elems: [], lines: [] };
+  const base = BASES[it.base], K = KINDS[base.kind], o = { dmg: base.dmg ? [...base.dmg] : null, def: base.def || 0, block: base.block || 0, elems: [], lines: [] };
+  if (it.lvl && K) { if (base.dmg) o.dmg = dmgAt(it.lvl, K.mult); else if (base.def) o.def = Math.round((base.kind === 'tower' ? 6 : 4) + it.lvl * (base.kind === 'tower' ? 1.25 : 0.95)); }
   let dmgPct = 0, defPct = 0;
   const add = (k, v) => { o[k] = (o[k] || 0) + v; };
   for (const a of it.affixes) {
@@ -259,7 +267,7 @@ export function itemStats(it) {
   }
   const host = itemHost(it);
   for (const g of it.gems) {
-    const G = GEMS[g], e = G[host], sc = 1 + (base.lvl || 1) * 0.1; // gems bite harder in better steel
+    const G = GEMS[g], e = G[host], sc = 1 + (it.lvl || base.lvl || 1) * 0.1; // gems bite harder in better steel
     if (e.elem) o.elems.push({ elem: e.elem, dmg: e.elemDmg.map(d => Math.round(d * sc)) });
     if (e.leech) add('leechPct', e.leech * 100);
     if (e.flat && o.dmg) { o.dmg[0] += e.flat; o.dmg[1] += e.flat; }
@@ -279,7 +287,7 @@ export function itemStats(it) {
 export function itemValue(it) {
   if (it.gem) return 120;
   const b = BASES[it.base], m = { normal: 1, magic: 2.5, rare: 6, unique: 20 }[it.rarity] || 1;
-  return Math.round((20 + (b.lvl || 1) * 14) * m * (1 + it.sockets * 0.15) * (it.echo ? 1.5 : 1));
+  return Math.round((20 + itemLevel(it) * 14) * m * (1 + it.sockets * 0.15) * (it.echo ? 1.5 : 1));
 }
 
 export const SLOTS = [

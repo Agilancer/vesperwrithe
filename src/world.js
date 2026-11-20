@@ -330,6 +330,14 @@ export class World {
     for (let i = 0; i < n; i++) { const x = b.x0 - 10 + i * 10 + rnd(-2, 2), h = rnd(18, 44) - drop, w = rnd(4, 9); far.add(box(sil, x - w / 2, b.y0 - 40, x + w / 2, b.y0 + h, -100, -96)); const cone = new THREE.Mesh(new THREE.ConeGeometry(w * 0.62, w * 1.5, 4), sil); cone.position.set(x, b.y0 + h + w * 0.75, -98); far.add(cone);
       for (let k = 0; k < 3; k++) { const lw = plane(new THREE.MeshBasicMaterial({ color: 0xffb860, fog: false }), 0.5, 0.9, x + rnd(-w * 0.35, w * 0.35), b.y0 + Math.random() * h, -95.5); far.add(lw); } }
     g.add(far);
+    // nearer curtain of the castle: crenellated walls, turrets with lit slits, and drifting fog between the layers
+    const mid = new THREE.MeshBasicMaterial({ color: storm ? 0x0d0f18 : 0x121830, fog: false }), near = new THREE.Group();
+    for (let x = b.x0 - 30; x < b.x1 + 30; x += 7) { const h = rnd(4, 9) - drop * 0.5, tower = Math.random() < 0.35; near.add(box(mid, x, b.y0 - 30, x + 7.05, b.y0 + h, -64, -62)); for (let k = 0; k < 4; k++) near.add(box(mid, x + k * 1.8, b.y0 + h, x + k * 1.8 + 0.9, b.y0 + h + 0.8, -64, -62));
+      if (tower) { const tw = rnd(3, 4.5), thh = h + rnd(6, 13); near.add(box(mid, x + 1, b.y0 - 30, x + 1 + tw, b.y0 + thh, -63, -61)); const cap = new THREE.Mesh(new THREE.ConeGeometry(tw * 0.75, tw * 1.3, 6), mid); cap.position.set(x + 1 + tw / 2, b.y0 + thh + tw * 0.65, -62); near.add(cap); for (let k = 0; k < 3; k++) near.add(plane(new THREE.MeshBasicMaterial({ color: 0xffa040, fog: false }), 0.28, 0.8, x + 1 + tw / 2 + rnd(-0.8, 0.8), b.y0 + h + rnd(1, thh - h - 1), -60.9)); } }
+    g.add(near);
+    const fogM = new THREE.MeshBasicMaterial({ map: cloudTex(), color: storm ? 0x39405a : 0x6a7aa8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), cards = [];
+    for (let i = 0; i < 5; i++) { const c = plane(fogM, rnd(50, 90), rnd(8, 14), b.x0 + rnd(-20, b.x1 - b.x0 + 20), b.y0 + rnd(-4, 6) - drop * 0.3, -40 - i * 5); g.add(c); cards.push(c); }
+    room.anim.push((t, dt) => { for (const c of cards) { c.position.x += dt * 0.6; if (c.position.x > b.x1 + 70) c.position.x = b.x0 - 70; } });
     const mtn = new THREE.MeshBasicMaterial({ color: 0x141a2c, fog: false });
     for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(rnd(18, 32), rnd(26, 46), 5), mtn); m.position.set(b.x0 - 20 + i * 14, b.y0 + 2 - drop, -130); g.add(m); }
     const mist = plane(new THREE.MeshBasicMaterial({ color: 0x5a6a8c, transparent: true, opacity: 0.18, depthWrite: false }), b.x1 - b.x0 + 120, 14, (b.x0 + b.x1) / 2, b.y0 - 6, -30); g.add(mist);

@@ -16,7 +16,7 @@ export class Enemy {
     const b = room.b, T = this.T;
     this.pos = new THREE.Vector2(b.x0 + spec.x, b.y0 + (spec.y ?? 0.5)); this.home = this.pos.clone();
     this.vel = new THREE.Vector2(); this.facing = -1; this.yaw = -1.2;
-    this.hpMax = Math.round(T.hp * (spec.hpMul || 1)); this.hp = this.hpMax;
+    this.hpMax = Math.round(T.hp * (spec.hpMul || 1) * (T.mini && !spec.illusion ? 1.6 : 1)); if (spec.illusion) this.hpMax = 1; this.hp = this.hpMax;
     this.boss = !!(spec.boss || T.boss || T.mini); this.mini = !!(T.mini || spec.mini) && !T.boss; this.dead = false;
     this.flying = T.ai === 'flyer' || (T.fly && !T.dragon); this.air = this.flying; this.phase = 1;
     this.reset(true);
@@ -99,7 +99,7 @@ export class Enemy {
   get aabb() { const w = this.T.w, h = this.T.h * (this.T.quad ? 0.8 : 0.95); return { x0: this.pos.x - w / 2, x1: this.pos.x + w / 2, y0: this.pos.y, y1: this.pos.y + h }; }
   get cx() { return this.pos.x; } get cy() { return this.pos.y + this.T.h * 0.55; }
   get mouth() { return { x: this.pos.x + this.facing * this.T.w * 0.5, y: this.pos.y + this.T.h * (this.T.quad ? 0.6 : 0.8) }; }
-  get dmgMul() { return this.phase >= 3 ? 1.25 : 1; }
+  get dmgMul() { return (this.phase >= 3 ? 1.25 : 1) * (this.boss && this.T.tier >= 3 ? 1.25 : 1); }
 
   // ------------------------------------------------------------------------------------------------ update
   update(dt, P) {
@@ -162,6 +162,21 @@ export class Enemy {
       }
     }
     if (k >= 1) { this.state = 'chase'; this.t = 0; this.atk = null; this.cool = o.cool ?? ((this.boss ? 0.55 : 1.0) / (this.phase > 1 ? 1.3 : 1) + Math.random() * 0.6); o.done?.(this, P); }
+  }
+
+  // A place this body can actually stand near (x, around height y): on stone, clear of solids, not across a gate.
+  safeSpot(x, y) {
+    const rb = this.room.b, w = this.T.w / 2 + 0.2, solids = this.room.solids.filter(s => !s.gone && !s.oneway);
+    for (const dx of [0, 1.5, -1.5, 3, -3, 5, -5, 8, -8]) {
+      const nx = Math.max(rb.x0 + w + 0.8, Math.min(rb.x1 - w - 0.8, x + dx)); let fy = -1e9;
+      for (const s of solids) if (s.kind !== 'ceil' && s.kind !== 'gate' && nx > s.x0 && nx < s.x1 && s.y1 <= y + 3 && s.y1 > fy) fy = s.y1;
+      if (fy < rb.y0 - 0.6) continue;
+      if (solids.some(s => nx + w > s.x0 && nx - w < s.x1 && fy + Math.min(this.T.h, 3) > s.y0 + 0.05 && fy < s.y1 - 0.05)) continue; // inside masonry
+      if (solids.some(s => s.kind === 'gate' && s.x0 < Math.max(nx, this.pos.x) && s.x1 > Math.min(nx, this.pos.x))) continue;   // beyond a sealed gate
+      if (this.g.hazardAt?.(nx, fy)) continue;
+      return { x: nx, y: fy };
+    }
+    return null;
   }
 
   groundAhead(dir = this.facing) {
@@ -246,7 +261,7 @@ export class Enemy {
     else if (!quiet && !heavy && this.air) { this.vel.x = (pushDir || -this.facing) * 3; }
     if (this.boss && !this.spec.illusion) {
       const ph = this.hp < this.hpMax * 0.33 && (this.T.moves || []).some(m => m.phase === 3) ? 3 : this.hp < this.hpMax * 0.6 ? 2 : 1;
-      if (ph > this.phase) { this.phase = ph; this.mv = null; this.atk = null; this.state = 'intro'; this.t = 0; this.introT = 1.6; this.playFor(this.clipFor(this.T.anim.roar) || this.T.anim.idle, 1.6); this.invuln = true; setTimeout(() => this.invuln = false, 1200); this.g.bossPhase?.(this, ph); }
+      if (ph > this.phase) { this.phase = ph; this.mv = null; this.atk = null; this.state = 'intro'; this.t = 0; this.introT = 1.6; this.playFor(this.clipFor(this.T.anim.roar) || this.T.anim.idle, 1.6); this.invuln = true; setTimeout(() => this.invuln = false, 1200); if (this.flying) this.air = true; this.stun = 0; this.g.bossPhase?.(this, ph); }
       this.g.bossUpdate?.(this);
     }
   }
@@ -306,7 +321,7 @@ const BRAIN = {
 
   caster(e, dt, P, c) {
     const T = e.T;
-    if (e.state === 'blink') { const k = e.t / 0.7; e.setAlpha(Math.abs(1 - k * 2)); if (k >= 0.5 && !e.blinked) { e.blinked = true; const rb = e.room.b; let nx = P.pos.x + sgn(-c.dx || 1) * rnd(6, 8); if (nx < rb.x0 + 2 || nx > rb.x1 - 2) nx = P.pos.x - sgn(-c.dx || 1) * rnd(6, 8); const fy = e.g.floorBelow(nx, e.pos.y + 2.5); if (fy > rb.y0 - 1 && Math.abs(fy - e.pos.y) < 3) { e.pos.set(THREE.MathUtils.clamp(nx, rb.x0 + 1.5, rb.x1 - 1.5), fy); } e.g.fx.burst(e.cx, e.cy, 0xb070ff, 16, 3); } if (k >= 1) { e.setAlpha(1); e.state = 'chase'; e.t = 0; e.cool = 0.5; } return; }
+    if (e.state === 'blink') { const k = e.t / 0.7; e.setAlpha(Math.abs(1 - k * 2)); if (k >= 0.5 && !e.blinked) { e.blinked = true; const rb = e.room.b; let nx = P.pos.x + sgn(-c.dx || 1) * rnd(6, 8); if (nx < rb.x0 + 2 || nx > rb.x1 - 2) nx = P.pos.x - sgn(-c.dx || 1) * rnd(6, 8); const sp = e.safeSpot(nx, e.pos.y); if (sp && Math.abs(sp.y - e.pos.y) < 3.5) e.pos.set(sp.x, sp.y); e.g.fx.burst(e.cx, e.cy, 0xb070ff, 16, 3); } if (k >= 1) { e.setAlpha(1); e.state = 'chase'; e.t = 0; e.cool = 0.5; } return; }
     if (!c.sees) { e.vel.x = 0; e.play(T.anim.idle); e.state = 'idle'; return; }
     e.state = 'chase'; e.facing = sgn(c.dx);
     e.sumT = (e.sumT || 4) - dt;
@@ -373,7 +388,7 @@ const BRAIN = {
   lurker(e, dt, P, c) {
     const T = e.T;
     if (e.state === 'vanish') { const k = e.t / 0.9; e.vel.x = 0; e.setAlpha(Math.max(0.04, Math.abs(1 - k * 2))); e.hidden = k > 0.25 && k < 0.75;
-      if (k >= 0.5 && !e.blinked) { e.blinked = true; const rb = e.room.b, nx = THREE.MathUtils.clamp(P.pos.x - P.facing * 2.4, rb.x0 + 1.5, rb.x1 - 1.5), fy = e.g.floorBelow(nx, P.pos.y + 1.5); if (fy > rb.y0 - 1) e.pos.set(nx, fy); e.facing = sgn(P.pos.x - e.pos.x); e.g.fx.burst(e.cx, e.cy, 0x7030c0, 20, 3); audio.play('wave_attack_2', 0.4, 0.6); }
+      if (k >= 0.5 && !e.blinked) { e.blinked = true; const sp = e.safeSpot(P.pos.x - P.facing * 2.4, P.pos.y); if (sp) e.pos.set(sp.x, sp.y); e.facing = sgn(P.pos.x - e.pos.x); e.g.fx.burst(e.cx, e.cy, 0x7030c0, 20, 3); audio.play('wave_attack_2', 0.4, 0.6); }
       if (k >= 1) { e.setAlpha(1); e.hidden = false; e.attackStart({ anim: T.anim.attack, dur: T.atkDur * 0.85, cool: 1.4 }); } return; }
     if (!c.sees) { e.vel.x = 0; e.play(T.anim.idle); e.state = 'idle'; return; }
     e.state = 'chase'; e.facing = sgn(c.dx); e.vanT = (e.vanT ?? 2.5) - dt;
@@ -445,7 +460,8 @@ const BRAIN = {
     } else if (c.adx > T.reach * 0.75) e.walk(e.facing, T.speed * c.slow * (c.adx > 7 ? 1.7 : 1), c.adx > 7 && e.clipFor(T.anim.run) ? T.anim.run : T.anim.walk);
     else { e.vel.x = 0; e.play(T.anim.idle, 0.25); }
     if (e.cool > 0) return;
-    const ok = T.moves.filter(m => (m.phase || 1) <= e.phase && (!m.min || c.adx >= m.min) && (!m.range || c.adx <= m.range) && (T.dragon && T.fly ? (e.air ? m.air : !m.air) : true) && m !== e.lastMove && !(m.k === 'summon' && e.room.enemies.filter(x => x.summoner === e && !x.dead).length >= m.max));
+    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon'];
+    const ok = T.moves.filter(m => (!e.spec.illusion || m.k === 'volley' || m.k === 'fan') && (!reachUp || UP.includes(m.k) || !T.moves.some(q => UP.includes(q.k) && (q.phase || 1) <= e.phase)) && (m.phase || 1) <= e.phase && (reachUp || ((!m.min || c.adx >= m.min) && (!m.range || c.adx <= m.range))) && (T.dragon && T.fly ? (e.air ? m.air : !m.air) : true) && m !== e.lastMove && !(m.k === 'summon' && e.room.enemies.filter(x => x.summoner === e && !x.dead).length >= m.max));
     if (!ok.length) { e.lastMove = null; return; }
     let tot = ok.reduce((s, m) => s + m.w * ((m.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1), 0), r = Math.random() * tot, m = ok[0];
     for (const o of ok) { r -= o.w * ((o.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1); if (r <= 0) { m = o; break; } }
@@ -545,14 +561,14 @@ const MOVE = {
   },
   blink(e, mv, dt, P, c) {
     mv.t += dt; const k = mv.t / mv.dur; e.setAlpha(Math.max(0.05, Math.abs(1 - k * 2))); e.hidden = k > 0.3 && k < 0.7;
-    if (k >= 0.5 && !mv.s.f) { mv.s.f = 1; const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; let nx = Math.random() < 0.5 ? P.pos.x - P.facing * 3 : (P.pos.x < (rb.x0 + rb.x1) / 2 ? rb.x1 - 4 : rb.x0 + 4); e.pos.set(THREE.MathUtils.clamp(nx, rb.x0 + 2, rb.x1 - 2), e.air ? e.pos.y : fy); e.facing = sgn(P.pos.x - e.pos.x); e.g.fx.burst(e.cx, e.cy, 0xb070ff, 30, 5); audio.play('wave_attack_2', 0.5, 0.6); }
+    if (k >= 0.5 && !mv.s.f) { mv.s.f = 1; const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; let nx = Math.random() < 0.5 ? P.pos.x - P.facing * 3 : (P.pos.x < (rb.x0 + rb.x1) / 2 ? rb.x1 - 6 : rb.x0 + 6); if (e.air) e.pos.x = THREE.MathUtils.clamp(nx, rb.x0 + 2, rb.x1 - 2); else { const sp = e.safeSpot(nx, fy); if (sp) e.pos.set(sp.x, sp.y); } e.facing = sgn(P.pos.x - e.pos.x); e.g.fx.burst(e.cx, e.cy, 0xb070ff, 30, 5); audio.play('wave_attack_2', 0.5, 0.6); }
     if (k >= 1) { e.setAlpha(1); e.hidden = false; }
     return k >= 1;
   },
   // the Archivist hides among copies of himself; the true one is the only one that casts a shadow-bright halo when struck
   mirror(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur; e.setAlpha(Math.max(0.05, Math.abs(1 - k * 2)));
-    if (k >= 0.5 && !mv.s.f) { mv.s.f = 1; const rb = e.room.b, fy = e.arenaFloor ?? e.home.y, n = mv.m.n, slots = []; for (let i = 0; i <= n; i++) slots.push(rb.x0 + 4 + (rb.x1 - rb.x0 - 8) * (i + 0.5) / (n + 1)); slots.sort(() => Math.random() - 0.5); e.pos.set(slots[0], fy); for (let i = 1; i <= n; i++) e.g.summon(e, e.spec.t, slots[i], fy, { illusion: true }); e.g.fx.burst(e.cx, e.cy, 0xb070ff, 30, 5); audio.play('glass_ping_small', 0.6, 0.5); }
+    if (k >= 0.5 && !mv.s.f) { mv.s.f = 1; const rb = e.room.b, fy = e.arenaFloor ?? e.home.y, n = mv.m.n, slots = []; for (let i = 0; i <= n; i++) slots.push(rb.x0 + 4 + (rb.x1 - rb.x0 - 8) * (i + 0.5) / (n + 1)); slots.sort(() => Math.random() - 0.5); const s0 = e.safeSpot(slots[0], fy); if (s0) e.pos.set(s0.x, s0.y); for (let i = 1; i <= n; i++) { const si = e.safeSpot(slots[i], fy); if (si) e.g.summon(e, e.spec.t, si.x, si.y, { illusion: true }); } e.g.fx.burst(e.cx, e.cy, 0xb070ff, 30, 5); audio.play('glass_ping_small', 0.6, 0.5); }
     if (k >= 1) e.setAlpha(1);
     return k >= 1;
   },

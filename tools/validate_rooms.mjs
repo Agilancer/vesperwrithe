@@ -164,7 +164,7 @@ function buildGraph(r, ab, fire) {
   const doors = r.doors.map(d => {
     if (d.side === 'W' || d.side === 'E') { const i = find(d.side === 'W' ? b.x0 + 0.7 : b.x1 - 0.7, rowFloorY(d.row) + FLOOR); return { ins: i >= 0 ? [i] : [], outs: i >= 0 ? [i] : [] }; }
     const cx = d.col * SW + SW / 2, hx0 = cx - HOLE_W / 2, hx1 = cx + HOLE_W / 2;
-    if (d.side === 'S') { const a = [find(hx0 - 0.2, b.y0 + FLOOR), find(hx1 + 0.2, b.y0 + FLOOR)].filter(i => i >= 0); return { ins: a, outs: a }; }
+    if (d.side === 'S') { const a = [find(hx0 - 0.2, b.y0 + FLOOR), find(hx1 + 0.2, b.y0 + FLOOR)].filter(i => i >= 0), plugged = solids.some(s => s.kind === 'crack' && s.x0 < hx1 && s.x1 > hx0 && s.y1 <= b.y0 + FLOOR + 0.05); return { ins: a, outs: plugged ? [] : a }; }
     const land = under(hx0 + 0.3, hx1 - 0.3, b.y1 - 0.4), outs = [];
     nodes.forEach((n, i) => { if (n.low) return; const gap = Math.max(0, n.x0 - hx1, hx0 - n.x1), dy = b.y1 + FLOOR - n.y; if (gap <= 1.6 && (dy <= c.rise || (ab.has('wallkick') && dy <= c.rise + 3.5))) outs.push(i); });
     return { ins: land >= 0 ? [land] : [], outs };

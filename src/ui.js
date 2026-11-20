@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BASES, GEMS, SLOTS, ECHOES, itemStats, itemHost, itemValue, makeItem, makeGem, randomBase, DROP_GEMS } from './items.js';
+import { BASES, GEMS, SLOTS, ECHOES, itemStats, itemHost, itemValue, makeItem, makeGem, randomBase, DROP_GEMS, itemLevel, itemReq } from './items.js';
 import { ROOMS, SW, SH, BELLS, BELL_ORDER } from './rooms.js';
 import { audio } from './assets.js';
 
@@ -110,6 +110,7 @@ export class UI {
   }
   async equipFromPack(it) {
     const base = BASES[it.base]; let slot = base.slot;
+    if (this.g.player.stats.lvl < itemReq(it)) { audio.play('ui_cancel', 0.4); this.toast(`${it.name} needs level ${itemReq(it)} to wield.`, ''); return; }
     if (slot === 'ring') slot = !this.g.player.equip.ring1 ? 'ring1' : 'ring2';
     await this.g.player.equipItem(slot, it);
     this.toast(`Equipped ${it.name}`, it.rarity); this.g.onEquip?.(it); this.renderInv();
@@ -155,7 +156,7 @@ export class UI {
   describe(it, compare) {
     if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (S)</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">[S] Socket into an item</div>`; }
     const b = BASES[it.base], st = itemStats(it), P = this.g.player;
-    let h = `<h3 class="q-${it.rarity}">${it.name}</h3><div class="type">${it.rarity !== 'normal' ? it.rarity[0].toUpperCase() + it.rarity.slice(1) + ' ' : ''}${b.cls || b.name}${b.hands === 2 ? ' · Two-Handed' : ''} · item level ${b.lvl}</div>`;
+    let h = `<h3 class="q-${it.rarity}">${it.name}</h3><div class="type">${it.rarity !== 'normal' ? it.rarity[0].toUpperCase() + it.rarity.slice(1) + ' ' : ''}${b.cls || b.name}${b.hands === 2 ? ' · Two-Handed' : ''} · item level ${itemLevel(it)}${P.stats.lvl < itemReq(it) ? ` · <em class="dn">requires level ${itemReq(it)}</em>` : ''}</div>`;
     const cur = compare && (b.slot === 'ring' ? P.equip.ring1 : P.equip[b.slot]), cs = cur && cur !== it ? itemStats(cur) : null;
     const diff = (a, c) => cs ? (a > c ? ` <em class="up">▲${a - c}</em>` : a < c ? ` <em class="dn">▼${c - a}</em>` : '') : '';
     if (st.dmg) h += `<div class="line">Damage: ${st.dmg[0]}-${st.dmg[1]}${diff(Math.round((st.dmg[0] + st.dmg[1]) / 2), cs?.dmg ? Math.round((cs.dmg[0] + cs.dmg[1]) / 2) : 0)}</div>`;

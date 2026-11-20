@@ -34,7 +34,7 @@ class Input {
       x: (any('ArrowRight', 'KeyD') || b(15) || ax > 0 ? 1 : 0) - (any('ArrowLeft', 'KeyA') || b(14) || ax < 0 ? 1 : 0),
       down: any('ArrowDown', 'KeyS') || b(13) || !!ay,
       jump: any('Space', 'KeyK') || b(0), jumpP: hit('Space', 'KeyK') || bp(0),
-      attackP: hit('KeyJ', 'KeyX') || bp(2), shield: any('KeyL', 'KeyC') || b(4) || b(6),
+      up: any('ArrowUp', 'KeyW') || b(12) || (gp ? gp.axes[1] < -0.55 : false), attackP: hit('KeyJ', 'KeyX') || bp(2), shield: any('KeyL', 'KeyC') || b(4) || b(6),
       dashP: hit('ShiftLeft', 'ShiftRight') || bp(5) || bp(7), interactP: hit('KeyE', 'ArrowUp', 'KeyW') || bp(3) || bp(12),
       potionP: hit('KeyQ') || bp(1), invP: hit('KeyI', 'Tab') || bp(9), mapP: hit('KeyM') || bp(8),
     };
@@ -204,12 +204,13 @@ class Game {
     }
     this.loot = this.loot.filter(L => !L.taken);
   }
+  potionCap() { return 3 + Math.floor(this.player.bells.size / 2); }
   floorBelow(x, y) { let best = -1e9; for (const s of this.world.solids) if (!s.gone && x > s.x0 && x < s.x1 && s.y1 <= y + 0.01 && s.y1 > best && s.kind !== 'ceil') best = s.y1; return best; }
 
   pickup(L) {
     const P = this.player, it = L.item; L.taken = true; L.room.group.remove(L.grp); if (L.key) this.flags[L.key] = true;
     if (it.gold) { const g = Math.round(it.gold * (1 + (P.d.gold || 0) / 100)); P.stats.gold += g; audio.play('coins_gather_quick', 0.5); this.ui.dmg(P.pos.x, P.pos.y + 2.1, `+${g}g`, 'lightning'); return; }
-    if (it.potion) { P.stats.potions++; audio.play('heart_collect', 0.5); this.ui.toast('Potion of Vigor', 'magic'); return; }
+    if (it.potion) { if (P.stats.potions >= this.potionCap()) { P.heal(Math.round(P.stats.hpMax * 0.25)); this.ui.toast('Your flasks are full — you drink it where you stand.', 'magic'); } else { P.stats.potions++; this.ui.toast(`Potion of Vigor (${P.stats.potions}/${this.potionCap()})`, 'magic'); } audio.play('heart_collect', 0.5); return; }
     if (it.up) { if (it.up === 'life') P.stats.lifeUp++; else P.stats.manaUp++; P.refreshStats(); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; audio.play('firebuff_1', 0.6); this.flash(); this.fx.burst(P.pos.x, P.pos.y + 1, it.up === 'life' ? 0xff4060 : 0x5a80ff, 40, 5); this.ui.roomName(it.up === 'life' ? 'LIFE VESSEL — MAX LIFE UP' : 'MANA VESSEL — MAX MANA UP', 2600); return; }
     P.bag.push(it);
     if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
@@ -329,9 +330,10 @@ class Game {
     const P = this.player, room = this.room;
     for (const e of room.enemies) {
       if (e.gone || hb.attack.hitIds.has(e.id)) continue;
-      const roll = hb.roll || P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
-      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive) P.vel.y = 9; }
+      const roll = hb.roll ? { ...hb.roll } : P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
+      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.inv = Math.max(P.inv, 0.2); } }
     }
+    if (!hb.proj) for (const s of this.shots) if (!s.friendly && ['skull', 'bone', 'book', 'lob', 'web'].includes(s.kind) && s.x > hb.x0 - 0.3 && s.x < hb.x1 + 0.3 && s.y > hb.y0 - 0.3 && s.y < hb.y1 + 0.3) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 12, 4); audio.play('sword_parry_1', 0.4, 1.4); } // steel swats slow missiles from the air
     for (const bk of room.breakables) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
     for (const s of room.cracks) if (!s.gone && s.by !== 'dive' && hb.x0 < s.x1 + 0.1 && hb.x1 > s.x0 - 0.1 && hb.y0 < s.y1 && hb.y1 > s.y0) this.breakCrack(s);
     for (const t of room.gates) if (!t.gone && t.gate === 'thorn' && !hb.attack.hitIds.has(t.key) && hb.x0 < t.x1 && hb.x1 > t.x0 && hb.y0 < t.y1 && hb.y1 > t.y0) {
@@ -343,9 +345,12 @@ class Game {
   }
   // weapon echoes that answer a landed hit
   onHit(e, roll, hb) {
-    const P = this.player, echo = P.d.echo; P.combo++; P.comboT = 2.5; P.hits++;
-    if (!echo || e.spec.illusion) return;
-    const dmg = roll.dmg;
+    const P = this.player, echo = P.d.echo, dmg = roll.dmg; P.combo++; P.comboT = 2.5; P.hits++;
+    if (e.spec.illusion) return;
+    // the bells ride along in a fight: Echo repeats every fifth blow, Ember sets slides and dives alight
+    if (P.has('echo') && P.hits % 5 === 0 && !hb.twin) setTimeout(() => { if (!e.dead) { e.damage(Math.max(1, Math.round(dmg * 0.5)), 'shadow', true); this.fx.ring(e.cx, e.cy, 0xb090ff, 3); } }, 180);
+    if (P.has('ember') && (hb.dive || hb.slide)) { e.burn = 3; e.burnDmg = Math.max(3, dmg * 0.2); this.fx.burst(e.cx, e.cy, 0xff6a20, 16, 4); }
+    if (!echo) return;
     if (echo === 'twin' && !hb.twin) setTimeout(() => { if (!e.dead) { e.damage(Math.max(1, Math.round(dmg * 0.35)), 'shadow', true); this.fx.glint(e.cx, e.cy, 0xb090ff); } }, 150);
     if (echo === 'chain' && Math.random() < 0.25) { let src = e; const seen = new Set([e]); for (let i = 0; i < 3; i++) { const o = this.room.enemies.find(x => !x.dead && !seen.has(x) && Math.abs(x.pos.x - src.pos.x) < 7 && Math.abs(x.pos.y - src.pos.y) < 4); if (!o) break; seen.add(o); this.fx.line({ x: src.cx, y: src.cy }, { x: o.cx, y: o.cy }, 0xffe860); o.damage(Math.round(dmg * 0.6), 'lightning', true); src = o; } audio.play('spell_impact_2', 0.35, 1.4); }
     if (echo === 'ignite') { e.burn = 3; e.burnDmg = Math.max(2, dmg * 0.12); }
@@ -358,15 +363,29 @@ class Game {
   onSwing(P, A) {
     if (P.d.echo === 'crescent' && A.n % 3 === 0) { const r = P.rollDamage(); this.shoot({ x: P.pos.x + P.facing * 0.8, y: P.pos.y + (P.crouch ? 0.6 : 1.1), vx: P.facing * 13, vy: 0, kind: 'pcrescent', dmg: Math.round(r.dmg * 0.6), friendly: true, pierce: true, life: 0.9 }); audio.play('wave_attack_2', 0.35, 1.4); }
   }
+  // Up + Attack: spend mana to loose the weapon's echo at full strength (a crescent of force if it has none)
+  castArt(P) {
+    const echo = P.d.echo, r = P.rollDamage(), d = Math.round(r.dmg * 1.5 * (1 + (P.d.int - 8) * 0.04)), x = P.pos.x, y = P.pos.y, f = P.facing, near = this.room.enemies.filter(e => !e.dead && !e.hidden && Math.abs(e.pos.x - x) < 11 && Math.abs(e.pos.y - y) < 6);
+    this.fx.ring(x, y + 1.1, 0x9ab0ff, 4); audio.play('spell_impact_3', 0.5, 1.2);
+    if (echo === 'chain') { for (const e of near.slice(0, 5)) { this.fx.line({ x, y: y + 1.2 }, { x: e.cx, y: e.cy }, 0xffe860); e.damage(d, 'lightning', true); } }
+    else if (echo === 'nova') { this.fx.ring(x, y + 1, 0x7ad8ff, 9); for (const e of near) if (Math.abs(e.pos.x - x) < 6) { e.chill = 4; e.stun = e.boss ? 0 : 1; e.damage(d, 'ice', true); } }
+    else if (echo === 'star') for (let i = 0; i < 3; i++) this.shoot({ x: x + f * (3 + i * 2.5), y: y + 12, vx: 0, vy: -20, kind: 'star', dmg: d, friendly: true, life: 1.5, blast: 2 });
+    else if (echo === 'bats') for (let i = 0; i < 5; i++) this.shoot({ x, y: y + 1.4, vx: f * 6, vy: 4 - i * 2, kind: 'bat', dmg: Math.round(d * 0.5), friendly: true, homing: 6, life: 3 });
+    else if (echo === 'toll') { audio.play('title_bells', 0.6, 1.5); this.fx.ring(x, y + 1, 0xffe090, 12); for (const e of near) { e.stun = e.boss ? 1 : 2.2; e.stunStars = true; e.damage(d, null, true); } }
+    else if (echo === 'briar') for (let i = 1; i <= 5; i++) this.erupt({ x: x + f * i * 1.7, y: this.floorBelow(x + f * i * 1.7, y + 0.6), delay: 0.12 * i, w: 1.4, h: 3, dmg: d, elem: 'poison', col: 0x2a5a1a, friendly: true });
+    else if (echo === 'ignite') for (let i = 1; i <= 5; i++) this.erupt({ x: x + f * i * 1.7, y: this.floorBelow(x + f * i * 1.7, y + 0.6), delay: 0.1 * i, w: 1.4, h: 3.4, dmg: d, elem: 'fire', friendly: true });
+    else if (echo === 'quake') { this.shake(0.5); for (const dir of [1, -1]) this.shockwave(null, x + dir * 0.8, y, dir, null, d); }
+    else for (const yy of echo === 'crescent' ? [0.6, 1.3, 2.0] : [1.1]) this.shoot({ x: x + f * 0.8, y: y + yy, vx: f * 14, vy: 0, kind: 'pcrescent', dmg: d, friendly: true, pierce: true, life: 1.1 });
+  }
   onBackdash() {
     const P = this.player; if (P.d.echo !== 'shade') return;
     const x = P.pos.x, y = P.pos.y, f = P.facing, atk = { hitIds: new Set() };
     setTimeout(() => { this.fx.burst(x + f * 0.8, y + 1.1, 0x9a5aff, 26, 4); const r = P.rollDamage(); this.playerHits({ x0: Math.min(x, x + f * 2.2), x1: Math.max(x, x + f * 2.2), y0: y, y1: y + 2, attack: atk, roll: r, mul: 0.8, proj: true, twin: true }); audio.play('sword_attack_1', 0.4, 0.7); }, 220);
   }
   playerShoot(P, kind) {
-    const base = BASES[P.equip.weapon.base], echo = P.d.echo, y = P.pos.y + (P.crouch ? 0.7 : 1.25), n = echo === 'multishot' ? 3 : 1;
+    const base = BASES[P.equip.weapon.base], echo = P.d.echo, y = P.pos.y + (P.crouch ? 0.7 : 1.25), n = echo === 'multishot' ? 3 : 1, dry = P.stats.mp < 2; if (!dry) P.stats.mp -= 2; else if (!this.flags.dryHint) { this.flags.dryHint = 1; this.ui.toast('Out of mana: your shots fly at half strength.', 'magic'); }
     for (let i = 0; i < n; i++) {
-      const a = (i - (n - 1) / 2) * 0.16, r = P.rollDamage();
+      const a = (i - (n - 1) / 2) * 0.16, r = P.rollDamage(); if (n > 1 && i !== (n - 1) / 2) r.dmg = Math.round(r.dmg * 0.5); if (dry) r.dmg = Math.max(1, Math.round(r.dmg * 0.5));
       if (kind === 'arrow') this.shoot({ x: P.pos.x + P.facing * 0.6, y, vx: P.facing * 24 * Math.cos(a), vy: 24 * Math.sin(a) + 0.6, grav: 3, kind: 'arrow', roll: r, friendly: true, pierce: echo === 'pierce', life: 1.6 });
       else this.shoot({ x: P.pos.x + P.facing * 0.6, y, vx: P.facing * 16 * Math.cos(a), vy: 16 * Math.sin(a), kind: 'boomerang', roll: r, friendly: true, pierce: true, boom: P.facing, life: 1.7, model: base.model });
     }
@@ -386,7 +405,7 @@ class Game {
   }
   breakCandle(bk) {
     bk.broken = true; bk.grp.visible = false; audio.play('glass_ping_small', 0.5, 0.8); this.fx.burst(bk.x, bk.y + 1.4, 0xffb050, 14, 3);
-    const lvl = this.player.stats.lvl, r = Math.random(), drop = r < 0.6 ? { gold: 3 + (Math.random() * 6 * lvl | 0) } : r < 0.74 ? { potion: true } : r < 0.8 ? makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0]) : null;
+    const lvl = this.player.stats.lvl, r = Math.random(), drop = r < 0.62 ? { gold: 3 + (Math.random() * 6 * lvl | 0) } : r < 0.66 ? { potion: true } : r < 0.67 ? makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0]) : null;
     if (drop) this.dropLoot(bk.x, bk.y + 1.2, drop, this.room);
   }
   flash() { const f = $('fade'); f.style.transition = 'none'; f.style.background = '#fff'; f.style.opacity = 0.35; requestAnimationFrame(() => { f.style.transition = 'opacity .18s'; f.style.opacity = 0; setTimeout(() => f.style.background = '#000', 200); }); }
@@ -476,9 +495,10 @@ class Game {
   }
   breathCone(e, range, elem, dmg, dt) {
     const P = this.player, m = e.mouth, col = ELEM_COL[elem] || 0xff6a20, f = e.facing, down = e.air ? 1 : 0.18;
-    for (let i = 0; i < 4; i++) this.fx.spawn(m.x, m.y, 0.5, f * rnd(7, 13), -rnd(0, 5) * down * 3 + rnd(-1.2, 1.2), Math.random() < 0.3 ? 0xffffff : col, rnd(0.4, 0.9), rnd(0.4, 0.9), e.air ? 6 : 1);
+    for (let i = 0; i < 4; i++) this.fx.spawn(m.x, m.y - (e.air ? 0 : 0.2), 0.5, f * rnd(7, 13), e.air ? -rnd(0, 15) + rnd(-1.2, 1.2) : rnd(-1.1, 0.9), Math.random() < 0.3 ? 0xffffff : col, rnd(0.4, 0.9), rnd(0.4, 0.9), e.air ? 6 : 0);
     e._bT = (e._bT || 0) - dt; if (e._bT > 0) return; const px = (P.pos.x - m.x) * f, lo = e.air ? e.pos.y - 14 : e.pos.y - 0.4;
-    if (px > -0.3 && px < range && P.pos.y + 1.7 > lo && P.pos.y < m.y + 0.6 + px * 0.25 && (!e.air || P.pos.y < m.y - px * 0.5 + 2)) { if (P.takeHit(Math.round(dmg * e.dmgMul), e.pos.x, elem, e)) e._bT = 0.3; }
+    const pa = P.aabb, hit = e.air ? (px > -0.3 && px < range && pa.y1 > lo && P.pos.y < m.y - px * 0.5 + 2) : (px > -0.3 && px < range && pa.y1 > m.y - 1.2 && P.pos.y < m.y + 0.8); // crouch or slide under a ground breath, or jump clear of it
+    if (hit) { if (P.takeHit(Math.round(dmg * e.dmgMul), e.pos.x, elem, e)) e._bT = 0.3; }
   }
   flameWall(e, x, fy, elem, dmg, dt, h = 3.4) {
     const col = ELEM_COL[elem] || 0xff6a20, P = this.player;
@@ -497,6 +517,7 @@ class Game {
   }
   // the Hollow King's suns drift over the hall and weep fire
   hollowSuns(e, n) {
+    if (this.suns.length) return; // never stack
     const b = e.room.b, fy = e.arenaFloor ?? e.home.y;
     for (let i = 0; i < n; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xffb030, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); m.scale.setScalar(3.2); this.scene.add(m); const core = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshBasicMaterial({ color: 0x100400 })); m.add(core); core.scale.setScalar(0.3);
       this.suns.push({ m, e, t: 0, ph: i / n * Math.PI * 2, cx: (b.x0 + b.x1) / 2, span: (b.x1 - b.x0) / 2 - 4, y: fy + 7.5, drop: 0.6 + i * 0.3 }); }
@@ -540,6 +561,8 @@ class Game {
     if (drop) setTimeout(() => this.dropLoot(e.pos.x, e.pos.y + 1, drop, e.room), 500);
     if (e.boss) {
       this.flags[e.key] = true; this.unseal(); $('bossBar').classList.add('hidden'); this.bossE = null;
+      for (const o of e.room.enemies) if (o.summoner === e && !o.dead) { o.dead = true; o.gone = true; o.root.visible = false; this.fx.burst(o.cx, o.cy, 0xb070ff, 20, 4); }
+      for (const s of this.shots) if (!s.friendly) s.life = 0; for (const s of this.suns) s.t = 99; for (const er of this.erupts) if (!er.friendly) er.dmg = 0;
       this.ui.roomName(T.title || `${T.name.toUpperCase()} — SLAIN`, 4200); this.slowMo(1.4); this.flash(); audio.play('firebuff_1', 0.7); audio.music(MUSIC[e.room.def.theme] || 'ambient_3', 0.3);
       const tier = T.tier;
       setTimeout(() => {
@@ -551,7 +574,7 @@ class Game {
     }
   }
   bossStart(e) {
-    const r = e.room, b = r.b; this.bossE = e; e.arenaFloor = e.home.y;
+    const r = e.room, b = r.b; this.bossE = e; let fl = -1e9; for (const s of r.solids) if (!s.oneway && !s.gone && s.kind !== 'ceil' && s.kind !== 'gate' && e.home.x > s.x0 && e.home.x < s.x1 && s.y1 <= e.home.y + 0.5 && s.y1 > fl) fl = s.y1; e.arenaFloor = fl > -1e8 ? fl : e.home.y;
     $('bossBar').classList.remove('hidden'); $('bossName').textContent = e.T.name.toUpperCase(); this.bossUpdate(e);
     audio.music('action_' + (1 + (e.T.tier + (e.mini ? 2 : 0)) % 5), 0.42);
     if (!r.def.boss || e.mini) return;
@@ -600,7 +623,7 @@ class Game {
   }
   interact() {
     const P = this.player, r = this.room;
-    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8 && Math.abs(P.pos.y - r.saveAt.y) < 1) { P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; P.stats.potions = Math.max(P.stats.potions, 2); P.poisoned = 0; this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
+    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8 && Math.abs(P.pos.y - r.saveAt.y) < 1) { P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; P.stats.potions = Math.max(P.stats.potions, Math.min(this.potionCap(), 3)); P.poisoned = 0; this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
     if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8 && Math.abs(P.pos.y - r.warpAt.y) < 1) { const list = this.world.rooms.filter(o => o.def.warp && this.flags['warp:' + o.def.id] && o !== r); if (!list.length) this.ui.toast('The mirror is dark. Its twins lie deeper in the castle.', 'magic'); else this.ui.openMenu('warp', list); return; }
     if (r.shopAt && Math.abs(P.pos.x - r.shopAt.x) < 2.2 && Math.abs(P.pos.y - r.shopAt.y) < 1) { this.ui.openMenu('shop'); return; }
     for (const c of r.chests) if (!c.opened && Math.abs(P.pos.x - c.x) < 1.4 && Math.abs(P.pos.y - c.y) < 1) { c.open(); return; }
@@ -618,7 +641,9 @@ class Game {
 
   // ------------------------------------------------------------------ loop
   step(dt) {
-    const inp = this.input.poll(), P = this.player; this.frame = (this.frame || 0) + 1;
+    this.frame = (this.frame || 0) + 1;
+    if (this.stopT > 0 && this.room && !this.loading && !this.cine && !this.ui.open) { this.stopT -= dt; this.render(0); return; }
+    let inp = this.input.poll(); const P = this.player;
     if (this.loading || !this.room) { return; }
     if (this.cine) { this.render(0); if (this.ui.open) for (const k of this.input.menuKeys) this.ui.menuKey(k); return; }
     if (inp.invP) this.ui.toggle('inv'); else if (inp.mapP) this.ui.toggle('map');
@@ -627,7 +652,8 @@ class Game {
     this.time += dt; this.playTime += dt;
     if (this.stopT > 0) { this.stopT -= dt; this.render(0); return; }
     if (inp.interactP && P.onGround && P.state === 'free') this.interact();
-    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state !== 'dead') { P.stats.potions--; P.heal(Math.round(40 + P.stats.hpMax * 0.35)); P.poisoned = 0; audio.play('heart_collect', 0.5); }
+    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state === 'free' && !(P.drinkT > 0)) { P.stats.potions--; P.heal(Math.round(40 + P.stats.hpMax * 0.35)); P.poisoned = 0; P.drinkT = 0.4; P.attack = null; audio.play('heart_collect', 0.5); }
+    if (P.drinkT > 0) { P.drinkT -= dt; inp = { ...inp, x: 0, jumpP: false, attackP: false, dashP: false, shield: false }; } // drinking roots you for a breath
     this.world.update(this.time, dt, this.room, this.camPos);
     P.update(dt, inp);
     const r = this.world.roomAt(P.pos.x, P.pos.y + 0.9); if (r && r !== this.room) { this.enterRoom(r); if (this.loading) return; }

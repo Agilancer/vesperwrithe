@@ -195,9 +195,10 @@ export class Player {
       this.vel.x = this.facing * P.slideV * (low ? Math.max(k, 0.6) : k); this.crouch = true;
       if (Math.random() < 0.5) this.g.fx.dust(this.pos.x - this.facing * 0.4, this.pos.y, 0x9a9080);
       if (inp.dashP && low) this.slideT = 0; // keep sliding through long crawls
+      if (inp.jumpP && !low && this.onGround) { this.state = 'free'; this.vel.y = P.jumpV; this.vel.x = this.facing * P.walk; this.onGround = false; this.coyote = 0; this.cut = false; this.crouch = false; audio.play('stone_jump', 0.35); } // jump out of a slide
       if ((this.slideT >= P.slideT && !low) || !this.onGround) { this.state = 'free'; }
       else if (this.slideT >= P.slideT * 2.2 && low) this.slideT = P.slideT; // never strand the pilgrim under stone
-      if (this.slideHit) this.g.playerHits({ x0: this.pos.x - 0.6, x1: this.pos.x + 0.6, y0: this.pos.y, y1: this.pos.y + 0.8, attack: this.slideHit, mul: 0.6 });
+      if (this.slideHit) this.g.playerHits({ x0: this.pos.x - 0.6, x1: this.pos.x + 0.6, y0: this.pos.y, y1: this.pos.y + 0.8, attack: this.slideHit, mul: 0.6, slide: true });
     }
     if (this.state === 'dive') {
       this.vel.set(0, -P.diveV); this.g.fx.spawn(this.pos.x + (Math.random() - 0.5) * 0.4, this.pos.y + 1.4, 0.3, 0, 2, 0x4ac8d8, 0.25, 0.4, 0);
@@ -231,11 +232,12 @@ export class Player {
       // backdash (ground) / shade dash (air, Onyx)
       if (inp.dashP) {
         if (this.onGround && inp.down && abil.has('slide')) { this.state = 'slide'; this.slideT = 0; this.stateT = 0; this.attack = null; this.slideHit = { hitIds: new Set(), st: STYLES.punch }; audio.play('clothing_1', 0.5, 0.8); }
-        else if (abil.has('dash') && (!this.onGround || dir) && !this.dashUsed) { if (dir) this.facing = Math.sign(dir); this.state = 'dash'; this.dashT = 0; this.dashUsed = !this.onGround; this.attack = null; this.inv = Math.max(this.inv, 0.3); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); }
+        else if (abil.has('dash') && (!this.onGround || dir) && !this.dashUsed && !(this.dashCd > 0)) { if (dir) this.facing = Math.sign(dir); this.state = 'dash'; this.dashT = 0; this.dashUsed = !this.onGround; this.dashCd = 0.62; /* no chaining ground dashes into endless i-frames */ this.attack = null; this.inv = Math.max(this.inv, 0.3); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); }
         else if (this.onGround && !attacking) { this.state = 'backdash'; this.backdashT = 0; this.stateT = 0; this.crouch = false; audio.play('clothing_1', 0.4); this.g.onBackdash?.(); }
       }
       // attack / dive
-      if (inp.attackP && !this.onGround && inp.down && abil.has('dive') && !this.inWater) { this.state = 'dive'; this.attack = null; this.diveAtk = { hitIds: new Set(), st: STYLES.smash }; audio.play('wave_attack_1', 0.5, 0.6); }
+      if (inp.attackP && inp.up && !inp.down && this.armed && !attacking && this.stats.mp >= 10) { this.stats.mp -= 10; this.startAttack(); if (this.attack) this.attack.art = true; }
+      else if (inp.attackP && !this.onGround && inp.down && abil.has('dive') && !this.inWater) { this.state = 'dive'; this.attack = null; this.diveAtk = { hitIds: new Set(), st: STYLES.smash }; audio.play('wave_attack_1', 0.5, 0.6); }
       else if (inp.attackP && !attacking) this.startAttack();
       else if (inp.attackP && this.attack) this.attack.queued = true; // buffered: flows into the next link of the chain
       this.inpX = dir;
@@ -251,14 +253,13 @@ export class Player {
       if (env.water && !this.sunk && env.depth > 1.0) this.vel.y = Math.min(3.2, this.vel.y + 34 * dt);
     }
     if (env.lava && !abil.has('ember') && this.inv <= 0) { if (this.takeHit(Math.max(8, Math.round(this.stats.hpMax * 0.14)), this.pos.x - this.facing, 'fire', null, true)) { this.vel.set(-this.facing * 3, 10.5); this.g.fx.burst(this.pos.x, this.pos.y + 0.4, 0xff6a10, 24, 5); } }
-    if (this.jumpBuf > 0) this.jumpBuf -= dt; if (this.dropT > 0) this.dropT -= dt;
+    if (this.jumpBuf > 0) this.jumpBuf -= dt; if (this.dropT > 0) this.dropT -= dt; if (this.dashCd > 0) this.dashCd -= dt;
     const wasGround = this.onGround;
     this.move(dt);
     if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote;
       if (this.state === 'dive') { this.state = 'free'; this.g.diveLand(this); this.landT = 0.2; }
       else if (!wasGround) { this.landT = 0.12; audio.play(env.water ? 'water_land' : 'stone_land', 0.3); this.g.fx.dust(this.pos.x, this.pos.y); if (this.airAttacked && this.d.echo === 'quake') this.g.quake(this); this.airAttacked = false; } }
     else if (wasGround && this.vel.y <= 0) { /* walked off ledge: keep coyote */ } else if (this.coyote > 0) this.coyote -= dt;
-    if (!this.onGround && this.coyote > 0) this.coyote -= dt;
 
     // footsteps
     if (this.onGround && Math.abs(this.vel.x) > 1) { this.stepT = (this.stepT || 0) + dt; if (this.stepT > 0.3) { this.stepT = 0; audio.play('stone_chain_run_' + (1 + Math.floor(Math.random() * 5)), 0.18); } }
@@ -344,7 +345,7 @@ export class Player {
     A.active = f >= st.hit[0] && f <= st.hit[1];
     if (st.anim !== 'vw_thrust' && f >= st.hit[0] - 1 && f <= st.hit[1] + 1) this.trailOn = true; // the ribbon belongs to the cut, not the wind-up
     if (A.active && sty.ranged) { if (!A.shot) { A.shot = true; this.g.playerShoot(this, sty.ranged); } }
-    else if (A.active) { if (!A.proc) { A.proc = true; this.g.onSwing(this, A); } this.g.playerHits(this.hitbox()); }
+    else if (A.active) { if (!A.proc) { A.proc = true; this.g.onSwing(this, A); if (A.art) this.g.castArt(this); } this.g.playerHits(this.hitbox()); }
     // a planted swing steps into the cut; chains flow on a buffered press; holding a direction walks out of the recovery
     if (A.mode === 'idle' && this.onGround && !sty.ranged && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); } // step into the cut, eased out
     if (st.cancel !== undefined && f >= st.cancel) {
@@ -363,7 +364,7 @@ export class Player {
 
   rollDamage() {
     const d = this.d, [a, b] = d.dmg;
-    let dmg = a + Math.random() * (b - a + 1) | 0; dmg = Math.round(dmg * (1 + (d.str - 10) * 0.035) * (d.echo === 'frenzy' ? 1 + Math.min(12, this.combo) * 0.04 : 1));
+    let dmg = a + Math.random() * (b - a + 1) | 0; dmg = Math.round(dmg * (1 + (d.str - 10) * 0.02) * (d.echo === 'frenzy' ? 1 + Math.min(12, this.combo) * 0.04 : 1));
     const crit = Math.random() * 100 < d.crit; if (crit) dmg = Math.round(dmg * (1.6 + d.critDmg / 100));
     const em = 1 + (d.int - 8) * 0.03;
     const elem = d.elems.map(e => ({ elem: e.elem, dmg: Math.round((e.dmg[0] + Math.floor(Math.random() * (e.dmg[1] - e.dmg[0] + 1))) * em) }));
@@ -382,7 +383,7 @@ export class Player {
       return 'block';
     }
     const res = elem ? (this.d.res[elem] || 0) : 0;
-    const dmg = Math.max(1, Math.round(amount * (1 - res / 100) * (100 / (100 + this.d.def * 2.2))));
+    const dmg = Math.max(1, Math.round(amount * (1 - res / 100) * (100 / (100 + this.d.def * 1.2))));
     this.stats.hp -= dmg; this.g.ui.dmg(this.pos.x, this.pos.y + 2, dmg, 'player'); this.combo = 0;
     if (this.d.thorns && src && !src.dead) src.damage(this.d.thorns, null, true);
     if (elem === 'poison') this.poisoned = 4;
