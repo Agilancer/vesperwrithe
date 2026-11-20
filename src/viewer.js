@@ -118,7 +118,11 @@ function selectClip(name, keepWindow) {
   if (!keepWindow) {
     // default to the clip's main blow: the fastest strike of the weapon hand (any limb when unarmed)
     const pool = S.swings.filter(x => !P.weaponMesh || x.limb === 'R');
-    const s = (pool.length ? pool : S.swings).reduce((m, x) => (!m || x.peak > m.peak ? x : m), null) || fullWin();
+    const meta = ATTACK_CLIPS.find(c => c.name === name);
+    const pushes = S.swings.filter(x => / jab| thrust/.test(x.name));
+    // spells release on the last forward push; everything else on its fastest blow
+    const s = (meta?.use === 'spell' && pushes.length ? pushes[pushes.length - 1] : null) ||
+      (pool.length ? pool : S.swings).reduce((m, x) => (!m || x.peak > m.peak ? x : m), null) || fullWin();
     const keep = S.dur; useStrike(s); if (keep && S.swings.length === 0) S.dur = keep;
   }
   S.frame = S.from; applyUpper();
