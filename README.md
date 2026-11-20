@@ -35,8 +35,14 @@ The first ten rooms around START on `Castle_Velscour_Labeled` (1 map square = 1 
 
 Gating loop: Ruby (chapel) → socket into a weapon → fire visibly wreathes the blade → burn the blackthorn in the Hall → Mirror of Passage.
 
+## Attack Viewer
+
+Open `viewer.html` (e.g. http://localhost:8410/viewer.html, works on phones too) to preview every attack animation on the hero with a real weapon in hand. Pick a weapon class, tap an animation, pick one of the swings it finds (or set start / hit / end frames by hand), choose the grip and swing time, then **Use for this weapon class**. The game uses your choice the next time it loads (saved in this browser). **Make starting weapon** swaps the weapon on the causeway pedestal (new game). **Copy config** gives the JSON to make your choices the built-in defaults (`STYLES` in `src/items.js`).
+
 ## Code map
 
+- `src/attacks.js` — which attack each weapon class uses (defaults + Attack Viewer overrides), the attack clip list and swing detection.
+- `src/viewer.js` — the Attack Viewer (`viewer.html`).
 - `src/touch.js` — on-screen touch controls (multi-touch d-pad + action buttons) that feed the shared input.
 - `src/main.js` — game loop, input (keyboard + gamepad), camera, rooms/transitions, loot, chests, save, boss flow, FX.
 - `src/player.js` — SotN-tuned physics (`PHYS`), animation state machine with **upper/lower body layering** (attacks while idle / moving / jumping / crouching), weapons on hand sockets, swing trails, element FX.

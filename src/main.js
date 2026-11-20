@@ -13,6 +13,7 @@ import { UI } from './ui.js';
 import { initTouch } from './touch.js';
 import { loadMeta, weaponModel, audio, surface, LOW_MEM } from './assets.js';
 import { makeItem, makeGem, makeUnique, rollDrop, BASES, GEMS } from './items.js';
+import { startWeapon } from './attacks.js';
 
 const $ = id => document.getElementById(id);
 
@@ -135,7 +136,7 @@ class Game {
     const x = room.b.x0 + it.x, y = room.b.y0 + it.y;
     let item;
     if (it.gem) item = makeGem(it.gem);
-    else item = makeItem(it.base, { rarity: it.rarity, sockets: it.sockets });
+    else item = makeItem(it.tutorial ? startWeapon() : it.base, { rarity: it.rarity, sockets: it.sockets }); // the Attack Viewer can swap the first weapon
     if (it.pedestal) {
       const m = surface(it.altar ? 'marble' : 'ashlar', 1, 1, it.altar ? { dir: 'assets/game/interior/' } : {});
       const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
@@ -182,7 +183,7 @@ class Game {
     P.bag.push(it);
     if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
     else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast('Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
-    if (it.base === 'pilgrim_blade') { this.ui.prompt('Press I to open your pack, then Enter to equip the Pilgrim\'s Blade'); this.tutorial = 'equip'; }
+    if (it.base === startWeapon()) { this.ui.prompt(`Press I to open your pack, then Enter to equip the ${it.name}`); this.tutorial = 'equip'; }
   }
 
   makeChest(room, c, i) {
@@ -304,7 +305,7 @@ class Game {
     audio.play('wilhelm_scream', 0.25); this.ui.roomName('YOU HAVE PERISHED');
     setTimeout(() => { $('fade').style.opacity = 1; }, 1800);
     setTimeout(() => {
-      const P = this.player; P.state = 'free'; P.stats.hp = P.stats.hpMax; P.inv = 1.5; P.vel.set(0, 0); P.layers.lower.cur = P.layers.upper.cur = null;
+      const P = this.player; P.state = 'free'; P.stats.hp = P.stats.hpMax; P.inv = 1.5; P.vel.set(0, 0); P.resetAnim();
       const save = this.readSave(); if (save) { const rm = this.world.rooms.find(x => x.def.id === save.room); P.pos.set(rm.saveAt.x, rm.saveAt.y); } else { const c = this.world.rooms[0]; P.pos.set(c.b.x0 + c.def.start.x, c.b.y0 + c.def.start.y); }
       if (this.gateSolid) { this.gateSolid = null; this.fogGate.visible = false; $('bossBar').classList.add('hidden'); for (const r of this.world.rooms) for (const e of r.enemies) if (e.boss && !e.dead) { e.awake = false; e.hp = e.T.hp; e.pos.copy(e.home); e.state = 'idle'; } }
       this.respawnAll(); this.room = null; this.enterRoom(this.world.roomAt(P.pos.x, P.pos.y + 0.9), true); $('fade').style.opacity = 0;

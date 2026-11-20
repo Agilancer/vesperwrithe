@@ -4,15 +4,22 @@
 export const RARITY = { normal: 'normal', magic: 'magic', rare: 'rare', unique: 'unique' };
 
 // Attack styles map to animation sets in player.js.
+// Attack styles. Frame windows were measured from the weapon tip's speed (see detectSwings in attacks.js) and checked
+// on the rig; grip: normal = blade up out of the thumb side, forward = along the forearm (thrusts). The Attack Viewer
+// (viewer.html) can override any of these per weapon class.
 export const STYLES = {
-  slash1h: { anim: 'sword_and_shield_slash', from: 9, to: 30, hit: [15, 22], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
-  slash2h: { anim: 'great_sword_slash', from: 30, to: 66, hit: [40, 54], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
-  smash:   { anim: 'standing_melee_attack_downward', from: 30, to: 62, hit: [42, 54], dur: 0.55, reach: 1.45, height: 2.1, yOff: 1.1 },
-  chop:    { anim: 'axe_standing_melee_attack_horizontal', from: 16, to: 40, hit: [24, 33], dur: 0.44, reach: 1.6, height: 1.4, yOff: 1.0 },
-  thrust:  { anim: 'stabbing', from: 22, to: 52, hit: [30, 44], dur: 0.48, reach: 2.6, height: 0.7, yOff: 1.15 },
-  lance:   { anim: 'stabbing', from: 18, to: 56, hit: [30, 46], dur: 0.66, reach: 3.2, height: 0.8, yOff: 1.15 },
-  stab:    { anim: 'stabbing', from: 26, to: 46, hit: [30, 40], dur: 0.26, reach: 1.1, height: 0.6, yOff: 1.1 },
-  punch:   { anim: 'axe_standing_melee_attack_backhand', from: 20, to: 40, hit: [26, 33], dur: 0.32, reach: 0.9, height: 0.8, yOff: 1.2 },
+  slash1h: { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [16, 24], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
+  slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
+  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 64, hit: [47, 57], dur: 0.55, reach: 1.45, height: 2.1, yOff: 1.1 },
+  // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
+  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 62, hit: [47, 56], dur: 0.46, reach: 1.6, height: 1.8, yOff: 1.05 },
+  // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
+  // (frames 231-254) with a forward grip pushes the point out level; its legs kick there, so it plays on the upper body
+  // only. Fists: the boxing set's straight (frame 165). Daggers: a quick slash.
+  thrust:  { anim: 'fist_fight_a', from: 231, to: 254, hit: [236, 247], dur: 0.42, reach: 2.6, height: 1.0, yOff: 0.85, grip: 'forward', upperOnly: true },
+  lance:   { anim: 'fist_fight_a', from: 229, to: 256, hit: [236, 248], dur: 0.56, reach: 3.2, height: 1.0, yOff: 0.85, grip: 'forward', upperOnly: true },
+  stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
+  punch:   { anim: 'fist_fight_a', from: 154, to: 174, hit: [161, 168], dur: 0.3, reach: 0.9, height: 0.8, yOff: 1.2 },
 };
 
 // Weapon bases. model = BM weapons.json id; kind drives the grip in assets/game/weapons/grips.json.
