@@ -4,6 +4,8 @@ A 2.5D side-scrolling action RPG set in **Castle Velscour** (Velscour universe):
 
 ## Run
 
+**Online:** https://agilancer.github.io/vesperwrithe/ (game) · https://agilancer.github.io/vesperwrithe/viewer.html (Attack Viewer). Every push to `main` republishes it (`.github/workflows/pages.yml`, built by `tools/build_site.py`).
+
 ```
 play.bat            # or: python tools/serve.py 8410  →  http://localhost:8410
 ```
