@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vesperwrithe</title>
+<link rel="stylesheet" href="src/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="fade"></div>
+
+<div id="hud" class="hidden">
+  <div class="frame">
+    <div class="portrait"><span id="lvl">1</span></div>
+    <div class="bars">
+      <div class="bar hp"><i id="hpFill"></i><b id="hpText">100</b></div>
+      <div class="bar mp"><i id="mpFill"></i><b id="mpText">40</b></div>
+    </div>
+  </div>
+  <div id="gold">0 <small>GOLD</small></div>
+  <canvas id="minimap" width="200" height="120"></canvas>
+  <div id="roomName"></div>
+  <div id="prompt"></div>
+  <div id="toasts"></div>
+  <div id="bossBar" class="hidden"><span id="bossName"></span><div><i id="bossFill"></i></div></div>
+</div>
+
+<div id="inv" class="hidden">
+  <div class="inv-wrap">
+    <header><h2>Equipment</h2><span class="hint">I / Tab close &nbsp;·&nbsp; Arrows select &nbsp;·&nbsp; Enter equip &nbsp;·&nbsp; S socket gem</span></header>
+    <div class="inv-body">
+      <div class="paper">
+        <div class="stats" id="stats"></div>
+        <div class="slots" id="slots"></div>
+      </div>
+      <div class="pack">
+        <div class="tabs" id="tabs"></div>
+        <ul id="packList"></ul>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+</div>
+
+<div id="mapScreen" class="hidden"><canvas id="bigmap" width="1200" height="700"></canvas><div class="maphint">M close · Castle Velscour — Pilgrim Causeway &amp; Blackthorn Gatehouse</div></div>
+
+<div id="title">
+  <div class="t-inner">
+    <h1>VESPERWRITHE</h1>
+    <p class="sub">Castle Velscour</p>
+    <p id="loadMsg">Summoning the castle…</p>
+    <button id="startBtn" class="hidden">Enter the Castle</button>
+    <div class="controls">
+      <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd>/<kbd>K</kbd> jump · double jump</span>
+      <span><kbd>J</kbd> attack</span><span><kbd>L</kbd> shield / off-hand</span><span><kbd>Shift</kbd> backdash</span>
+      <span><kbd>E</kbd> interact</span><span><kbd>I</kbd> inventory</span><span><kbd>M</kbd> map</span><span>Gamepad supported</span>
+    </div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

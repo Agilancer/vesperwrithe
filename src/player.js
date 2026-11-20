@@ -1,0 +1,382 @@
+import * as THREE from 'three';
+import { loadGLTF, weaponModel, audio } from './assets.js';
+import { BASES, STYLES, GEMS, itemStats } from './items.js';
+import { glowTex } from './world.js';
+
+// Movement tuned from Symphony of the Night frame data (docs/research), converted at 1 SotN px ≈ 3.35 cm, 60 fps:
+// walk 1.5 px/f → 4.7 m/s · jump 4.9 px/f → 9.85 m/s · double jump 4.1 px/f → 8.25 m/s · fall cap 7 px/f → 14 m/s
+// backdash peak 3.5 px/f → 7 m/s · coyote 7 f → 0.117 s.
+export const PHYS = { walk: 4.7, jumpV: 9.85, djumpV: 8.25, grav: 17.5, fallMax: 14, cutV: 2.5, backdash: 7.4, backdashT: 0.34, coyote: 0.117, buffer: 0.1, dashV: 12, dashT: 0.2 };
+const W = 0.62, H_STAND = 1.72, H_CROUCH = 1.08;
+const UPPER = /Spine|Neck|Head|Shoulder|Arm|Hand/;
+const FPS = 30;
+const ELEM_COLOR = { fire: 0xff5a1a, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a };
+
+const ANIM = {
+  idle: 'axe_unarmed_idle', idleArmed: 'sword_and_shield_idle', jog: 'jogging', jogArmed: 'sword_and_shield_run',
+  jump: 'axe_unarmed_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
+  backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'sitting',
+  block: 'sword_and_shield_block_idle', crouchBlock: 'sword_and_shield_crouch_block_idle', pickup: 'axe_unarmed_equip_over_shoulder',
+  dashAir: 'standing_melee_run_jump_attack',
+};
+const NO_HIPS_POS = /jump|fall|flying|run_back|impact/;
+
+export class Player {
+  constructor(game) {
+    this.g = game;
+    this.pos = new THREE.Vector2(); this.vel = new THREE.Vector2();
+    this.facing = 1; this.yaw = 1; this.onGround = false; this.coyote = 0; this.jumpBuf = 0; this.jumpsLeft = 1; this.cut = false;
+    this.crouch = false; this.state = 'free'; this.stateT = 0; this.attack = null; this.backdashT = 0; this.dashT = 0; this.dashUsed = false;
+    this.inv = 0; this.hurtT = 0; this.blocking = false; this.dropT = 0;
+    this.stats = { lvl: 1, xp: 0, next: 60, str: 10, con: 10, int: 8, lck: 6, hp: 80, hpMax: 80, mp: 30, mpMax: 30, gold: 0, potions: 1 };
+    this.equip = { weapon: null, offhand: null, head: null, body: null, cloak: null, ring1: null, ring2: null };
+    this.bag = [];
+    this.layers = { lower: { cur: null }, upper: { cur: null } };
+  }
+
+  async load() {
+    const g = await loadGLTF('assets/player/vesper_player.glb');
+    this.root = new THREE.Group();
+    this.model = g.scene; this.spin = new THREE.Group(); this.spin.position.y = 0.95; this.model.position.y = -0.95;
+    this.root.add(this.spin); this.spin.add(this.model);
+    this.model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.envMapIntensity = 0.6; } } });
+    this.socketR = this.model.getObjectByName('WeaponSocket_R');
+    const fore = this.model.getObjectByProperty('name', 'mixamorigLeftForeArm');
+    this.socketL = new THREE.Group(); fore.add(this.socketL);
+    this.g.scene.add(this.root);
+    // rim light that follows the hero so he reads against dark rooms
+    this.rim = new THREE.PointLight(0x9ab0ff, 9, 6, 1.5); this.root.add(this.rim); this.rim.position.set(-0.6, 2.2, -1.2);
+    this.fill = new THREE.PointLight(0xffd8b0, 7, 6, 1.4); this.root.add(this.fill); this.fill.position.set(0.4, 1.8, 2.6);
+    this.trail = new Trail(this.g.scene);
+
+    this.mixer = new THREE.AnimationMixer(this.model);
+    this.clips = {};
+    for (const c of g.animations) {
+      const tracks = c.tracks.filter(t => !(t.name.endsWith('.position') && !t.name.includes('Hips')) && !(NO_HIPS_POS.test(c.name) && t.name.includes('Hips.position')) && !t.name.endsWith('.scale'));
+      const up = tracks.filter(t => UPPER.test(t.name)), lo = tracks.filter(t => !UPPER.test(t.name));
+      this.clips[c.name] = { full: c, up: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_u', c.duration, up)), lo: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_l', c.duration, lo)), dur: c.duration };
+    }
+    this.setLayer('lower', ANIM.idle, 0); this.setLayer('upper', ANIM.idle, 0);
+  }
+
+  clipAct(name, layer) { const c = this.clips[name] || this.clips[ANIM.idle]; return layer === 'upper' ? c.up : c.lo; }
+  setLayer(layer, name, fade = 0.15, opts = {}) {
+    const L = this.layers[layer];
+    if (L.cur === name && !opts.restart) return;
+    const next = this.clipAct(name, layer), prev = L.cur && this.clipAct(L.cur, layer);
+    next.reset(); next.enabled = true; next.setEffectiveWeight(1); next.timeScale = opts.manual ? 0 : (opts.speed ?? 1);
+    next.setLoop(opts.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); next.clampWhenFinished = !!opts.once;
+    if (opts.at !== undefined) next.time = opts.at;
+    next.play();
+    if (prev && prev !== next) prev.crossFadeTo(next, fade, false);
+    L.cur = name; L.manual = !!opts.manual;
+  }
+
+  get armed() { return !!this.equip.weapon; }
+  get height() { return this.crouch ? H_CROUCH : H_STAND; }
+  get aabb() { return { x0: this.pos.x - W / 2, x1: this.pos.x + W / 2, y0: this.pos.y, y1: this.pos.y + this.height }; }
+  abilities() { const s = new Set(); for (const it of Object.values(this.equip)) if (it) for (const g of it.gems) if (GEMS[g].ability) s.add(GEMS[g].ability); return s; }
+
+  // ---------------------------------------------------------------- equipment
+  derived() {
+    const s = this.stats, d = { dmg: [2, 4], def: 0, block: 0, elems: [], leech: 0, str: s.str, dex: 0, hpBonus: 0, mpBonus: 0, mf: 0, thorns: 0, regen: 0, ias: 0, res: {} };
+    for (const [slot, it] of Object.entries(this.equip)) {
+      if (!it) continue; const st = itemStats(it);
+      if (slot === 'weapon') { d.dmg = st.dmg; d.elems = st.elems; d.leech += st.leechPct || 0; d.ias += st.ias || 0; }
+      else { d.def += st.def; if (slot === 'offhand') { d.block = st.block; d.blockBurst = st.blockBurst; } }
+      d.str += st.str || 0; d.dex += st.dex || 0; d.hpBonus += st.hp || 0; d.mpBonus += st.mp || 0; d.mf += st.mf || 0; d.thorns += st.thorns || 0; d.regen += st.regen || 0;
+      for (const k of ['fire', 'ice']) d.res[k] = (d.res[k] || 0) + (st['res_' + k] || 0);
+    }
+    return d;
+  }
+  refreshStats() {
+    const d = this.derived(), s = this.stats;
+    s.hpMax = 60 + s.con * 2 + d.hpBonus; s.mpMax = 20 + s.int + d.mpBonus;
+    s.hp = Math.min(s.hp, s.hpMax); s.mp = Math.min(s.mp, s.mpMax);
+    this.d = d;
+  }
+
+  async equipItem(slot, item) {
+    const prev = this.equip[slot];
+    if (prev) this.bag.push(prev);
+    if (item) { this.bag = this.bag.filter(i => i !== item); }
+    this.equip[slot] = item || null;
+    if (slot === 'weapon' && item && BASES[item.base].hands === 2 && this.equip.offhand) { this.bag.push(this.equip.offhand); this.equip.offhand = null; await this.attachVisual('offhand'); }
+    if (slot === 'offhand' && item && this.equip.weapon && BASES[this.equip.weapon.base].hands === 2) { this.bag.push(this.equip.weapon); this.equip.weapon = null; await this.attachVisual('weapon'); }
+    await this.attachVisual(slot);
+    this.refreshStats();
+    audio.play(slot === 'weapon' ? 'sword_unsheath_1' : 'item_equip', 0.5);
+  }
+
+  async attachVisual(slot) {
+    if (slot !== 'weapon' && slot !== 'offhand') return;
+    const sock = slot === 'weapon' ? this.socketR : this.socketL;
+    if (this[slot + 'Mesh']) { sock.remove(this[slot + 'Mesh']); this[slot + 'Mesh'] = null; }
+    const it = this.equip[slot]; if (!it) return;
+    const base = BASES[it.base];
+    // Socket lives under a 1.8× scaled rig; weapons are authored at true metres, so divide that scale out.
+    const m = await weaponModel(base.model, base.scale / 1.8);
+    if (slot === 'offhand') { m.quaternion.set(-0.2272, -0.3524, -0.596, 0.6848); m.position.set(-0.0106, 0.0366 + 0.07, 0.0324); } // solved so the face points forward in the block pose
+    sock.add(m); this[slot + 'Mesh'] = m;
+    if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
+  }
+
+  applyElementFX(m, elems) {
+    if (this.fx) { this.fx.parent?.remove(this.fx); this.fx = null; }
+    const e = elems[0]?.elem; if (!e) return;
+    const col = ELEM_COLOR[e];
+    m.traverse(o => { if (o.isMesh) { o.material.emissive = new THREE.Color(col); o.material.emissiveIntensity = 0.35; } });
+    const grp = new THREE.Group(); const len = m.userData.len * 1.8 / m.scale.x;
+    const mat = new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
+    grp.userData.parts = [];
+    for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(mat.clone()); s.userData = { t: Math.random(), along: 0.15 + Math.random() * 0.85 }; grp.add(s); grp.userData.parts.push(s); }
+    const L = new THREE.PointLight(col, 3, 4, 1.5); L.position.y = len * 0.6; grp.add(L);
+    grp.userData.len = len; grp.userData.elem = e;
+    m.add(grp); this.fx = grp;
+  }
+
+  // ---------------------------------------------------------------- update
+  update(dt, inp) {
+    const s = this.stats, P = PHYS;
+    this.stateT += dt; if (this.inv > 0) this.inv -= dt;
+    if (this.state === 'dead') { this.animate(dt); return; }
+    if (this.state === 'sit') { if (inp.x || inp.jumpP || inp.attackP) { this.state = 'free'; } else { this.vel.set(0, 0); this.animate(dt); return; } }
+
+    const abil = this.abilities();
+    // facing & horizontal intent
+    let dir = inp.x;
+    const attacking = !!this.attack;
+    const heavy = attacking && this.attack.heavy;
+    this.blocking = inp.shield && this.equip.offhand && this.state === 'free' && !attacking;
+
+    if (this.state === 'hurt') { if (this.stateT > 0.38 && this.onGround) this.state = 'free'; dir = 0; }
+    if (this.state === 'backdash') {
+      this.backdashT += dt; const k = 1 - this.backdashT / P.backdashT;
+      this.vel.x = -this.facing * P.backdash * Math.max(0, k * 1.15);
+      if (this.backdashT >= P.backdashT) this.state = 'free';
+      if (inp.jumpP && this.onGround) this.state = 'free';
+    }
+    if (this.state === 'dash') { this.dashT += dt; this.vel.set(this.facing * P.dashV, 0); if (this.dashT > P.dashT) { this.state = 'free'; this.vel.x = this.facing * P.walk; } }
+
+    if (this.state === 'free') {
+      this.crouch = inp.down && this.onGround;
+      const canTurn = !(attacking && this.onGround);
+      if (dir && canTurn) this.facing = Math.sign(dir);
+      let speed = P.walk;
+      if (this.crouch || this.blocking && this.onGround) speed = 0;
+      if (attacking && this.onGround) speed = heavy ? 0 : P.walk * 0.55;
+      this.vel.x = dir * speed;
+      // jump / double jump / drop-through
+      if (inp.jumpP) this.jumpBuf = P.buffer;
+      if (this.jumpBuf > 0) {
+        if (this.crouch && this.standingOnOneway) { this.dropT = 0.25; this.jumpBuf = 0; this.pos.y -= 0.05; this.crouch = false; }
+        else if (this.onGround || this.coyote > 0) { this.vel.y = P.jumpV; this.onGround = false; this.coyote = 0; this.jumpBuf = 0; this.cut = false; this.crouch = false; this.flip = 0; audio.play('stone_jump', 0.35); }
+        else if (this.jumpsLeft > 0 && inp.jumpP) { this.vel.y = P.djumpV; this.jumpsLeft--; this.jumpBuf = 0; this.cut = false; this.flip = 1e-4; this.g.fx.burst(this.pos.x, this.pos.y + 0.2, 0xb0c0ff, 10, 2.5); audio.play('wave_attack_1', 0.25, 1.6); }
+      }
+      if (!inp.jump && this.vel.y > P.cutV && !this.cut && !this.onGround) { this.vel.y = P.cutV; this.cut = true; }
+      // backdash (ground) / shade dash (air, Onyx)
+      if (inp.dashP) {
+        if (this.onGround && !attacking) { this.state = 'backdash'; this.backdashT = 0; this.stateT = 0; this.crouch = false; audio.play('clothing_1', 0.4); }
+        else if (!this.onGround && abil.has('shadeDash') && !this.dashUsed) { this.state = 'dash'; this.dashT = 0; this.dashUsed = true; this.inv = Math.max(this.inv, 0.25); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); }
+      }
+      // attack
+      if (inp.attackP && !attacking) this.startAttack();
+    }
+    if (this.attack) this.updateAttack(dt);
+
+    // gravity & integration
+    if (this.state !== 'dash') { this.vel.y -= P.grav * dt; if (this.vel.y < -P.fallMax) this.vel.y = -P.fallMax; }
+    if (this.jumpBuf > 0) this.jumpBuf -= dt; if (this.dropT > 0) this.dropT -= dt;
+    const wasGround = this.onGround;
+    this.move(dt);
+    if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { this.landT = 0.12; audio.play('stone_land', 0.3); this.g.fx.dust(this.pos.x, this.pos.y); } }
+    else if (wasGround && this.vel.y <= 0) { /* walked off ledge: keep coyote */ } else if (this.coyote > 0) this.coyote -= dt;
+    if (!this.onGround && this.coyote > 0) this.coyote -= dt;
+
+    // footsteps
+    if (this.onGround && Math.abs(this.vel.x) > 1) { this.stepT = (this.stepT || 0) + dt; if (this.stepT > 0.3) { this.stepT = 0; audio.play('stone_chain_run_' + (1 + Math.floor(Math.random() * 5)), 0.18); } }
+    // regen
+    if (this.d?.regen) { this.regT = (this.regT || 0) + dt; if (this.regT > 2) { this.regT = 0; this.heal(this.d.regen, true); } }
+    this.mpT = (this.mpT || 0) + dt; if (this.mpT > 1.5) { this.mpT = 0; s.mp = Math.min(s.mpMax, s.mp + 1); }
+    this.animate(dt);
+  }
+
+  move(dt) {
+    const solids = this.g.activeSolids();
+    // X
+    this.pos.x += this.vel.x * dt;
+    let a = this.aabb;
+    for (const s of solids) {
+      if (s.oneway || s.gone) continue;
+      if (a.x1 > s.x0 && a.x0 < s.x1 && a.y1 > s.y0 + 0.001 && a.y0 < s.y1 - 0.001) {
+        if (this.vel.x > 0 || (this.vel.x === 0 && this.pos.x < (s.x0 + s.x1) / 2)) this.pos.x = s.x0 - W / 2 - 0.001; else this.pos.x = s.x1 + W / 2 + 0.001;
+        a = this.aabb; if (this.state === 'dash') this.state = 'free';
+      }
+    }
+    // Y
+    const prevY = this.pos.y;
+    this.pos.y += this.vel.y * dt; a = this.aabb;
+    this.onGround = false; this.standingOnOneway = false;
+    for (const s of solids) {
+      if (s.gone) continue;
+      if (!(a.x1 > s.x0 && a.x0 < s.x1)) continue;
+      if (s.oneway) {
+        if (this.vel.y <= 0 && prevY >= s.y1 - 0.02 && this.pos.y < s.y1 && this.dropT <= 0) { this.pos.y = s.y1; this.vel.y = 0; this.onGround = true; this.standingOnOneway = true; }
+        continue;
+      }
+      if (a.y1 > s.y0 && a.y0 < s.y1) {
+        if (this.vel.y <= 0 && prevY >= s.y1 - 0.25) { this.pos.y = s.y1; this.vel.y = 0; this.onGround = true; }
+        else if (this.vel.y > 0) { this.pos.y = s.y0 - this.height - 0.001; this.vel.y = 0; }
+      }
+      a = this.aabb;
+    }
+    // ground probe for standing still on a platform
+    if (!this.onGround && this.vel.y <= 0) {
+      for (const s of solids) if (!s.gone && a.x1 > s.x0 && a.x0 < s.x1 && Math.abs(this.pos.y - s.y1) < 0.01 && (!s.oneway || this.dropT <= 0)) { this.onGround = true; this.standingOnOneway = !!s.oneway; }
+    }
+    // stand-up check under low ceilings
+    if (!this.crouch) for (const s of solids) if (!s.oneway && !s.gone && a.x1 > s.x0 && a.x0 < s.x1 && a.y1 > s.y0 && a.y0 < s.y0 && this.onGround) { this.crouch = true; break; }
+  }
+
+  startAttack() {
+    const w = this.equip.weapon, base = w ? BASES[w.base] : null;
+    const st = STYLES[base ? base.style : 'punch'];
+    const ias = 1 + (this.d?.ias || 0) / 100;
+    const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
+    this.attack = { st, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || base.style === 'smash'), swung: false };
+    const fullBody = mode === 'idle';
+    this.setLayer('upper', st.anim, 0.06, { manual: true, at: st.from / FPS, restart: true });
+    if (fullBody) this.setLayer('lower', st.anim, 0.08, { manual: true, at: st.from / FPS, restart: true });
+  }
+
+  updateAttack(dt) {
+    const A = this.attack, st = A.st;
+    A.t += dt; const k = Math.min(1, A.t / A.dur);
+    // ease-in on windup, snap through the strike
+    const f = st.from + (st.to - st.from) * k;
+    const t = f / FPS;
+    const up = this.clipAct(st.anim, 'upper'); up.time = t;
+    if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
+    if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
+    A.active = f >= st.hit[0] && f <= st.hit[1];
+    if (f >= st.hit[0] - 3 && f <= st.hit[1] + 2) this.trail.push(this.weaponMesh, this.fx?.userData.elem); 
+    if (A.active) this.g.playerHits(this.hitbox());
+    if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
+  }
+
+  hitbox() {
+    const st = this.attack.st, f = this.facing;
+    const yb = this.pos.y + (this.crouch ? st.yOff * 0.55 : st.yOff);
+    const x0 = this.pos.x + f * 0.15, x1 = this.pos.x + f * (0.15 + st.reach);
+    return { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: yb - st.height / 2, y1: yb + st.height / 2, attack: this.attack };
+  }
+
+  rollDamage() {
+    const d = this.d, [a, b] = d.dmg;
+    let dmg = a + Math.random() * (b - a + 1) | 0; dmg = Math.round(dmg * (1 + (d.str - 10) * 0.04));
+    const crit = Math.random() < 0.05 + this.stats.lck * 0.004; if (crit) dmg = Math.round(dmg * 1.6);
+    const elem = d.elems.map(e => ({ elem: e.elem, dmg: e.dmg[0] + Math.floor(Math.random() * (e.dmg[1] - e.dmg[0] + 1)) }));
+    return { dmg, crit, elem };
+  }
+
+  takeHit(amount, fromX, elem) {
+    if (this.inv > 0 || this.state === 'dead') return false;
+    const front = Math.sign(fromX - this.pos.x) === this.facing;
+    if (this.blocking && front) {
+      const chip = Math.round(amount * (1 - (this.d.block || 0.5)));
+      this.stats.hp -= chip; this.inv = 0.3; this.vel.x = -this.facing * 2.5;
+      this.g.fx.burst(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0xffe0a0, 14, 4); audio.play('sword_blocked_' + (1 + (Math.random() * 3 | 0)), 0.6);
+      if (this.d.blockBurst) this.g.blockBurst(this.pos.x + this.facing, this.pos.y + 1, this.d.blockBurst);
+      if (chip) this.g.ui.dmg(this.pos.x, this.pos.y + 2, chip, 'player');
+      return 'block';
+    }
+    const res = elem ? (this.d.res[elem] || 0) : 0;
+    const dmg = Math.max(1, Math.round(amount * (1 - res / 100) - this.d.def * 0.25));
+    this.stats.hp -= dmg; this.g.ui.dmg(this.pos.x, this.pos.y + 2, dmg, 'player');
+    if (this.d.thorns) this.g.thornsBack?.(this.d.thorns);
+    audio.play('crunch_quick', 0.5); this.g.hitStop(0.06); this.g.shake(0.25);
+    if (this.stats.hp <= 0) { this.stats.hp = 0; this.die(); return true; }
+    this.state = 'hurt'; this.stateT = 0; this.attack = null; this.inv = 1.1;
+    const dir = Math.sign(this.pos.x - fromX) || -this.facing; this.vel.set(dir * 4.5, 5.5); this.onGround = false;
+    return true;
+  }
+  heal(n, quiet) { const s = this.stats, before = s.hp; s.hp = Math.min(s.hpMax, s.hp + n); if (!quiet && s.hp > before) this.g.ui.dmg(this.pos.x, this.pos.y + 2, s.hp - before, 'heal'); }
+  die() { this.state = 'dead'; this.stateT = 0; this.attack = null; this.setLayer('lower', ANIM.death, 0.1, { once: true }); this.setLayer('upper', ANIM.death, 0.1, { once: true }); this.g.onPlayerDeath(); }
+  gainXP(n) {
+    const s = this.stats; s.xp += n;
+    while (s.xp >= s.next) { s.xp -= s.next; s.lvl++; s.next = Math.round(s.next * 1.55); s.str += 2; s.con += 2; s.int += 1; s.lck += 1; this.refreshStats(); s.hp = s.hpMax; s.mp = s.mpMax; this.g.ui.toast(`LEVEL UP — ${s.lvl}`, 'rare'); audio.play('firebuff_1', 0.5); }
+  }
+
+  // ---------------------------------------------------------------- animation
+  animate(dt) {
+    const armed = this.armed;
+    if (this.state !== 'dead') {
+      let base;
+      if (this.state === 'sit') base = ANIM.sit;
+      else if (this.state === 'hurt') base = ANIM.hurt;
+      else if (this.state === 'backdash') base = ANIM.backdash;
+      else if (this.state === 'dash') base = ANIM.fall;
+      else if (!this.onGround) base = this.vel.y > 0 ? ANIM.jump : ANIM.fall;
+      else if (this.crouch) base = this.blocking ? ANIM.crouchBlock : (armed ? ANIM.crouchArmed : ANIM.crouch);
+      else if (Math.abs(this.vel.x) > 0.4) base = armed ? ANIM.jogArmed : ANIM.jog;
+      else base = armed ? ANIM.idleArmed : ANIM.idle;
+      const lowerBusy = this.attack && this.layers.lower.cur === this.attack.st.anim;
+      if (!lowerBusy) {
+        const opts = {};
+        if (base === ANIM.jump) { opts.at = 0.55; opts.speed = 0.9; }
+        if (base === ANIM.fall) opts.at = 0.2;
+        if (base === ANIM.backdash) opts.speed = 1.6;
+        if (base === ANIM.jog || base === ANIM.jogArmed) opts.speed = 1.15;
+        if (base === ANIM.hurt) { opts.once = true; }
+        this.setLayer('lower', base, base === ANIM.jump ? 0.08 : 0.14, opts);
+      }
+      if (!this.attack) {
+        const upper = this.blocking ? (this.crouch ? ANIM.crouchBlock : ANIM.block) : (lowerBusy ? this.layers.lower.cur : base);
+        const opts = {}; if (upper === ANIM.jump) { opts.at = 0.55; opts.speed = 0.9; } if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = 1.15; if (upper === ANIM.hurt) opts.once = true;
+        this.setLayer('upper', upper, 0.12, opts);
+        // keep the two halves of a locomotion clip in phase
+        if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
+      }
+    }
+    this.mixer.update(dt); this.trail.update(dt);
+    // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
+    const target = this.facing * (Math.PI / 2 - 0.38);
+    this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
+    this.root.position.set(this.pos.x, this.pos.y, 0);
+    this.model.rotation.set(0, this.yaw, 0);
+    if (this.flip > 0) { this.flip += dt * 2.6; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (1 - Math.pow(1 - a, 2)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; this.spin.rotation.z = 0; } }
+    // i-frame blink
+    this.model.visible = !(this.inv > 0 && this.state !== 'block' && Math.floor(this.inv * 20) % 2 === 0 && this.inv < 1.05 && this.inv > 0.3);
+    if (this.fx) for (const p of this.fx.userData.parts) { p.userData.t += dt * 2.2; const u = p.userData.t % 1; p.position.set((Math.random() - 0.5) * 0.04, this.fx.userData.len * p.userData.along, (Math.random() - 0.5) * 0.04 + (this.fx.userData.elem === 'fire' ? u * 0.0 : 0)); p.position.y += this.fx.userData.elem === 'fire' ? u * 0.25 : 0; p.material.opacity = 1 - u; const sc = (this.fx.userData.elem === 'lightning' ? (Math.random() < 0.3 ? 0.25 : 0.08) : 0.16) * (1 - u * 0.5); p.scale.setScalar(sc); }
+  }
+}
+
+// Swing ribbon: samples the blade's base and tip each frame of a strike so attacks read clearly from the side view.
+const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a };
+class Trail {
+  constructor(scene) {
+    this.max = 14; this.pts = [];
+    this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.max * 2 * 3); this.alpha = new Float32Array(this.max * 2);
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.geo.setAttribute('alpha', new THREE.BufferAttribute(this.alpha, 1));
+    const idx = []; for (let i = 0; i < this.max - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
+    this.mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(0xdde4ff) }, fade: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: 'attribute float alpha; varying float a; void main(){ a=alpha; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: 'uniform vec3 col; uniform float fade; varying float a; void main(){ gl_FragColor=vec4(col*a*fade*1.6, a*fade); }' });
+    this.mesh = new THREE.Mesh(this.geo, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh); this.life = 0;
+  }
+  push(weapon, elem) {
+    if (!weapon) return;
+    const len = weapon.userData.len * 1.8 / weapon.scale.x;
+    const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.25, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
+    this.pts.unshift([base, tip]); if (this.pts.length > this.max) this.pts.pop();
+    this.mat.uniforms.col.value.setHex(TRAIL_COL[elem] || 0xdde4ff); this.life = 0.18; this.mesh.visible = true; this.write();
+  }
+  write() {
+    const n = this.pts.length;
+    for (let i = 0; i < this.max; i++) { const p = this.pts[Math.min(i, n - 1)]; const k = i < n ? 1 - i / n : 0;
+      this.pos.set([p[0].x, p[0].y, p[0].z], i * 6); this.pos.set([p[1].x, p[1].y, p[1].z], i * 6 + 3); this.alpha[i * 2] = 0; this.alpha[i * 2 + 1] = k * 0.85; }
+    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.alpha.needsUpdate = true;
+  }
+  end() { this.pts.length = 0; }
+  update(dt) { if (this.life > 0) { this.life -= dt; this.mat.uniforms.fade.value = Math.max(0, this.life / 0.18); if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
+}
