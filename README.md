@@ -10,6 +10,12 @@ play.bat            # or: python tools/serve.py 8410  →  http://localhost:8410
 
 Controls: ←/→ move · ↓ crouch · Space/K jump (again in the air = double jump) · J attack · hold L shield · Shift backdash (with a Vesper Onyx socketed: Shift in mid-air = Shade Dash) · E interact (save coffin, chests) · Q potion · I/Tab pack · M map. Gamepad: A jump, X attack, LB/LT shield, RB/RT dash, Y interact, B potion, Start pack, Back map.
 
+**Phone / tablet:** touch controls appear automatically on touch devices (force with `?touch=1`, hide with `?touch=0`). Play in landscape. To play on a phone over your network, run `python tools/serve.py 8410 --lan` and open the address it prints on the phone (same Wi-Fi; allow Python through the Windows firewall if asked).
+- **Left:** d-pad. Slide your finger between directions; ▲ interacts and ▼ crouches.
+- **Right:** ATK, JUMP, GUARD, DASH.
+- **Top:** POTION, MAP, PACK.
+- **In the pack:** JUMP = OK (equip), ATK = GEM (socket), GUARD/DASH = BACK.
+
 ## What's in the slice
 
 The first ten rooms around START on `Castle_Velscour_Labeled` (1 map square = 1 screen, 13.33 m × 7.5 m):
@@ -31,6 +37,7 @@ Gating loop: Ruby (chapel) → socket into a weapon → fire visibly wreathes th
 
 ## Code map
 
+- `src/touch.js` — on-screen touch controls (multi-touch d-pad + action buttons) that feed the shared input.
 - `src/main.js` — game loop, input (keyboard + gamepad), camera, rooms/transitions, loot, chests, save, boss flow, FX.
 - `src/player.js` — SotN-tuned physics (`PHYS`), animation state machine with **upper/lower body layering** (attacks while idle / moving / jumping / crouching), weapons on hand sockets, swing trails, element FX.
 - `src/enemies.js` — Shambler (zombie), Velscour Knight (blocks, telegraphs), Possessed Knight boss (charge, enrage).

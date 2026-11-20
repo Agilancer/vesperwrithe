@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07050a">
 <title>Vesperwrithe</title>
 <link rel="stylesheet" href="src/style.css">
 <script type="importmap">
@@ -57,10 +61,12 @@
     <p class="sub">Castle Velscour</p>
     <p id="loadMsg">Summoning the castle…</p>
     <button id="startBtn" class="hidden">Enter the Castle</button>
+    <button id="newBtn" class="hidden">New Journey</button>
     <div class="controls">
       <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd>/<kbd>K</kbd> jump · double jump</span>
       <span><kbd>J</kbd> attack</span><span><kbd>L</kbd> shield / off-hand</span><span><kbd>Shift</kbd> backdash</span>
       <span><kbd>E</kbd> interact</span><span><kbd>I</kbd> inventory</span><span><kbd>M</kbd> map</span><span>Gamepad supported</span>
+      <span class="touch-only">Touch: d-pad left · ATK / JUMP / GUARD / DASH right · ▲ interact</span>
     </div>
   </div>
 </div>

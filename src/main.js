@@ -10,6 +10,7 @@ import { ROOMS, roomById, SW, SH, FLOOR } from './rooms.js';
 import { Player } from './player.js';
 import { Enemy, TYPES } from './enemies.js';
 import { UI } from './ui.js';
+import { initTouch } from './touch.js';
 import { loadMeta, weaponModel, audio, surface } from './assets.js';
 import { makeItem, makeGem, makeUnique, rollDrop, BASES, GEMS } from './items.js';
 
@@ -382,6 +383,7 @@ class Game {
 }
 
 const game = new Game(); window.game = game;
+initTouch(game.input, () => game.ui.open);
 // Debug helpers (console): sim(frames, heldKeys, pressedKeys) steps the game; shot(...) frames a still with the free camera.
 window.sim = (n, keys = [], press = []) => { const I = game.input; press.forEach(k => I.pressed.add(k)); keys.forEach(k => I.keys.add(k)); for (let i = 0; i < n; i++) { if (i === 1) I.pressed.clear(); game.step(1 / 60); } keys.forEach(k => I.keys.delete(k)); };
 window.shot = (x, y, z, lx, ly, lz = 0) => { window.__pause = true; game.camera.position.set(x, y, z); game.camera.lookAt(lx, ly, lz); };
@@ -390,6 +392,7 @@ window.boot = () => new Promise(r => { const i = setInterval(() => { if (!$('sta
 game.load(t => $('loadMsg').textContent = t).then(() => {
   $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';
   $('startBtn').classList.remove('hidden');
+  if (game.readSave()) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem('vesperwrithe_save'); begin(true); }; }
   const begin = (fresh) => { audio.resume(); $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) { game.room = null; game.newGame(true); } game.start(); removeEventListener('keydown', k); };
   const k = e => { if (e.code === 'Enter') begin(false); if (e.code === 'KeyN') { localStorage.removeItem('vesperwrithe_save'); begin(true); } };
   $('startBtn').onclick = () => begin(false); addEventListener('keydown', k);
