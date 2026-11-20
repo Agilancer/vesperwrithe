@@ -11,7 +11,7 @@ import { Player } from './player.js';
 import { Enemy, TYPES } from './enemies.js';
 import { UI } from './ui.js';
 import { initTouch } from './touch.js';
-import { loadMeta, weaponModel, audio, surface } from './assets.js';
+import { loadMeta, weaponModel, audio, surface, LOW_MEM } from './assets.js';
 import { makeItem, makeGem, makeUnique, rollDrop, BASES, GEMS } from './items.js';
 
 const $ = id => document.getElementById(id);
@@ -67,16 +67,18 @@ class FX {
 class Game {
   constructor() {
     const canvas = $('view');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-    this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // LOW_MEM (phones): smaller framebuffers and shadow map; the post-processing chain renders off-screen anyway, so skip MSAA there
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOW_MEM, powerPreference: LOW_MEM ? 'default' : 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_MEM ? 1.25 : 1.75));
+    this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = LOW_MEM ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.contextLost = true; const m = $('loadMsg'); $('title').classList.remove('hidden'); if (m) m.textContent = 'The graphics ran out of memory. Close other tabs, then reload the page.'; });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.15;
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x05040a);
     this.scene.fog = new THREE.Fog(0x0b0810, 16, 50);
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.5, 400);
     this.hemi = new THREE.HemisphereLight(0x8a90c0, 0x201418, 0.35); this.scene.add(this.hemi);
     this.moon = new THREE.DirectionalLight(0xaab8ff, 0.6); this.moon.castShadow = true;
-    Object.assign(this.moon.shadow.camera, { left: -14, right: 14, top: 10, bottom: -6, near: 1, far: 60 }); this.moon.shadow.mapSize.set(2048, 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
+    Object.assign(this.moon.shadow.camera, { left: -14, right: 14, top: 10, bottom: -6, near: 1, far: 60 }); this.moon.shadow.mapSize.setScalar(LOW_MEM ? 1024 : 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
     this.scene.add(this.moon, this.moon.target);
     // soft key from the viewer so armoured silhouettes read against dark halls (Bloodstained lights rooms by hand; this is our baseline)
     this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.9); this.scene.add(this.camFill, this.camFill.target);
