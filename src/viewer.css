@@ -25,6 +25,8 @@ select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;p
 .clip{display:block;width:100%;text-align:left;margin:0 0 4px;padding:7px 9px;background:var(--panel2)}
 .clip b{display:block;font-weight:600;font-size:13px}
 .clip small{color:#9a8f80;font-size:12px}
+.clip .role{display:inline-block;font-style:normal;font-size:9px;letter-spacing:.08em;padding:1px 5px;border-radius:3px;margin:2px 0 3px;border:1px solid currentColor}
+.role-air{color:#8ab4ff}.role-finisher{color:#ff8a8a}.role-spell{color:#ffb060}
 .clip.sel{border-color:var(--gold);background:#2a2014}
 .clip .tag{float:right;font-size:10px;color:#1a1208;background:var(--gold);border-radius:3px;padding:1px 5px;margin-left:6px}
 

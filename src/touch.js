@@ -2,24 +2,37 @@
 // system (movement, combat, inventory, map) works unchanged. Multi-touch: each finger is tracked on
 // its own and can slide between d-pad directions or action buttons without lifting.
 
+// Icons are inline SVG: unicode arrows (◀ ▶) render as blue emoji boxes on iPhone.
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const ICON = {
+  jump: svg('M12 3 4 11h5v3h6v-3h5zM9 16h6v2H9zM9 19.5h6V21H9z'),
+  attack: svg('M20.5 2.5 21.5 3.5 10 15l2 2-1.5 1.5-1.8-1.8L5.4 20 4 18.6l3.3-3.3-1.8-1.8L7 12l2 2z'),
+  shield: svg('M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm0 2.2 6 2.3V11c0 3.9-2.5 7.4-6 8.8z'),
+  dash: svg('M3 6l6 6-6 6V6zm8 0 6 6-6 6V6zm7 0h2v12h-2z'),
+  use: svg('M12 2a1 1 0 0 1 1 1v6.1l5.2-3a1 1 0 1 1 1 1.7L14 10.9l5.2 3a1 1 0 1 1-1 1.7l-5.2-3V19a1 1 0 1 1-2 0v-6.4l-5.2 3a1 1 0 1 1-1-1.7l5.2-3-5.2-3a1 1 0 1 1 1-1.7l5.2 3V3a1 1 0 0 1 1-1z'),
+  potion: svg('M9 2h6v2h-1v4.2l4.6 7.6A3.5 3.5 0 0 1 15.6 21H8.4a3.5 3.5 0 0 1-3-5.2L10 8.2V4H9zm-1.4 15h8.8l-2.5-4H10.1z'),
+  map: svg('M9 3 3 5.5v15.5l6-2.5 6 2.5 6-2.5V3l-6 2.5zm1 2.4 4 1.7v11.5l-4-1.7z'),
+  pack: svg('M9 3h6l1 3h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2zm1.3 1.5L9.8 6h4.4l-.5-1.5zM8 11v2h8v-2z'),
+};
 const LAYOUT = {
   pad: [
-    { id: 'up', code: 'ArrowUp', label: '▲', title: 'Interact' },
-    { id: 'left', code: 'ArrowLeft', label: '◀' },
-    { id: 'right', code: 'ArrowRight', label: '▶' },
-    { id: 'down', code: 'ArrowDown', label: '▼', title: 'Crouch' },
+    { id: 'up', code: 'ArrowUp', title: 'Interact' },
+    { id: 'left', code: 'ArrowLeft' },
+    { id: 'right', code: 'ArrowRight' },
+    { id: 'down', code: 'ArrowDown', title: 'Crouch' },
   ],
   // menu: what the button sends while the pack or map is open
   act: [
-    { id: 'attack', code: 'KeyJ', menu: 'KeyS', label: 'ATK', alt: 'GEM' },
-    { id: 'jump', code: 'Space', menu: 'Enter', label: 'JUMP', alt: 'OK' },
-    { id: 'shield', code: 'KeyL', menu: 'Escape', label: 'GUARD', alt: 'BACK' },
-    { id: 'dash', code: 'ShiftLeft', menu: 'Escape', label: 'DASH', alt: 'BACK' },
+    { id: 'attack', code: 'KeyJ', menu: 'KeyS', label: 'ATTACK', alt: 'GEM', icon: 'attack' },
+    { id: 'jump', code: 'Space', menu: 'Enter', label: 'JUMP', alt: 'OK', icon: 'jump' },
+    { id: 'shield', code: 'KeyL', menu: 'Escape', label: 'GUARD', alt: 'BACK', icon: 'shield' },
+    { id: 'dash', code: 'ShiftLeft', menu: 'Escape', label: 'DASH', alt: 'BACK', icon: 'dash' },
+    { id: 'use', code: 'KeyE', label: 'USE', icon: 'use' },
   ],
   top: [
-    { id: 'potion', code: 'KeyQ', label: 'POTION' },
-    { id: 'map', code: 'KeyM', label: 'MAP' },
-    { id: 'pack', code: 'KeyI', label: 'PACK' },
+    { id: 'potion', code: 'KeyQ', label: 'Potion', icon: 'potion' },
+    { id: 'map', code: 'KeyM', label: 'Map', icon: 'map' },
+    { id: 'pack', code: 'KeyI', label: 'Pack', icon: 'pack' },
   ],
 };
 
@@ -29,11 +42,16 @@ export function wantsTouch() {
   return q === '1' || 'ontouchstart' in window || navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
 }
 
-export function initTouch(input, menuOpen) {
+export function initTouch(input, menuOpen, ctxAction = () => '', potions = () => 0) {
   if (!wantsTouch()) return null;
   document.body.classList.add('touch');
   const root = document.createElement('div'); root.id = 'touch';
-  const mk = (b, cls) => { const e = document.createElement('div'); e.className = 'tbtn ' + cls + ' t-' + b.id; e.dataset.id = b.id; e.innerHTML = `<span>${b.label}</span>`; e._b = b; return e; };
+  const mk = (b, cls) => {
+    const e = document.createElement('div'); e.className = 'tbtn ' + cls + ' t-' + b.id; e.dataset.id = b.id; e._b = b;
+    e.innerHTML = cls === 'dir' ? '<i></i>' : `${b.icon ? ICON[b.icon] : ''}${b.label ? `<span>${b.label}</span>` : ''}${b.id === 'potion' ? '<em>0</em>' : ''}`;
+    if (b.label) e.setAttribute('aria-label', b.label);
+    return e;
+  };
   const pad = document.createElement('div'); pad.className = 'tpad'; LAYOUT.pad.forEach(b => pad.appendChild(mk(b, 'dir')));
   const act = document.createElement('div'); act.className = 'tact'; LAYOUT.act.forEach(b => act.appendChild(mk(b, 'act')));
   const top = document.createElement('div'); top.className = 'ttop'; LAYOUT.top.forEach(b => top.appendChild(mk(b, 'sys')));
@@ -79,9 +97,18 @@ export function initTouch(input, menuOpen) {
   document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
   document.addEventListener('touchmove', e => { if (e.touches.length > 1 || root.contains(e.target)) e.preventDefault(); }, { passive: false });
 
-  // relabel the action buttons while a menu is open, so the player knows what they do there
-  let wasMenu = null;
-  const relabel = () => { const m = !!menuOpen(); if (m !== wasMenu) { wasMenu = m; act.querySelectorAll('.tbtn').forEach(el => el.querySelector('span').textContent = m && el._b.alt ? el._b.alt : el._b.label); root.classList.toggle('menu', m); } requestAnimationFrame(relabel); };
+  // relabel the action buttons while a menu is open, so the player knows what they do there; the USE button only
+  // appears (with the right verb) when there is something to use; the potion button shows how many are left
+  let wasMenu = null, wasCtx = null, wasPot = null;
+  const useBtn = act.querySelector('.t-use'), potBadge = top.querySelector('.t-potion em');
+  const relabel = () => {
+    const m = !!menuOpen();
+    if (m !== wasMenu) { wasMenu = m; act.querySelectorAll('.tbtn').forEach(el => { const sp = el.querySelector('span'); if (sp && el._b.alt) sp.textContent = m ? el._b.alt : el._b.label; }); root.classList.toggle('menu', m); }
+    const c = m ? '' : ctxAction() || '';
+    if (c !== wasCtx) { wasCtx = c; useBtn.classList.toggle('show', !!c); if (c) useBtn.querySelector('span').textContent = c; }
+    const n = potions(); if (n !== wasPot) { wasPot = n; potBadge.textContent = n; top.querySelector('.t-potion').classList.toggle('empty', !n); }
+    requestAnimationFrame(relabel);
+  };
   relabel();
 
   let triedFull = false;

@@ -85,21 +85,45 @@ kbd{border:1px solid #6b5a3a;border-radius:3px;padding:0 5px;font-size:11px;marg
 body.touch .touch-only{display:inline}
 #newBtn{margin-left:10px}
 #touch{position:fixed;inset:0;pointer-events:none;z-index:50;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#touch .tbtn{position:absolute;pointer-events:auto;display:grid;place-items:center;color:rgba(233,224,204,.92);font:600 13px/1 "Palatino Linotype",Georgia,serif;letter-spacing:1px;background:radial-gradient(circle at 40% 35%,rgba(70,40,55,.55),rgba(12,8,14,.55));border:1.5px solid rgba(217,180,106,.55);box-shadow:0 0 10px rgba(0,0,0,.6),inset 0 0 8px rgba(0,0,0,.6);transition:transform .05s,background .05s}
-#touch .tbtn.on{transform:scale(.92);background:radial-gradient(circle,rgba(217,180,106,.55),rgba(90,40,30,.6));border-color:#ffd88a;color:#fff}
-.tpad{position:absolute;left:calc(18px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));width:min(38vh,170px);height:min(38vh,170px);pointer-events:auto;border-radius:50%;background:radial-gradient(circle,rgba(20,12,20,.35),rgba(20,12,20,.15) 70%,transparent 72%)}
-.tpad .tbtn{width:34%;height:34%;border-radius:10px;font-size:18px}
-.tpad .t-up{left:33%;top:0}.tpad .t-down{left:33%;bottom:0}.tpad .t-left{left:0;top:33%}.tpad .t-right{right:0;top:33%}
-.tact{position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:min(44vh,200px);height:min(44vh,200px)}
-.tact .tbtn{width:44%;height:44%;border-radius:50%}
-.tact .t-attack{right:0;top:28%;width:48%;height:48%;border-color:rgba(255,120,90,.75)}
-.tact .t-jump{left:22%;bottom:0}
-.tact .t-shield{left:0;top:10%;width:36%;height:36%;font-size:11px}
-.tact .t-dash{left:30%;top:-12%;width:36%;height:36%;font-size:11px}
-.ttop{position:absolute;top:calc(78px + env(safe-area-inset-top));left:calc(18px + env(safe-area-inset-left));display:flex;gap:8px}
-#touch .ttop .tbtn{position:static;padding:8px 12px;border-radius:8px;font-size:11px}
+/* touch controls only once the game is running; on the title a phone gets the touch hint, not the keyboard list */
+body:not(.playing) #touch{display:none}
+body.touch .controls>span:not(.touch-only){display:none}
+body.touch .controls .touch-only{font-size:14px;opacity:.9}
+/* Thumb zones: movement pad bottom-left, action arc bottom-right (big JUMP + ATTACK on the thumb's rest line,
+   GUARD + DASH one reach up, USE pops in above when there's something to use). Nothing overlaps. */
+#touch{--B:min(19vh,84px);--b:min(14vh,62px);--g:min(2.2vh,10px)}
+#touch .tbtn{position:absolute;pointer-events:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:rgba(240,230,210,.95);font:700 10px/1 system-ui,-apple-system,sans-serif;letter-spacing:.08em;background:radial-gradient(circle at 50% 35%,rgba(60,36,50,.62),rgba(10,7,12,.62));border:1.5px solid rgba(217,180,106,.55);box-shadow:0 2px 10px rgba(0,0,0,.55),inset 0 0 10px rgba(0,0,0,.55);transition:transform .06s,background .06s,opacity .2s;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+#touch .tbtn svg{width:42%;height:42%;fill:currentColor;filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))}
+#touch .tbtn span{text-shadow:0 1px 2px #000;white-space:nowrap}
+#touch .tbtn.on{transform:scale(.9);background:radial-gradient(circle,rgba(255,214,140,.6),rgba(110,50,30,.7));border-color:#ffe0a0;color:#fff;box-shadow:0 0 16px rgba(255,190,110,.55)}
+.tpad{position:absolute;left:calc(16px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));width:min(42vh,176px);height:min(42vh,176px);pointer-events:auto;border-radius:50%;background:radial-gradient(circle,rgba(30,18,28,.5) 0,rgba(20,12,20,.3) 62%,transparent 70%);border:1.5px solid rgba(217,180,106,.22)}
+#touch .tpad .tbtn{width:33%;height:33%;border-radius:12px;background:rgba(18,12,20,.5);border-color:rgba(217,180,106,.38)}
+#touch .tpad .tbtn i{width:0;height:0;border:9px solid transparent}
+#touch .tpad .t-up{left:33.5%;top:2%}#touch .tpad .t-down{left:33.5%;bottom:2%}#touch .tpad .t-left{left:2%;top:33.5%}#touch .tpad .t-right{right:2%;top:33.5%}
+#touch .tpad .t-up i{border-bottom:13px solid currentColor;border-top-width:0;margin-top:-4px}
+#touch .tpad .t-down i{border-top:13px solid currentColor;border-bottom-width:0;margin-bottom:-4px}
+#touch .tpad .t-left i{border-right:13px solid currentColor;border-left-width:0;margin-left:-4px}
+#touch .tpad .t-right i{border-left:13px solid currentColor;border-right-width:0;margin-right:-4px}
+.tact{position:absolute;right:calc(14px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));width:calc(var(--B) * 2 + var(--g) * 3);height:calc(var(--B) * 2.3 + var(--b))}
+#touch .tact .tbtn{border-radius:50%;width:var(--b);height:var(--b)}
+#touch .tact .t-jump{right:0;bottom:0;width:var(--B);height:var(--B);font-size:11px}
+#touch .tact .t-attack{right:calc(var(--B) + var(--g));bottom:calc(var(--B) * .32);width:var(--B);height:var(--B);font-size:11px;border-color:rgba(255,130,100,.8)}
+#touch .tact .t-dash{right:calc((var(--B) - var(--b)) / 2);bottom:calc(var(--B) + var(--g))}
+#touch .tact .t-shield{right:calc(var(--B) + var(--g) + (var(--B) - var(--b)) / 2);bottom:calc(var(--B) * 1.32 + var(--g))}
+#touch .tact .t-use{right:calc(var(--B) * 1.05);bottom:calc(var(--B) * 1.32 + var(--b) + var(--g) * 2);width:auto;min-width:var(--b);height:calc(var(--b) * .7);padding:0 14px;border-radius:999px;flex-direction:row;gap:6px;font-size:12px;border-color:#ffd88a;opacity:0;transform:scale(.6);pointer-events:none}
+#touch .tact .t-use svg{width:18px;height:18px}
+#touch .tact .t-use.show{opacity:1;transform:scale(1);pointer-events:auto;animation:usepulse 1.4s ease-in-out infinite}
+@keyframes usepulse{50%{box-shadow:0 0 18px rgba(255,210,120,.7),inset 0 0 10px rgba(0,0,0,.55)}}
+.ttop{position:absolute;top:calc(12px + env(safe-area-inset-top));right:calc(150px + env(safe-area-inset-right));display:flex;gap:8px}
+#touch .ttop .tbtn{position:relative;width:44px;height:44px;border-radius:12px;font-size:8px}
+#touch .ttop .tbtn svg{width:52%;height:52%}
+#touch .ttop .tbtn em{position:absolute;right:-5px;top:-5px;min-width:18px;height:18px;border-radius:9px;background:#a3162a;color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 1.5px #07050a}
+#touch .ttop .t-potion.empty{opacity:.45}
 #touch.menu .tpad,#touch.menu .tact{opacity:.95}
 #touch.menu .ttop .t-potion{visibility:hidden}
+/* lore and prompts sit in the free strip between the thumbs */
+body.touch #prompt{top:auto;bottom:calc(14px + env(safe-area-inset-bottom));max-width:calc(100vw - 2 * min(46vh, 210px) - 40px);font-size:13px;line-height:1.3;text-align:center;white-space:normal}
+body.touch #gold small{font-size:9px}
 #rotate{display:none}
 @media (orientation:portrait){body.touch #rotate{position:fixed;inset:0;z-index:60;display:grid;place-content:center;text-align:center;background:#07050a;color:var(--gold);letter-spacing:2px}#rotate div{font-size:64px;animation:spin 2s ease-in-out infinite}}
 @keyframes spin{50%{transform:rotate(-90deg)}}
@@ -110,7 +134,6 @@ body.touch .touch-only{display:inline}
   #roomName{font-size:18px;letter-spacing:4px}
   .toast{font-size:12px;padding:5px 10px}
   body.touch #toasts{bottom:auto;top:110px;right:calc(14px + env(safe-area-inset-right))}
-  body.touch #prompt{bottom:auto;top:22%;font-size:13px}
   .inv-wrap{height:96vh;width:min(1080px,72vw);font-size:12px}
   body.touch .inv-wrap{margin:0 auto}
   #title h1{font-size:clamp(28px,7vw,60px)}#title .sub{margin:4px 0 12px}

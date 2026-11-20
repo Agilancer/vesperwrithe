@@ -326,11 +326,13 @@ class Game {
   }
   promptFor() {
     const P = this.player, r = this.room; if (this.tutorial) return;
-    let t = '';
-    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) t = 'E — Rest at the coffin (heal & save)';
-    else if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8) t = 'E — Touch the mirror';
-    else if (r.chests.some(c => !c.opened && Math.abs(P.pos.x - c.x) < 1.4)) t = 'E — Open';
+    let t = '', ctx = '';
+    const touch = document.body.classList.contains('touch'), key = touch ? '' : 'E — ';
+    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) { t = key + 'Rest at the coffin (heal & save)'; ctx = 'REST'; }
+    else if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8) { t = key + 'Touch the mirror'; ctx = 'TOUCH'; }
+    else if (r.chests.some(c => !c.opened && Math.abs(P.pos.x - c.x) < 1.4)) { t = key + 'Open the chest'; ctx = 'OPEN'; }
     else for (const l of r.def.lore || []) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3) t = l.text;
+    this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
   }
 
@@ -386,7 +388,7 @@ class Game {
 }
 
 const game = new Game(); window.game = game;
-initTouch(game.input, () => game.ui.open);
+initTouch(game.input, () => game.ui.open, () => game.ctxAction, () => game.player.stats.potions);
 // Debug helpers (console): sim(frames, heldKeys, pressedKeys) steps the game; shot(...) frames a still with the free camera.
 window.sim = (n, keys = [], press = []) => { const I = game.input; press.forEach(k => I.pressed.add(k)); keys.forEach(k => I.keys.add(k)); for (let i = 0; i < n; i++) { if (i === 1) I.pressed.clear(); game.step(1 / 60); } keys.forEach(k => I.keys.delete(k)); };
 window.shot = (x, y, z, lx, ly, lz = 0) => { window.__pause = true; game.camera.position.set(x, y, z); game.camera.lookAt(lx, ly, lz); };
@@ -396,7 +398,7 @@ game.load(t => $('loadMsg').textContent = t).then(() => {
   $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';
   $('startBtn').classList.remove('hidden');
   if (game.readSave()) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem('vesperwrithe_save'); begin(true); }; }
-  const begin = (fresh) => { audio.resume(); $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) { game.room = null; game.newGame(true); } game.start(); removeEventListener('keydown', k); };
+  const begin = (fresh) => { audio.resume(); $('title').classList.add('hidden'); document.body.classList.add('playing'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) { game.room = null; game.newGame(true); } game.start(); removeEventListener('keydown', k); };
   const k = e => { if (e.code === 'Enter') begin(false); if (e.code === 'KeyN') { localStorage.removeItem('vesperwrithe_save'); begin(true); } };
   $('startBtn').onclick = () => begin(false); addEventListener('keydown', k);
 }).catch(e => { console.error(e); $('loadMsg').textContent = 'Failed to load: ' + e.message; });

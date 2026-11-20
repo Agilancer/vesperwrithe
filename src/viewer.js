@@ -5,8 +5,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { loadMeta, surface, LOW_MEM } from './assets.js';
 import { Player } from './player.js';
+import { glowTex } from './world.js';
 import { BASES, makeItem } from './items.js';
-import { FPS, KINDS, ATTACK_CLIPS, readAttackConfig, writeAttackConfig, attackFor, startWeapon, detectSwings } from './attacks.js';
+import { FPS, KINDS, ATTACK_CLIPS, readAttackConfig, writeAttackConfig, attackFor, startWeapon, detectStrikes } from './attacks.js';
 
 const $ = id => document.getElementById(id);
 const YAW = Math.PI / 2 - 0.38; // the game's 3/4 facing-right yaw
@@ -31,6 +32,24 @@ const controls = new OrbitControls(camera, canvas); controls.enabled = false; co
 let camMode = 'side';
 function sideCam() { camera.position.set(0.8, 1.6, 5.2); camera.lookAt(0.8, 1.0, 0); controls.target.set(0.9, 1.0, 0); }
 sideCam();
+
+// spell preview: an orb gathers between the hands through the wind-up and flies off on the release frame
+const orb = new THREE.Group(); scene.add(orb); orb.visible = false;
+const orbCore = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xffd0a0, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+const orbHalo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff6a20, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 }));
+const orbLight = new THREE.PointLight(0xff7a30, 0, 5, 1.5); orb.add(orbHalo, orbCore, orbLight);
+function spellFX(f) {
+  const meta = ATTACK_CLIPS.find(c => c.name === S.clip);
+  if (meta?.use !== 'spell') { orb.visible = false; return; }
+  const hands = ['RightHand', 'LeftHand'].map(n => P.model.getObjectByName('mixamorig' + n).getWorldPosition(new THREE.Vector3()));
+  const at = meta.hands === 'L' ? hands[1] : meta.hands === 'R' ? hands[0] : hands[0].clone().add(hands[1]).multiplyScalar(0.5);
+  const fly = (f - S.hit[0]) / FPS;
+  if (f < S.from || fly > 0.6) { orb.visible = false; return; }
+  orb.visible = true;
+  if (fly < 0) { const k = (f - S.from) / Math.max(1, S.hit[0] - S.from); orb.position.copy(at); orb.scale.setScalar(0.15 + 0.35 * k); orbLight.intensity = 4 * k; }
+  else { orb.position.set(at.x + fly * 9, at.y, at.z); orb.scale.setScalar(0.5); orbLight.intensity = 6 * (1 - fly / 0.6); }
+  orbCore.scale.setScalar(0.35); orbHalo.scale.setScalar(0.9 + Math.sin(performance.now() / 60) * 0.08);
+}
 
 const hitMat = new THREE.MeshBasicMaterial({ color: 0xe2394f, transparent: true, opacity: 0.22, depthWrite: false });
 const hitBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.05), hitMat); hitBox.visible = false; scene.add(hitBox);
@@ -70,21 +89,37 @@ function tipWorld() {
   return P.socketR.getWorldPosition(new THREE.Vector3());
 }
 
+const bone = n => P.model.getObjectByName('mixamorig' + n);
+let LIMBS = null;
+function strikeSample() {
+  LIMBS ||= { chest: bone('Spine2'), L: bone('LeftHand'), RF: bone('RightToeBase'), LF: bone('LeftToeBase') };
+  const v = o => o.getWorldPosition(new THREE.Vector3());
+  return { chest: v(LIMBS.chest), fwd: new THREE.Vector3(Math.sin(YAW), 0, Math.cos(YAW)),
+    limbs: { R: tipWorld(), L: v(LIMBS.L), RF: v(LIMBS.RF), LF: v(LIMBS.LF) } };
+}
+const fullWin = () => ({ name: 'Whole clip', from: 0, to: clipLen(), hit: [0, clipLen()], box: null });
+function useStrike(s) {
+  S.from = s.from; S.to = s.to; S.hit = [...s.hit]; S.box = s.box ? { ...s.box } : null; S.frame = S.from;
+  S.dur = +Math.max(0.15, Math.min(1.2, (S.to - S.from) / FPS * 0.62)).toFixed(2);
+  $('dur').value = S.dur; $('durText').textContent = S.dur.toFixed(2) + ' s';
+}
+
 function pose(frame) {
   S.action.time = Math.min(frame / FPS, P.clips[S.clip].dur - 1e-4);
   if (S.legs) S.legs.time = (performance.now() / 1000) % S.legs.getClip().duration;
-  P.mixer.update(0); P.root.updateMatrixWorld(true);
+  P.mixer.update(0); P.root.updateMatrixWorld(true); P.twoHandIK();
 }
 
 function selectClip(name, keepWindow) {
   S.clip = name;
   P.mixer.stopAllAction();
   S.action = P.mixer.clipAction(P.clips[name].game); S.action.reset().play(); S.action.timeScale = 0; S.legs = null;
-  S.swings = detectSwings(P.clips[name].dur, t => { pose(t * FPS); return tipWorld(); });
+  S.swings = detectStrikes(P.clips[name].dur, t => { pose(t * FPS); return strikeSample(); }, { weapon: !!P.weaponMesh });
   if (!keepWindow) {
-    const s = S.swings[0] || { from: 0, to: clipLen(), hit: [0, clipLen()] };
-    S.from = s.from; S.to = s.to; S.hit = [...s.hit];
-    S.dur = +Math.max(0.15, Math.min(1.2, (S.to - S.from) / FPS * 0.62)).toFixed(2);
+    // default to the clip's main blow: the fastest strike of the weapon hand (any limb when unarmed)
+    const pool = S.swings.filter(x => !P.weaponMesh || x.limb === 'R');
+    const s = (pool.length ? pool : S.swings).reduce((m, x) => (!m || x.peak > m.peak ? x : m), null) || fullWin();
+    const keep = S.dur; useStrike(s); if (keep && S.swings.length === 0) S.dur = keep;
   }
   S.frame = S.from; applyUpper();
   renderClipList(); renderSwings(); renderTrack();
@@ -110,7 +145,7 @@ async function selectKind(kind) {
   S.grip = st.grip || 'normal'; $('grip').value = S.grip; S.upperOnly = !!st.upperOnly;
   fillWeapons();
   await setWeapon(kind === 'unarmed' ? null : (S.weapon && BASES[S.weapon]?.kind === kind ? S.weapon : ids[0]));
-  S.from = st.from; S.to = st.to; S.hit = [...st.hit]; S.dur = st.dur;
+  S.from = st.from; S.to = st.to; S.hit = [...st.hit]; S.dur = st.dur; S.box = { reach: st.reach, height: st.height, yOff: st.yOff };
   selectClip(P.clips[st.anim] ? st.anim : ATTACK_CLIPS[0].name, true);
   renderKindNow();
 }
@@ -139,14 +174,16 @@ function renderClipList() {
     if (!P.clips[c.name]) continue;
     if (c.group !== grp) { grp = c.group; html += `<div class="grp">${grp}</div>`; }
     const tags = (used[c.name] || []).map(k => `<span class="tag">${KINDS[k].label.split(' ')[0]}</span>`).join('');
-    html += `<button class="clip${c.name === S.clip ? ' sel' : ''}" data-clip="${c.name}">${tags}<b>${pretty(c.name)}</b><small>${c.note} · ${P.clips[c.name].dur.toFixed(1)} s</small></button>`;
+    const role = { air: 'AIR', finisher: 'NEEDS A VICTIM', spell: 'SPELL' }[c.use];
+    html += `<button class="clip${c.name === S.clip ? ' sel' : ''}" data-clip="${c.name}">${tags}<b>${pretty(c.name)}</b>${role ? `<i class="role role-${c.use}">${role}</i>` : ''}<small>${c.note} · ${P.clips[c.name].dur.toFixed(1)} s</small></button>`;
   }
   $('clips').innerHTML = html; $('count').textContent = ATTACK_CLIPS.filter(c => P.clips[c.name]).length;
   $('clips').querySelector('.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 function renderSwings() {
   const same = s => s.from === S.from && s.to === S.to;
-  $('swings').innerHTML = S.swings.map((s, i) => `<button data-swing="${i}" class="${same(s) ? 'on' : ''}">Swing ${i + 1} <span class="dim">f${s.hit[0]}–${s.hit[1]}</span></button>`).join('') +
+  $('swings').innerHTML = (S.swings.length ? '' : '<span class="dim">No clear strike found — set the frames by hand.</span>') +
+    S.swings.map((s, i) => `<button data-swing="${i}" class="${same(s) ? 'on' : ''}" title="hit frames ${s.hit[0]}–${s.hit[1]}">${i + 1}. ${s.name} <span class="dim">f${s.hit[0]}</span></button>`).join('') +
     `<button data-swing="all" class="${S.from === 0 && S.to === clipLen() ? 'on' : ''}">Whole clip</button>`;
 }
 function renderTrack() {
@@ -162,9 +199,7 @@ $('weapon').onchange = async e => { await setWeapon(e.target.value || null); sel
 $('clips').onclick = e => { const b = e.target.closest('[data-clip]'); if (b) selectClip(b.dataset.clip); };
 $('swings').onclick = e => {
   const b = e.target.closest('[data-swing]'); if (!b) return;
-  const s = b.dataset.swing === 'all' ? { from: 0, to: clipLen(), hit: [0, clipLen()] } : S.swings[+b.dataset.swing];
-  S.from = s.from; S.to = s.to; S.hit = [...s.hit]; S.frame = S.from;
-  S.dur = +Math.max(0.15, Math.min(1.2, (S.to - S.from) / FPS * 0.62)).toFixed(2); $('dur').value = S.dur; $('durText').textContent = S.dur.toFixed(2) + ' s';
+  useStrike(b.dataset.swing === 'all' ? fullWin() : S.swings[+b.dataset.swing]);
   renderSwings(); renderTrack();
 };
 $('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; };
@@ -182,7 +217,7 @@ document.querySelector('.marks').onclick = e => {
   renderSwings(); renderTrack();
 };
 $('use').onclick = () => {
-  S.cfg.kinds[S.kind] = { anim: S.clip, from: S.from, to: S.to, hit: [...S.hit], dur: S.dur, grip: S.grip, upperOnly: S.upperOnly };
+  S.cfg.kinds[S.kind] = { anim: S.clip, from: S.from, to: S.to, hit: [...S.hit], dur: S.dur, grip: S.grip, upperOnly: S.upperOnly, ...(S.box || {}) };
   const ok = writeAttackConfig(S.cfg); fillKinds(); renderKindNow(); renderClipList();
   say(ok ? `Saved: ${KINDS[S.kind].label} now swings “${pretty(S.clip)}”. Reload the game to use it.` : 'Could not save (browser storage is blocked). Use “Copy config” instead.');
 };
@@ -220,9 +255,11 @@ function tick(now) {
     const f = S.frame, st = attackFor(S.weapon ? BASES[S.weapon] : null, S.cfg);
     if (f >= S.hit[0] - 3 && f <= S.hit[1] + 2 && S.playing) P.trail.push(P.weaponMesh, null);
     P.trail.update(dt); P.scarf.update(dt, 1, { x: 0, y: 0 });
+    spellFX(f);
     const on = f >= S.hit[0] && f <= S.hit[1];
     hitBox.visible = showHit && on;
-    if (on) { hitBox.scale.set(st.reach, st.height, 1); hitBox.position.set(0.15 + st.reach / 2, st.yOff, 0.3); }
+    const bx = S.box || st;
+    if (on) { hitBox.scale.set(bx.reach, bx.height, 1); hitBox.position.set(0.15 + bx.reach / 2, bx.yOff, 0.3); }
     $('scrub').value = Math.round(f); $('frame').textContent = `${Math.round(f)} / ${clipLen()}`;
     $('play').textContent = S.playing ? '❚❚' : '▶';
   }
@@ -243,4 +280,4 @@ function tick(now) {
     requestAnimationFrame(tick);
   } catch (e) { console.error(e); $('loading').textContent = 'Failed to load: ' + e.message; }
 })();
-window.viewer = { S, P, selectClip, selectKind, pose };
+window.viewer = { S, P, selectClip, selectKind, pose, setWeapon }; window.camera = camera;
