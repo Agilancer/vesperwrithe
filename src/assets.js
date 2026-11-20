@@ -75,12 +75,23 @@ float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); 
   m.customProgramCacheKey = () => 'weather';
   return m;
 }
+// rim: { col: THREE.Color, k: number } shared by all of a character's materials; the shader reads it every frame
+export function addRim(m, rim) {
+  if (!m.isMeshStandardMaterial) return m;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.rimCol = { get value() { return rim.col; } }; sh.uniforms.rimK = { get value() { return rim.k; } };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 rimCol; uniform float rimK;')
+      .replace('#include <opaque_fragment>', 'outgoingLight += rimCol * rimK * pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.4);\n#include <opaque_fragment>');
+  };
+  m.customProgramCacheKey = () => 'rim'; m.needsUpdate = true;
+  return m;
+}
 export function surface(name, repX = 1, repY = 1, opts = {}) {
-  const key = `${name}|${repX}|${repY}|${opts.tint || ''}|${opts.rough ?? ''}|${opts.dir || ''}|${opts.vc ? 1 : 0}`;
+  const key = `${name}|${repX}|${repY}|${opts.tint || ''}|${opts.rough ?? ''}|${opts.dir || ''}|${opts.vc ? 1 : 0}|${opts.ns ?? ''}`;
   if (texCache.has(key)) return texCache.get(key);
   const dir = opts.dir || 'assets/game/tex/';
   const m = new THREE.MeshStandardMaterial({ map: tiled(`${dir}${name}_c.webp`, true, repX, repY), normalMap: tiled(`${dir}${name}_d.webp`, false, repX, repY), roughness: opts.rough ?? 0.92, metalness: 0, color: opts.tint ?? 0xffffff, vertexColors: !!opts.vc });
-  m.normalScale.set(1.2, 1.2);
+  m.normalScale.setScalar(opts.ns ?? 1.2);
   if (opts.weather !== false) weather(m);
   texCache.set(key, m);
   return m;

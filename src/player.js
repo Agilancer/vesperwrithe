@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadGLTF, weaponModel, audio } from './assets.js';
+import { loadGLTF, weaponModel, audio, addRim } from './assets.js';
 import { BASES, STYLES, GEMS, itemStats, isRanged } from './items.js';
 import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
@@ -105,6 +105,11 @@ export class Player {
     // rim light that follows the hero so he reads against dark rooms
     this.rim = new THREE.PointLight(0x9ab0ff, 9, 6, 1.5); this.root.add(this.rim); this.rim.position.set(-0.6, 2.2, -1.2);
     this.fill = new THREE.PointLight(0xffd8b0, 7, 6, 1.4); this.root.add(this.fill); this.fill.position.set(0.4, 1.8, 2.6);
+    // x-ray: where stone stands between the camera and the hero, a cool silhouette shows through. Drawn after the room
+    // (renderOrder 1) and before the hero (2), so only the room's depth is tested: never the hero's own body.
+    const XRAY = new THREE.MeshBasicMaterial({ color: 0x31457e, blending: THREE.AdditiveBlending, depthFunc: THREE.GreaterDepth, depthWrite: false });
+    const skins = []; this.model.traverse(o => { if (o.isSkinnedMesh) skins.push(o); });
+    for (const o of skins) { const x = new THREE.SkinnedMesh(o.geometry, XRAY); x.bind(o.skeleton, o.bindMatrix); x.position.copy(o.position); x.quaternion.copy(o.quaternion); x.scale.copy(o.scale); x.frustumCulled = false; x.renderOrder = 1; x.userData.xray = true; o.renderOrder = 2; o.parent.add(x); }
     this.trail = new Trail(this.g.scene);
     this.scarf = new Scarf(this.g.scene, this.model.getObjectByName('mixamorigNeck'));
 
@@ -456,7 +461,7 @@ export class Player {
       if (A.mode === 'idle' && this.onGround && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); }
       if (f >= st.cancel) {
         if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(A.ci + 1); return; }
-        if (A.queued && A.chain && f >= st.cancel + 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(0); return; } // a press during the last cut starts the chain again
+        if (A.queued && (A.chain ? f >= st.cancel + 1 : f >= st.cancel)) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(0); return; } // a press during the last cut starts the chain again
         if (this.inpX && !A.queued && f >= st.cancel + 2) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); return; }
       }
     }
@@ -620,9 +625,9 @@ export class Player {
     this.spin.position.y = 0.95 - (this.state === 'slide' ? 0.42 : 0);
     if (this.flip > 0) { this.flip += dt * 2.3; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (a * a * (3 - 2 * a)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; } } // smoothstep flip: gathers, whips round, settles upright
     // i-frame blink
-    if (!this.blinkMats) { this.blinkMats = []; this.model.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) if (m.emissive && !this.blinkMats.includes(m)) { m.userData.em0 = m.emissive.getHex(); m.userData.ei0 = m.emissiveIntensity; this.blinkMats.push(m); } }); }
+    if (!this.hurtRim) { this.hurtRim = { col: new THREE.Color(0xd02040), k: 0 }; this.model.traverse(o => { if (o.isMesh && !o.userData.xray) for (const m of [].concat(o.material)) addRim(m, this.hurtRim); }); }
     const blink = this.inv > 0.3 && this.inv < 1.05 && this.state !== 'block' && this.state !== 'dead', on = blink && Math.floor(this.inv * 12) % 2 === 0;
-    if (on !== this._blinkOn) { this._blinkOn = on; for (const m of this.blinkMats) { m.emissive.setHex(on ? 0x6a1e2a : m.userData.em0); m.emissiveIntensity = on ? 0.38 : m.userData.ei0; } }
+    this.hurtRim.k = on ? 0.55 : 0; // hurt: a crimson edge flickers, the armour keeps its own colours
     this.model.visible = true; if (this.scarf) this.scarf.mesh.visible = true;
     if (this.fx) for (const p of this.fx.userData.parts) { p.userData.t += dt * 2.2; const u = p.userData.t % 1; p.position.set((Math.random() - 0.5) * 0.04, this.fx.userData.len * p.userData.along, (Math.random() - 0.5) * 0.04 + (this.fx.userData.elem === 'fire' ? u * 0.0 : 0)); p.position.y += this.fx.userData.elem === 'fire' ? u * 0.25 : 0; p.material.opacity = 1 - u; const sc = (this.fx.userData.elem === 'lightning' ? (Math.random() < 0.3 ? 0.25 : 0.08) : 0.16) * (1 - u * 0.5); p.scale.setScalar(sc); }
   }

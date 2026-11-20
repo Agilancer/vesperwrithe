@@ -253,8 +253,8 @@ class Game {
     if (it.potion) { if (P.stats.potions >= this.potionCap()) { P.heal(Math.round(P.stats.hpMax * 0.25)); this.ui.toast('Your flasks are full — you drink it where you stand.', 'magic'); } else { P.stats.potions++; this.ui.toast(`Potion of Vigor (${P.stats.potions}/${this.potionCap()})`, 'magic'); } audio.play('heart_collect', 0.5); return; }
     if (it.up) { if (it.up === 'life') P.stats.lifeUp++; else P.stats.manaUp++; P.refreshStats(); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; audio.play('firebuff_1', 0.6); this.flash(); this.fx.burst(P.pos.x, P.pos.y + 1, it.up === 'life' ? 0xff4060 : 0x5a80ff, 40, 5); this.ui.roomName(it.up === 'life' ? 'LIFE VESSEL — MAX LIFE UP' : 'MANA VESSEL — MAX MANA UP', 2600); return; }
     P.bag.push(it);
-    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
-    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast('Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
+    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap Socket' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
+    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(wantsTouch() ? 'Equip it from the pack, then HOLD the shield button to raise it' : 'Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
     if (L.planted && BASES[it.base]?.slot === 'weapon' && !P.equip.weapon) { // drawn from the stone straight into the hand
       this.flags.equipHint = 1; P.equipItem('weapon', it); P.state = 'ring'; P.stateT = 0; P.ringDur = 1.1; P.vel.x = 0; this.slowMo(0.5); this.flash(); audio.play('firebuff_1', 0.5); this.fx.burst(L.x, L.y + 0.8, 0xc8d8ff, 30, 4); this.ui.roomName(it.name.toUpperCase(), 2200);
       this.tutorial = 'strike'; setTimeout(() => { if (this.tutorial === 'strike') this.ui.prompt(wantsTouch() ? 'Tap the sword button to strike — try the candles ahead' : 'J to strike — try the candles ahead'); }, 1300);
@@ -314,7 +314,7 @@ class Game {
     for (const bk of room.breakables) if (bk.broken && Math.random() < 0.6) { bk.broken = false; bk.grp.visible = true; }
     this.applyBells(room);
     const T = room.theme; this.scene.fog.color.setHex(T.fog[0]); this.scene.fog.near = T.fog[1]; this.scene.fog.far = T.fog[2]; this.scene.background.setHex(T.sky === 'moon' ? 0x141a30 : T.sky === 'storm' ? 0x0c1018 : T.fog[0]);
-    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 0.8); this.hemi.intensity = this.amb; this.moon.intensity = open ? T.moon * 0.85 : Math.min(0.55, T.moon * 0.7); this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
+    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.15); this.hemi.intensity = this.amb; this.hemi.color.setHex(open ? 0x8a90c0 : 0x4a4250); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
     if (!instant) { $('fade').style.opacity = 0.85; setTimeout(() => $('fade').style.opacity = 0, 90); } else $('fade').style.opacity = 0;
     this.snapCam = true;
     if (!old || old.def.name !== room.def.name) this.ui.roomName(room.def.name);
@@ -591,7 +591,7 @@ class Game {
   }
   hitStop(t) { this.stopT = Math.max(this.stopT, t); }
   shake(a) { this.shakeT = Math.max(this.shakeT, a); }
-  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast('3 attribute points to spend — open the pack (I), press 1-4', 'rare'); audio.play('firebuff_1', 0.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
+  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast(wantsTouch() ? '3 attribute points to spend — open the pack and tap +' : '3 attribute points to spend — open the pack (I), press 1-4', 'rare'); audio.play('firebuff_1', 0.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
 
   onEnemyDeath(e) {
     const P = this.player, T = e.T, echo = P.d.echo;
@@ -680,7 +680,7 @@ class Game {
     else if (near(r.warpAt)) { t = key + 'Step through the mirror'; ctx = 'TOUCH'; }
     else if (near(r.shopAt, 2.2)) { t = key + 'Trade'; ctx = 'TRADE'; }
     else if (r.chests.some(c => !c.opened && near(c, 1.4))) { t = key + 'Open the chest'; ctx = 'OPEN'; }
-    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text;
+    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text.replace('{jump}', wantsTouch() ? 'JUMP' : 'SPACE').replace('{dash}', wantsTouch() ? 'DASH' : 'SHIFT');
     if (!t && this.tutorial) return; // a standing tutorial line yields to anything the room has to say
     this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
@@ -716,12 +716,12 @@ class Game {
     if (this._sz !== Math.max(2, innerWidth) + 'x' + Math.max(2, innerHeight)) this.resize();
     if (!isFinite(this.camPos.x) || !isFinite(this.camPos.y)) this.snapCam = true;
     const boss = this.bossE && !this.bossE.dead ? this.bossE : null, def = this.room.def;
-    let wantZ = def.vista || CAMZ;
+    let wantZ = def.vista || CAMZ; if (def.vistaAt && P.pos.x - b.x0 > def.vistaAt.x) wantZ = def.vistaAt.z;
     if (boss) { const sep = Math.abs(P.pos.x - boss.pos.x); wantZ = Math.max(wantZ, Math.min(19, (boss.T.quad || boss.T.fly ? 15.5 : 13.5) + Math.max(0, sep - 7) * 0.55)); } // keep a charging boss on screen
     this.camZ += (wantZ - this.camZ) * Math.min(1, dt * 1.5);
     const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * this.camZ, halfW = halfH * cam.aspect;
     // look-ahead follows running, not facing, and eases slowly: turning to fight no longer swings the frame
-    const run = Math.abs(P.vel.x) > 1 && P.state !== 'backdash' ? Math.sign(P.vel.x) : 0; this.lookX = (this.lookX || 0) + (run * 1.6 - (this.lookX || 0)) * Math.min(1, dt * (run ? 1.6 : 0.8));
+    const run = Math.abs(P.vel.x) > 1 && P.state !== 'backdash' ? Math.sign(P.vel.x) : 0; this.lookX ||= 0; if (run) this.lookX = (this.lookX || 0) + (run * 1.6 - (this.lookX || 0)) * Math.min(1, dt * 1.6); // standing still keeps the last offset: no drift after every stop
     // height holds on the last footing; a jump only moves the frame once it climbs out of a band, a fall follows at once
     if (P.onGround || this.footY === undefined || this.snapCam) this.footY = P.pos.y;
     let fy = this.footY; if (P.pos.y > fy + 1.6) fy = P.pos.y - 1.6; if (P.pos.y < fy) { fy = P.pos.y; this.footY = fy; }
@@ -734,7 +734,7 @@ class Game {
     else { const k = 1 - Math.exp(-dt * 6); this.camPos.x += (tx - this.camPos.x) * k; this.camPos.y += (ty - this.camPos.y) * (1 - Math.exp(-dt * 4)); }
     let sx = 0, sy = 0; if (this.shakeT > 0) { this.shakeT -= dt; sx = (Math.random() - 0.5) * this.shakeT * 0.5; sy = (Math.random() - 0.5) * this.shakeT * 0.5; }
     cam.position.set(this.camPos.x + sx, this.camPos.y + 0.45 + sy, this.camZ); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
-    this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 5, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
+    this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 1, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.camFill.position.set(this.camPos.x + 3, this.camPos.y + 4, 14); this.camFill.target.position.set(this.camPos.x, this.camPos.y, 0);
     if (this.room.theme.sky) { this.moon.position.set(this.camPos.x - 10, this.camPos.y + 16, 6); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1); } else { this.moon.position.set(this.camPos.x - 15, this.camPos.y + 4.5, 3); this.moon.target.position.set(this.camPos.x, this.camPos.y, -2.5); } // indoors the moon rakes across the masonry from a window
     this.hemi.intensity = (this.amb || 0.5) * (this.room.lightning > 0 ? 3.5 : 1);

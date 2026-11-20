@@ -4,18 +4,20 @@ import { surface, cloneGLTF, loadGLTF, texture, LOW_MEM } from './assets.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const T0 = 'assets/game/tex/', I = 'assets/game/interior/', X = 'assets/game/tex2/';
+// the one dressed stone for every moulding (arcades, piers, cornices, caps): fine limestone; marble halls keep a darkened marble
+const DRESS = ['limestone_1', T0, 0x8a847c], DRESS_RED = ['oxblood_marble', X, 0x5e4248];
 // [texture, dir, tint]. back = far wall, floor/wall = room shell, block = solid masonry and ledges, rug = carpet runner.
 const THEMES = {
   outdoor:   { sky: 'moon', floor: ['road_sett', T0], wall: ['ashlar', T0], block: ['bridge_ashlar', X], fog: [0x1a2238, 18, 110], amb: 0.55, moon: 1.6, trim: 0x9a8c70 },
   hall:      { arcade: true, back: ['wall_ashlar', I], floor: ['flags', T0], wall: ['ashlar', T0], block: ['ashlar', T0], fog: [0x0b0810, 16, 48], amb: 0.34, moon: 0.45, pillars: true, trim: 0x9a8c70 },
   shaft:     { arcade: true, back: ['block', T0], floor: ['flags', T0], wall: ['ashlar', T0], block: ['ashlar', T0], fog: [0x080a10, 16, 50], amb: 0.34, moon: 0.4, trim: 0x9a8c70 },
-  shrine:    { arcade: true, dress: ['pv_chalk_ashlar', X, 0xb8aaa0], back: ['marble', I, 0x9a7a7a], floor: ['floor_diamond', I], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x12060a, 12, 40], amb: 0.42, moon: 0.3, trim: 0xc08a6a },
-  gallery:   { arcade: true, dress: ['pv_chalk_ashlar', X, 0xa89c8c], back: ['panel', I], floor: ['boards', I], wall: ['ashlar', T0], block: ['pv_carved_panels', X], fog: [0x0c0a12, 16, 50], amb: 0.36, moon: 0.6, pillars: true, rug: ['carpet', I], trim: 0xb09060 },
+  shrine:    { arcade: true, back: ['marble', I, 0x9a7a7a], floor: ['floor_diamond', I], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x12060a, 12, 40], amb: 0.42, moon: 0.3, trim: 0xc08a6a },
+  gallery:   { arcade: true, back: ['panel', I], floor: ['boards', I], wall: ['ashlar', T0], block: ['pv_carved_panels', X], fog: [0x0c0a12, 16, 50], amb: 0.36, moon: 0.6, pillars: true, rug: ['carpet', I], trim: 0xb09060 },
   crypt:     { arcade: true, back: ['cata_wall', I], floor: ['cata_floor', I], wall: ['cata_wall2', I], block: ['cata_block', I], fog: [0x05070a, 10, 36], amb: 0.3, moon: 0.2, trim: 0x7a8a80 },
   chapel:    { arcade: true, back: ['wall_rough', I], floor: ['flags', T0], wall: ['ashlar', T0], block: ['pv_carved_stone', X], fog: [0x0e0a14, 18, 60], amb: 0.32, moon: 0.8, pillars: true, trim: 0x9a8c70 },
-  throne:    { arcade: true, back: ['wall_ashlar', I, 0x9a8ea6], floor: ['marble', I, 0x6a6070], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x0a0610, 18, 60], amb: 0.32, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xc0a060 },
+  throne:    { arcade: true, dress: DRESS_RED, back: ['wall_ashlar', I, 0x9a8ea6], floor: ['marble', I, 0x6a6070], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x0a0610, 18, 60], amb: 0.32, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xc0a060 },
   courtyard: { sky: 'moon', wallH: 4, backWall: ['pv_curtain_granite_a', X], floor: ['pv_courtyard_setts_a', X], wall: ['pv_curtain_granite_b', X], block: ['pv_rusticated_plinth_a', X], fog: [0x161c30, 20, 110], amb: 0.5, moon: 1.7, trim: 0x8a94a8 },
-  vestibule: { arcade: true, back: ['pv_limestone_interior_a', X, 0x8a847c], floor: ['pv_velscour_inlay_a', X], wall: ['pv_keep_dressed_stone_a', X], block: ['oxblood_marble', X], fog: [0x0e0a12, 20, 70], amb: 0.4, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xd0b070 },
+  vestibule: { arcade: true, dress: DRESS_RED, back: ['pv_limestone_interior_a', X, 0x8a847c], floor: ['pv_velscour_inlay_a', X], wall: ['pv_keep_dressed_stone_a', X], block: ['oxblood_marble', X], fog: [0x0e0a12, 20, 70], amb: 0.4, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xd0b070 },
   servants:  { back: ['pv_warm_grey_plaster', X], wainscot: ['pv_wood_panelling', X], floor: ['worn_floorboards', X], wall: ['pv_city_clay_brick_a', X], block: ['pv_hearth_brick', X], fog: [0x100b08, 14, 46], amb: 0.36, moon: 0.3, trim: 0xa07a50, beams: true },
   aqueduct:  { back: ['waterline_wall', X], floor: ['pv_undercroft_blocks_a', X], wall: ['pv_undercroft_blocks_c', X], block: ['pv_undercroft_blocks_b', X], fog: [0x06100e, 12, 44], amb: 0.32, moon: 0.25, trim: 0x6a9a8a, damp: true },
   cistern:   { arcade: true, back: ['pv_bastion_basalt_a', X], floor: ['pv_hall_flagstones_c', X], wall: ['pv_bastion_basalt_b', X], block: ['pv_bastion_basalt_c', X], fog: [0x040c12, 14, 60], amb: 0.3, moon: 0.3, pillars: true, trim: 0x5a9ab0, damp: true },
@@ -36,12 +38,12 @@ const THEMES = {
   rampart:   { sky: 'storm', wallH: 1.3, backWall: ['bridge_ashlar', X], floor: ['walk_paving', X], wall: ['bridge_ashlar', X], block: ['bridge_ashlar', X], fog: [0x10141e, 20, 120], amb: 0.5, moon: 1.3, trim: 0x8a94a8, merlons: true },
   belfry:    { back: ['pv_curtain_granite_d', X], floor: ['tar_boards', X], wall: ['pv_curtain_granite_a', X], block: ['adzed_beam', X], fog: [0x0a0c14, 16, 60], amb: 0.36, moon: 0.7, trim: 0xb0b8d0, beams: true },
   sanctum:   { arcade: true, back: ['obsidian', X, 0x7068a0], floor: ['pv_bastion_basalt_d', X], wall: ['keep_basalt', X], block: ['obsidian', X], fog: [0x04030a, 12, 50], amb: 0.3, moon: 0.3, trim: 0x9070ff, stars: true },
-  hollow:    { arcade: true, back: ['pv_keep_dressed_stone_a', X, 0x9a8a78], dress: ['oxblood_marble', X], floor: ['pv_velscour_inlay_d', X], wall: ['bloodstone', X], block: ['oxblood_marble', X], fog: [0x100604, 18, 70], amb: 0.4, moon: 0.5, pillars: true, rug: ['pv_red_gothic', X], trim: 0xffc050 },
+  hollow:    { arcade: true, back: ['pv_keep_dressed_stone_a', X, 0x9a8a78], dress: DRESS_RED, floor: ['pv_velscour_inlay_d', X], wall: ['bloodstone', X], block: ['oxblood_marble', X], fog: [0x100604, 18, 70], amb: 0.4, moon: 0.5, pillars: true, rug: ['pv_red_gothic', X], trim: 0xffc050 },
 };
 export const ZB = -3.4, ZF = 2.6; // back wall depth, front lip of floors (collision depth)
 export const FRONT = 1.6; // where an interior floor's moulded front edge is drawn: the slab no longer eats the frame
 // Real size (m) one repeat of a surface covers, so ashlar courses, skulls and book spines read at life size.
-const TILE = { wall_ashlar: 2.0, ashlar: 2.2, block: 2.0, flags: 2.6, skulls: 1.3, skulls2: 1.3, skulls3: 1.3, skulls_a: 1.3, skulls_b: 1.3, femurs: 1.5, niches: 3.2, bone_wall: 1.6, book_spines: 2.4, tracery: 3.6, arcade: 3.6, marble: 2.2, panel: 2.4, panel2: 2.4, cata_bones: 1.6, bones_ground: 1.6 };
+const TILE = { limestone_1: 1.1, oxblood_marble: 0.8, wall_ashlar: 2.0, ashlar: 2.2, block: 2.0, flags: 2.6, skulls: 1.3, skulls2: 1.3, skulls3: 1.3, skulls_a: 1.3, skulls_b: 1.3, femurs: 1.5, niches: 3.2, bone_wall: 1.6, book_spines: 2.4, tracery: 3.6, arcade: 3.6, marble: 2.2, panel: 2.4, panel2: 2.4, cata_bones: 1.6, bones_ground: 1.6 };
 const tileOf = name => TILE[name] ?? (/damask|brocade|velvet|fabric|leather|wallcloth|wool/.test(name) ? 1.4 : /floor|flag|paving|plank|board|setts|inlay|checker|tiles|road|ground|grass|dirt|scree|straw/.test(name) ? 2.8 : 2.4);
 
 // Alternate surfaces per theme, picked per room (stable hash of the room id) so no two halls of an area are
@@ -94,7 +96,7 @@ function mat(spec, w, h, opts = {}) {
   return surface(name, rx, ry, { dir, tint, ...opts });
 }
 // a surface for world-space UVs (1 UV = 1 m): repeat = 1 / the surface's real size
-function tm(spec, vc = false) { if (!spec) return null; let [name, dir = T0, tint] = spec; if (/_a$/.test(name)) name = name.slice(0, -1) + 'abcd'[SEED % 4]; const k = 1 / tileOf(name); return surface(name, k, k, { dir, tint, vc }); }
+function tm(spec, vc = false, ns) { if (!spec) return null; let [name, dir = T0, tint] = spec; if (/_a$/.test(name)) name = name.slice(0, -1) + 'abcd'[SEED % 4]; const k = 1 / tileOf(name); return surface(name, k, k, { dir, tint, vc, ns }); }
 // box-map any geometry already placed in world space: u, v in metres, picked by the face's dominant axis
 function worldUV(g) {
   const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2);
@@ -145,7 +147,7 @@ function box(m, x0, y0, x1, y1, z0 = ZB, z1 = ZF) {
   return mesh;
 }
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
-const RECESS = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.34, depthWrite: false }), GLOW = new THREE.MeshBasicMaterial({ color: 0xffb060, fog: false });
+const RECESS = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }), GLOW = new THREE.MeshBasicMaterial({ color: 0xffb060, fog: false });
 let _gear; const GEAR = () => _gear ||= (() => { const m = surface('bronze_plates', 0.6, 0.6, { dir: X, rough: 0.5, tint: 0xd0b890 }).clone(); m.metalness = 0.35; m.emissive = new THREE.Color(0x1a1206); return m; })();
 const BEAM = std(0x2a1c12, { roughness: 0.85 }), IRON = std(0x2a2522, { metalness: 0.75, roughness: 0.45 }), BRASS = std(0xb08a3a, { metalness: 0.9, roughness: 0.35 }), WAX = std(0xe8dcc0, { roughness: 0.6 }), DARK = std(0x15121a, { roughness: 0.7 });
 function tex(name, dir = X) { return texture(`${dir}${name}_c.webp`); }
@@ -213,13 +215,20 @@ export class World {
         case 'ledge': add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 1.6)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 1.6)); break;
         case 'plat': {
           const w = s.x1 - s.x0;
-          if (timber) { // a timber gallery: boards on two joists, raking braces back into the wall
+          const ground = Math.max(...[s.x0 + 0.3, s.x1 - 0.3].map(px => this.groundAt(room, px, s.y0)));
+          if (timber) { // a timber gallery: boards on joists; posts to the floor with knee braces in the picture plane, or iron hangers from the vault
             const wood = tm(['oak_planks', X], false), beam = tm(['adzed_beam', X], false);
             add(wbox(wood, s.x0, s.y1 - 0.12, s.x1, s.y1, ZB, 0.9)); add(wbox(beam, s.x0, s.y1 - 0.42, s.x1, s.y1 - 0.12, 0.5, 0.82)); add(wbox(beam, s.x0, s.y1 - 0.42, s.x1, s.y1 - 0.12, ZB + 0.2, ZB + 0.52));
-            for (let bx = s.x0 + 0.5; bx <= s.x1 - 0.4; bx += Math.max(1.4, (w - 1) / Math.max(1, Math.round((w - 1) / 2)))) {
-              const br = wbox(beam, -0.08, -1.3, 0.08, 1.3, -0.08, 0.08); br.geometry.rotateX(-0.85); br.geometry.translate(bx, s.y1 - 1.25, ZB + 1.25); worldUV(br.geometry); add(br);
-              add(wbox(IRON, bx - 0.1, s.y1 - 0.44, bx + 0.1, s.y1 - 0.1, 0.8, 0.86));
-            }
+            if (s.y0 - ground < 7.5) for (const [px, d] of [[s.x0 + 0.25, 1], [s.x1 - 0.25, -1]]) {
+              add(wbox(beam, px - 0.13, ground, px + 0.13, s.y1 - 0.42, -1.1, -0.84)); add(wbox(beam, px - 0.13, ground, px + 0.13, s.y1 - 0.42, ZB + 0.2, ZB + 0.46));
+              const kb = wbox(beam, -0.07, -0.75, 0.07, 0.75, -0.07, 0.07); kb.geometry.rotateZ(d * 0.785); kb.geometry.translate(px + d * 0.5, s.y1 - 0.92, -0.97); worldUV(kb.geometry); add(kb);
+            } else for (const px of [s.x0 + 0.3, s.x1 - 0.3]) { const up = this.ceilingAt(room, px, s.y1); add(wbox(IRON, px - 0.035, s.y1 - 0.4, px + 0.035, up, 0.62, 0.69)); add(wbox(IRON, px - 0.035, s.y1 - 0.4, px + 0.035, up, ZB + 0.3, ZB + 0.37)); }
+          } else if (def.open && s.y0 - ground < 9) { // open air: a slab on columns standing on the ground below
+            add(wbox(capM, s.x0, s.y0, s.x1, s.y1, -1.6, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
+            const cm = tm(T.dress || DRESS, false, 0.6); for (const px of w > 3 ? [s.x0 + 0.5, s.x1 - 0.5] : [(s.x0 + s.x1) / 2]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, s.y0 - ground, 10), cm); c.position.set(px, (s.y0 + ground) / 2, -0.4); c.castShadow = true; add(c); add(wbox(cm, px - 0.42, s.y0 - 0.28, px + 0.42, s.y0, -0.82, 0.02)); add(wbox(cm, px - 0.42, ground, px + 0.42, ground + 0.32, -0.82, 0.02)); }
+          } else if (def.open) { // high in open air: hung on chains
+            add(wbox(capM, s.x0, s.y0, s.x1, s.y1, -1.6, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
+            for (const px of [s.x0 + 0.3, s.x1 - 0.3]) add(chain(0x6a6a6a, 0.22, 9, px, s.y1 + 4.5, -0.4));
           } else { // a stone slab built into the wall, carried on carved corbels
             add(wbox(capM, s.x0, s.y0, s.x1, s.y1, ZB, 0.8)); add(nosing(blockM, s.x0, s.x1, s.y1 + 0.004, 0.8));
             const n = Math.max(2, Math.ceil(w / 2)); for (let i = 0; i < n; i++) { const cx = s.x0 + 0.4 + (w - 0.8) * (n === 1 ? 0.5 : i / (n - 1)); kitPiece(room, KIT, 'corbel', { stone: blockM && tm(S_.block, true) }, cx, s.y0, ZB + 1.7); }
@@ -252,7 +261,7 @@ export class World {
         }
         case 'mover': {
           const w = s.x1 - s.x0, grp = new THREE.Group(), cog = !!s.ref.orbit || T.cogs;
-          grp.add(box(cog ? GEAR() : tm(S_.block), -w / 2, -0.45, w / 2, 0, -1.6, 1.6)); grp.add(box(TRIM, -w / 2, -0.07, w / 2, 0.015, 1.56, 1.7));
+          if (cog) { grp.add(box(tm(['oak_planks', X]), -w / 2, -0.16, w / 2, 0, -1.6, 1.6)); for (const zz of [-1.6, 1.5]) grp.add(box(IRON, -w / 2 - 0.05, -0.42, w / 2 + 0.05, -0.12, zz, zz + 0.12)); for (const xx of [-w / 2, w / 2 - 0.1]) grp.add(box(IRON, xx, -0.42, xx + 0.1, -0.12, -1.6, 1.62)); } else grp.add(box(tm(S_.block), -w / 2, -0.45, w / 2, 0, -1.6, 1.6)); grp.add(box(TRIM, -w / 2, -0.07, w / 2, 0.015, 1.56, 1.7));
           if (cog) { const c = new THREE.Mesh(gearGeo(0.8, 10), GEAR()); c.position.set(0, -0.5, -1.9); grp.add(c); room.anim.push((t) => { c.rotation.z = t * 1.5; }); }
           else for (const dx of [-w / 2 + 0.2, w / 2 - 0.2]) { const ch = chain(0x8a8580, 0.3, 14, dx, 7, -1.2); grp.add(ch); }
           s.mesh = grp; add(grp); break;
@@ -287,7 +296,9 @@ export class World {
     for (const l of def.lava) this.lava(room, b.x0 + l.x, b.y0 + l.y, l.w, l.h);
     for (const w of def.water) this.water(room, b.x0 + w.x, b.y0 + w.y, w.w, w.h);
     for (const bl of room.blades) this.blade(room, bl);
-    for (const p of def.props) { try { await this.prop(room, p); } catch (e) { console.warn('prop', def.id, p.t, e); } }
+    room.wallRects = [];
+    for (const p of [...def.props].sort((a, c) => (/window/.test(c.t) ? 1 : 0) - (/window/.test(a.t) ? 1 : 0))) { try { await this.prop(room, p); } catch (e) { console.warn('prop', def.id, p.t, e); } }
+    this.sconces(room);
     SEED = seed; this.dress(room, seed);
     flushKit(room);
     // SotN-style breakable candle stands in the play plane
@@ -321,11 +332,11 @@ export class World {
     const add = o => { g.add(o); return o; }, zw = ZB + 0.035, stripM = (name, rep, dir) => new THREE.MeshStandardMaterial({ map: stripTex(name, rep, dir), roughness: 0.9 });
     const indoors = !!T.back, stone = !/library|portrait|gallery|servants|mirror|hollow/.test(th);
     const free = (x, hw, y) => !room.hung.some(o => Math.abs(o.y - y) < 6 && x + hw + 1.2 > o.x0 && x - hw - 1.2 < o.x1), hang = (x, hw, y) => { for (const dx of [0, 3, -3, 6, -6]) if (x + dx > b.x0 + 2 && x + dx < b.x1 - 2 && free(x + dx, hw, y)) { room.hung.push({ x0: x + dx - hw, x1: x + dx + hw, y }); return x + dx; } return null; };
-    if (T.backWall) { const h = Math.min(H - 1, 9), rep = Math.max(1, Math.round(W / 3));
+    if (T.backWall) { const h = Math.min(H - 1, T.wallH ?? 9), rep = Math.max(1, Math.round(W / 3));
       add(plane(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), W, 1.3, b.x0 + W / 2, b.y0 + FLOOR + 0.65, zw - 0.01));
-      add(plane(stripM('string_course', rep), W, 0.55, b.x0 + W / 2, b.y0 + FLOOR + 4.4, zw)); add(plane(stripM('frieze_strip', rep), W, 0.5, b.x0 + W / 2, b.y0 + h - 0.6, zw));
-      add(plane(new THREE.MeshBasicMaterial({ map: gradTex(), transparent: true, depthWrite: false }), W, h, b.x0 + W / 2, b.y0 + h / 2, zw + 0.012));
-      for (let x = b.x0 + rr(4, 8); x < b.x1 - 4; x += rr(7, 12)) if (rs() < 0.7) { const sz = rr(3, 4.6); add(plane(decal(rs() < 0.5 ? 'lichen_spots' : 'damp_rise', 0x0a100c, rr(0.4, 0.7)), sz, sz, x, b.y0 + FLOOR + rr(1.8, 5.5), zw + 0.02)); } }
+      if (h > 5) add(plane(stripM('string_course', rep), W, 0.55, b.x0 + W / 2, b.y0 + FLOOR + 4.4, zw));
+      if (h > 2.5) add(plane(stripM('coping', rep), W, 0.4, b.x0 + W / 2, b.y0 + h - 0.2, zw));
+      for (let x = b.x0 + rr(4, 8); x < b.x1 - 4; x += rr(7, 12)) if (rs() < 0.7) { const sz = Math.min(rr(3, 4.6), h - 1); if (sz > 1.2) add(plane(decal(rs() < 0.5 ? 'lichen_spots' : 'damp_rise', 0x0a100c, rr(0.4, 0.7)), sz, sz, x, b.y0 + FLOOR + Math.min(rr(1.8, 5.5), h - 0.5 - sz / 2), zw + 0.02)); } }
     if (indoors) {
       // darker plinth, courses at every storey, frieze under the vault, and the wall falling into shadow overhead
       add(plane(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }), W, 1.2, b.x0 + W / 2, b.y0 + FLOOR + 0.6, zw - 0.01));
@@ -335,7 +346,7 @@ export class World {
       const gm = new THREE.MeshBasicMaterial({ map: gradTex(), transparent: true, depthWrite: false }); add(plane(gm, W, H, b.x0 + W / 2, b.y0 + H / 2, zw + 0.012));
       if (T.starBand) add(plane(new THREE.MeshBasicMaterial({ map: stripTex('pv_blue_tapestry', Math.round(W / 4)), color: 0x8090d0 }), W, 1.6, b.x0 + W / 2, b.y0 + FLOOR + 3.2, zw + 0.004));
     }
-    if (T.backWall && !T.merlons) { const roof = pick(['slate_roof', 'shingle_roof', 'verdigris_roof', 'burnt_roof', 'roof_1@T', 'roof_2@T', 'roof_3@T', 'roof_4@T', 'roof@I', 'fishscale_slate', 'lead_roof']).split('@'), h = Math.min(H - 1, 9), rm = surface(roof[0], Math.max(1, Math.round(W / 4)), 1, { dir: roof[1] ? DIRS[roof[1]] : X }); const r = plane(rm, W, 2.6, b.x0 + W / 2, b.y0 + h + 1.6, ZB - 1.9); r.rotation.x = -0.75; add(r); add(plane(stripM('ridge_strip', Math.round(W / 3)), W, 0.3, b.x0 + W / 2, b.y0 + h + 2.56, ZB - 2.75)); }
+    if (T.backWall && !T.merlons && (T.wallH ?? 9) >= 6) { const roof = pick(['slate_roof', 'shingle_roof', 'verdigris_roof', 'burnt_roof', 'roof_1@T', 'roof_2@T', 'roof_3@T', 'roof_4@T', 'roof@I', 'fishscale_slate', 'lead_roof']).split('@'), h = Math.min(H - 1, 9), rm = surface(roof[0], Math.max(1, Math.round(W / 4)), 1, { dir: roof[1] ? DIRS[roof[1]] : X }); const r = plane(rm, W, 2.6, b.x0 + W / 2, b.y0 + h + 1.6, ZB - 1.9); r.rotation.x = -0.75; add(r); add(plane(stripM('ridge_strip', Math.round(W / 3)), W, 0.3, b.x0 + W / 2, b.y0 + h + 2.56, ZB - 2.75)); }
     // doors: a leaf swung open against the wall, dressed quoins up the jamb, voussoirs over the head
     const leaves = stone ? ['door_iron', 'studded_oak', 'door_poor', 'door_1@T', 'door_2@T', 'door_3@T', 'door_iron@I', 'door_iron2@I', 'door_pointed@I', 'door_great@I'] : ['door_rich', 'door_4@T', 'door_5@T', 'door_great@I', 'studded_oak'];
     for (const d of def.doors) if ((d.side === 'W' || d.side === 'E') && !def.open) {
@@ -389,8 +400,11 @@ export class World {
   // materials for the castle kit's slots in this room: the wall stone, dressed stone for mouldings, and the rest
   kitSlots(room) {
     const T = room.theme, S_ = room.spec;
-    return { stone: tm(S_.back || S_.wall, true), trim: tm(T.dress || S_.block || S_.wall, true), dark: DARK, wood: tm(['oak_planks', X], true), glow: GLOW, roof: tm(['slate_roof', X], true), glass: GLOW };
+    return { stone: tm(S_.back || S_.wall, true), trim: tm(T.dress || DRESS, true, 0.6), dark: DARK, wood: tm(['oak_planks', X], true), glow: GLOW, roof: tm(['slate_roof', X], true), glass: GLOW };
   }
+  // the top of whatever stands under x below height y (the floor at least); the underside of whatever is above
+  groundAt(room, x, y) { let best = room.b.y0 + FLOOR; for (const s of room.solids) if (!s.oneway && s.kind !== 'ceil' && x > s.x0 && x < s.x1 && s.y1 <= y + 0.01 && s.y1 > best) best = s.y1; return best; }
+  ceilingAt(room, x, y) { let best = room.b.y1 - FLOOR; for (const s of room.solids) if (x > s.x0 && x < s.x1 && s.y0 >= y && s.y0 < best) best = s.y0; return best; }
   // a compound pier (base, shaft, capital) standing at y0 and carrying an arch that springs at y1
   kitPier(room, x, y0, y1, sc = 1, z = ZB + 0.5) {
     const KIT = room.kit, P = { ...room.slots, stone: room.slots.trim }, bh = 0.75 * sc, ch = 0.72 * sc, zz = z + 0.36 * sc;
@@ -404,15 +418,17 @@ export class World {
   arcade(room, KIT, S) {
     const def = room.def, b = room.b, fy = b.y0 + FLOOR, cy = b.y1 - FLOOR, C = cy - fy, Z = ZB + 0.5, g = room.group, T = room.theme;
     room.kit = KIT; room.slots = S; room.arcade = true;
-    const P = { ...S, stone: S.trim }, trimM = tm(T.dress || room.spec.block || room.spec.wall), piers = [];
+    const P = { ...S, stone: S.trim }, trimM = tm(T.dress || DRESS, false, 0.6), piers = [];
     for (let x = b.x0 + 3.3; x < b.x1 - 1; x += 6.667) piers.push(x);
     room.pillarX = piers.slice();
     const tall = C > 8, heavy = def.props.filter(p => /altar|sarcophagus|throne|organ|statue|fountain|bookshelf|furnace|coffin|pews|bigbell/.test(p.t)).map(p => b.x0 + p.x);
     const stands = room.solids.filter(s => s.kind === 'block' && s.y0 <= fy + 0.1);
     const cornice = y => { g.add(wbox(trimM, b.x0, y, b.x1, y + 0.32, ZB, Z + 0.28)); g.add(nosing(trimM, b.x0, b.x1, y + 0.32, Z + 0.28, 0.08)); };
+    const solidsIn = (x0, x1, y0, y1) => room.solids.some(s => ['plat', 'block', 'ledge', 'crack', 'echo'].includes(s.kind) && s.x0 < x1 && s.x1 > x0 && s.y0 < y1 && s.y1 > y0);
     const tier = (name, spring, top, sy, sc) => {
       const rise = (name === 'bay_high' ? 4.9 : 3.6) * sy;
       for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) {
+        if (solidsIn(c - 2.9, c + 2.9, spring - 0.2, spring + rise + 0.5)) { room.blind = (room.blind || []).concat({ c, spring }); continue; }
         for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, name + part, part === '_spandrel' ? S : P, c, spring, ZB, 1, sy, 1);
         const rc = new THREE.Mesh(new THREE.ShapeGeometry(archShape(5.6, rise, 16, spring - (room._tierBase ?? fy))), RECESS); rc.position.set(c, spring, ZB + 0.04); g.add(rc); // the recess falls into shadow
       }
@@ -422,25 +438,31 @@ export class World {
         this.kitPier(room, x, y0, spring, sc, Z);
       }
       cornice(spring + top * sy);
-      room.arches = (room.arches || []).concat(piers.map(x => ({ c: x + 3.333, spring, apex: spring + rise })));
+      room.arches = (room.arches || []).concat(piers.map(x => ({ c: x + 3.333, spring, apex: spring + rise })).filter(a => !(room.blind || []).some(o => Math.abs(o.c - a.c) < 1 && o.spring === spring)));
       return spring + top * sy + 0.32;
     };
     let y;
+    const balcony = room.solids.filter(s => (s.kind === 'plat' || s.kind === 'block') && s.x1 - s.x0 >= 4 && s.y0 > fy + 5.6 && s.y0 < fy + 10.2).reduce((m, s) => Math.min(m, s.y0), Infinity);
     if (!tall) { room._tierBase = fy; y = tier('bay_low', Math.max(fy + 2.3, cy - 4.0), 4.0, 1, 0.72); }
     else {
-      room._tierBase = fy; y = tier('bay_high', fy + 4.6, 5.6, 1, 1.0);
-      for (let k = 0; cy - y > 3.0; k++) {
-        if (k % 2 === 0 && cy - y > 4.8) { room._tierBase = y; y = tier('bay_low', y + 1.3, 4.0, 0.8, 0.5); }
+      room._tierBase = fy;
+      y = balcony < Infinity ? tier('bay_low', Math.max(fy + 2.4, balcony - 4.3), 4.0, 1, 0.85) : tier('bay_high', fy + 4.6, 5.6, 1, 1.0); // a long balcony low over the arcade: a gallery carried on it
+      // upper storeys: galleries and clerestories alternate up to the vault (phones: lighter clerestories only, and not to the very top)
+      for (let k = 0, n = 0; cy - y > 3.0 && (!LOW_MEM || n < 3); k++, n++) {
+        if (k % 2 === 0 && cy - y > 4.8 && !LOW_MEM) { room._tierBase = y; y = tier('bay_low', y + 1.3, 4.0, 0.8, 0.5); }
         else { // clerestory: lancets between wall shafts
           const h = Math.min(4.4, cy - y - 0.6), sc = h / 4.6;
-          for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) if (c > b.x0 + 1.5 && c < b.x1 - 1.5) this.lancet(room, c, y + 0.35, sc, T.sky ? GLOW : this.nightGlass(c));
+          for (let c = piers[0] - 3.333; c < b.x1 + 3.3; c += 6.667) if (c > b.x0 + 1.5 && c < b.x1 - 1.5 && !solidsIn(c - 1.4, c + 1.4, y, y + h + 0.5)) { this.lancet(room, c, y + 0.35, sc, T.sky ? GLOW : this.nightGlass(c)); room.lancets = (room.lancets || 0) + 1; }
           for (const x of piers) kitPiece(room, KIT, 'pier_shaft', P, x, y, Z + 0.15, 0.4, h + 0.4, 0.4);
           y += h + 0.6; cornice(y - 0.3);
         }
       }
     }
     room._tierBase = null;
+    room.pierInfo = { piers, fy, C };
   }
+  // a dark arcade gets a sconce on every other pier with no fire near it (after the room's own torches are placed)
+  sconces(room) { const I = room.pierInfo; if (!I) return; I.piers.forEach((x, i) => { const ly = I.fy + Math.min(3.0, I.C - 1.5); if (i % 2 === 0 && !room.sources.some(s => Math.hypot(s.x - x, s.y - ly) < 6.5)) this.torch(room, x, ly, ZB + 1.55); }); }
   nightGlass(x) { return new THREE.MeshBasicMaterial({ map: Math.round(x) % 2 ? tex('leaded_glass') : glassTex(), color: Math.round(x) % 2 ? 0x8090b8 : 0xffffff, fog: false }); }
   // a two-light lancet with tracery and its moulded surround; sill at (x, y)
   lancet(room, x, y, sc, glassM, z = ZB) {
@@ -471,12 +493,18 @@ export class World {
     if (src) {
       const sk = src.clone(true), mats = {
         stone: new THREE.MeshStandardMaterial({ color: storm ? 0x0c0e16 : 0x10142a, roughness: 1, vertexColors: true, fog: false }),
+        stonelit: new THREE.MeshStandardMaterial({ color: storm ? 0x262c3c : 0x2c3656, emissive: storm ? 0x0a0c14 : 0x0c1222, roughness: 1, vertexColors: true, fog: false }),
         roof: new THREE.MeshStandardMaterial({ color: storm ? 0x080a10 : 0x0a0d1c, roughness: 0.6, metalness: 0.3, vertexColors: true, fog: false }),
         glow: new THREE.MeshBasicMaterial({ color: 0xffa24a, fog: false }), roseglow: new THREE.MeshBasicMaterial({ color: 0x2a1418, fog: false }), dark: new THREE.MeshBasicMaterial({ color: 0x04050a, fog: false }) };
       sk.traverse(o => { if (o.isMesh) { o.material = mats[(o.material.name || 'stone').replace(/\.\d+$/, '')] || mats.stone; o.castShadow = o.receiveShadow = false; o.frustumCulled = false; } });
       sk.scale.setScalar(0.5); sk.position.z = -92; g.add(sk);
       const place = () => { const c = this.cam || { x: (b.x0 + b.x1) / 2, y: b.y0 + 4 }; sk.position.x = c.x + (350 - c.x) * 0.16; sk.position.y = c.y - 40 + (60 - c.y) * 0.1; };
       place(); room.anim.push(place);
+      const far = src.clone(true), haze = new THREE.MeshBasicMaterial({ color: storm ? 0x1a2030 : 0x1c2440, fog: false }), hazeLit = new THREE.MeshBasicMaterial({ color: storm ? 0x242a3a : 0x27304e, fog: false });
+      far.traverse(o => { if (o.isMesh) { const n = (o.material.name || '').replace(/\.\d+$/, ''); o.material = n === 'glow' ? new THREE.MeshBasicMaterial({ color: 0x8a5a3a, fog: false }) : n === 'stonelit' ? hazeLit : haze; o.frustumCulled = false; } });
+      far.scale.set(-0.36, 0.36, 0.36); far.position.z = -125; g.add(far); // mirrored and smaller: the castle's far wings behind
+      const placeFar = () => { const c = this.cam || { x: (b.x0 + b.x1) / 2, y: b.y0 + 4 }; far.position.x = c.x + (420 - c.x) * 0.1 - 40; far.position.y = c.y - 28 + (60 - c.y) * 0.06; };
+      placeFar(); room.anim.push(placeFar);
     }
     const fogM = new THREE.MeshBasicMaterial({ map: cloudTex(), color: storm ? 0x39405a : 0x6a7aa8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), cards = [];
     for (let i = 0; i < 5; i++) { const c = plane(fogM, rnd(50, 90), rnd(8, 14), b.x0 + rnd(-20, b.x1 - b.x0 + 20), b.y0 + rnd(-4, 6) - drop * 0.3, -40 - i * 5); g.add(c); cards.push(c); }
@@ -491,9 +519,10 @@ export class World {
       let next = 3, flash = 0; room.anim.push((t, dt) => { for (const c of clouds) { c.position.x += dt * 3; if (c.position.x > b.x1 + 90) c.position.x = b.x0 - 90; } next -= dt; if (next <= 0) { next = rnd(2.5, 8); flash = 1; room.lightning = 0.25; } flash = Math.max(0, flash - dt * 4); fl.material.opacity = flash * (0.5 + Math.random() * 0.5) * 0.6; if (room.lightning > 0) room.lightning -= dt; });
     }
     if (room.def.theme === 'outdoor') { // the causeway: rails and arches under the road, broken at the west
-      const rm = surface('ashlar', 8, 0.5);
-      g.add(box(rm, b.x0, b.y0 + FLOOR, b.x1, b.y0 + FLOOR + 1.0, -2.0, -1.6));
-      for (let x = b.x0 + 2; x < b.x1; x += 4) g.add(box(rm, x - 0.25, b.y0 + FLOOR, x + 0.25, b.y0 + FLOOR + 1.3, -2.1, -1.5));
+      const rm = surface('ashlar', 8, 0.5), wm = tm(['bridge_ashlar', X]), cap = tm(DRESS, false, 0.6);
+      const gate = room.def.props.find(p => p.t === 'gatearch'), px1 = gate ? b.x0 + gate.x - 9.4 : b.x1;
+      g.add(wbox(wm, b.x0, b.y0 + FLOOR, px1, b.y0 + FLOOR + 1.0, -2.0, -1.6)); g.add(wbox(cap, b.x0, b.y0 + FLOOR + 1.0, px1, b.y0 + FLOOR + 1.12, -2.06, -1.54));
+      for (let x = b.x0 + 2; x < px1 + 0.5; x += 4) { g.add(wbox(wm, x - 0.28, b.y0 + FLOOR, x + 0.28, b.y0 + FLOOR + 1.3, -2.12, -1.48)); g.add(wbox(cap, x - 0.36, b.y0 + FLOOR + 1.3, x + 0.36, b.y0 + FLOOR + 1.42, -2.2, -1.4)); const k = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.32, 4), cap); k.rotation.y = Math.PI / 4; k.position.set(x, b.y0 + FLOOR + 1.58, -1.8); g.add(k); }
       for (let x = b.x0 + 6; x < b.x1; x += 12) { const a = new THREE.Mesh(new THREE.TorusGeometry(4.6, 0.9, 6, 16, Math.PI), rm); a.position.set(x, b.y0 - 6, -0.4); a.scale.z = 3.2; g.add(a); g.add(box(rm, x - 5.5, b.y0 - 30, x - 3.7, b.y0 - 6, -2.4, 1.6)); }
       for (let i = 0; i < 10; i++) g.add(box(rm, b.x0 - 1.4 + Math.random() * 0.8, b.y0 - Math.random() * 1.5, b.x0 + Math.random() * 0.5, b.y0 + FLOOR + Math.random() * 0.4, -2 + Math.random() * 3, -1.5 + Math.random() * 4));
     }
@@ -536,14 +565,27 @@ export class World {
     const fl = sprite(flameTex(), color, size, size * 1.6, x, y, z), glow = sprite(glowTex(), color === 0xffa040 ? 0xff7a2a : color, size * 6, size * 6, x, y, z, 0.42);
     room.group.add(fl, glow); room.flames.push({ fl, sx: size }); if (light) this.light(room, x, y + 0.1, z + 0.9, color === 0xffa040 ? 0xff9a50 : color, light, 13, fl);
   }
-  torch(room, x, y) {
-    const g = room.group, cup = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.07, 0.3, 8), IRON); cup.position.set(x, y, ZB + 0.45);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6), IRON); arm.rotation.x = Math.PI / 2; arm.position.set(x, y - 0.12, ZB + 0.2);
-    g.add(cup, arm); this.flame(room, x, y + 0.32, ZB + 0.45);
+  torch(room, x, y, z = ZB + 0.45) {
+    const g = room.group, cup = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.07, 0.3, 8), IRON); cup.position.set(x, y, z);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6), IRON); arm.rotation.x = Math.PI / 2; arm.position.set(x, y - 0.12, z - 0.25);
+    g.add(cup, arm); this.flame(room, x, y + 0.32, z);
   }
 
+  // is this piece of wall free of slabs, ledges, blocks and anything already hung there?
+  clearWall(room, x0, x1, y0, y1, m = 0.5) {
+    return !room.solids.some(s => ['plat', 'block', 'ledge', 'crack', 'echo', 'mover'].includes(s.kind) && s.x0 < x1 + m && s.x1 > x0 - m && s.y0 < y1 + m && s.y1 > y0 - m)
+      && !(room.wallRects || []).some(r => r.x0 < x1 + m && r.x1 > x0 - m && r.y0 < y1 + m && r.y1 > y0 - m);
+  }
+  findWall(room, x, hw, y0, y1, steps = [0, 3.333, -3.333, 6.667, -6.667, 10, -10]) {
+    for (const dx of steps) { const xx = x + dx; if (xx - hw < room.b.x0 + 0.8 || xx + hw > room.b.x1 - 0.8) continue; if (this.clearWall(room, xx - hw, xx + hw, y0, y1)) { room.wallRects.push({ x0: xx - hw, x1: xx + hw, y0, y1 }); return xx; } }
+    return null;
+  }
   async prop(room, p) {
     const b = room.b, g = room.group, T = room.theme; let x = b.x0 + p.x; const y = b.y0 + (p.y ?? FLOOR), top = b.y1 - FLOOR, ceil = top - y < 13 ? top : y + 6.6;
+    if (/^(banner|tapestry|painting|mirror)$/.test(p.t)) { // hangings move to the nearest clear wall, or stay in the store-room
+      const tall = p.t === 'banner', w = { banner: 1.7, tapestry: 3.4, painting: 2.4, mirror: 2.0 }[p.t], h = { banner: 3.6, tapestry: 2.8, painting: 2.8, mirror: 3.2 }[p.t], cy0 = Math.min(top - h / 2 - 0.3, y + (tall ? 4.2 : 3.0));
+      const nx = this.findWall(room, x, w / 2, cy0 - h / 2, cy0 + h / 2); if (nx === null) return; x = nx;
+    }
     { const hw = { window: p.big ? 2.2 : 1.6, rosewindow: 2.6, banner: 1.2, tapestry: 2, painting: 1.5, mirror: 1.3, bookshelf: 1.9, skullwall: 2.2, furnace: 1.9, organ: 2.6, ivy: 2.5, throne: 1.4, statue: 1 }[p.t]; if (hw) (room.hung ||= []).push({ x0: x - hw, x1: x + hw, y }); }
     const add = o => { g.add(o); return o; }, wood = surface('wood', 1, 1), stone = mat(T.wall, 1, 1), n0 = g.children.length, s0 = room.sources.length;
     switch (p.t) {
@@ -601,7 +643,8 @@ export class World {
           const want = y + (big ? 7.0 : 3.6), arch = (room.arches || []).filter(a => Math.abs(a.c - x) < 1 && want > a.spring - 4 && want < a.apex + 1).sort((a, c) => Math.abs(a.spring - want) - Math.abs(c.spring - want))[0];
           const room4 = arch ? (arch.apex - 0.4 - Math.max(y + 1.0, arch.spring - 3.2)) / 4.6 : 0, sc = arch && room4 > 0.55 ? Math.min(big ? 1.4 : 1.0, room4) : big ? 1.3 : 0.9;
           h = 4.6 * sc; w = 2.2 * sc; const sill = arch && room4 > 0.55 ? arch.apex - 0.35 - h : Math.min(top - h - 0.6, y + (big ? 5.0 : 2.0)); cy = sill + h / 2;
-          this.lancet(room, x, sill, sc, glassM);
+          const nx = this.findWall(room, x, w / 2 + 0.5, sill - 0.3, sill + h + 0.3, T.arcade ? [0, 6.667, -6.667, 13.333, -13.333] : [0, 2, -2, 4, -4]); if (nx === null) break; x = nx;
+          this.lancet(room, x, sill, sc, glassM); room.lancets = (room.lancets || 0) + 1;
         }
         const ray = plane(new THREE.MeshBasicMaterial({ map: rayTex(), color: lit ? 0xd07050 : 0x7b90d0, transparent: true, opacity: lit ? 0.14 : 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), w * 1.1, 13, x + 2.4, cy - 4.5, ZB + 1.6); ray.rotation.z = 0.45; ray.rotation.y = 0.25; add(ray);
         this.light(room, x + 1.5, cy - 2.5, 0.6, lit ? 0xff8060 : 0x8aa0ff, lit ? 14 : 12, 16); break;
@@ -618,10 +661,28 @@ export class World {
       case 'chain': add(chain(0x9a9590, 0.35, top - y, x, (top + y) / 2, ZB + 1.2)); break;
       case 'hook': { const len = Math.min(3.2, top - y - 2.2); add(chain(0x9a9590, 0.28, len, x, top - len / 2, -1.4)); const hk = add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 5, 12, 4.2), IRON)); hk.position.set(x, top - len - 0.15, -1.4); if (Math.round(x) % 2) { const pts = [[0.03, 0.34], [0.06, 0.26], [0.17, 0.12], [0.23, -0.05], [0.2, -0.22], [0.1, -0.32], [0, -0.34]].map(([r, yy]) => new THREE.Vector2(r, yy)); const meat = add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), std(0x9a5a4a, { roughness: 0.6 }))); meat.position.set(x, top - len - 0.75, -1.4); const bone = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 5), std(0xe0d8c0))); bone.position.set(x, top - len - 0.2, -1.4); } break; }
       case 'cage': { const cy = Math.min(top - 2.2, y + 4.2), len = top - cy - 1; add(chain(0x9a9590, 0.3, len, x, top - len / 2, -1.3)); const c = add(new THREE.Group()); c.position.set(x, cy, -1.3); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2, 5), IRON); bar.position.set(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7); c.add(bar); } for (const ry of [-0.5, 0.4]) c.add(new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.03, 5, 20), IRON).rotateX(Math.PI / 2).translateZ(-ry)); if (Math.round(x) % 2) { const sk = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), std(0xd8d0b8)); sk.position.set(0.1, -0.82, 0); c.add(sk); } add(new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.5, 10), IRON)).position.set(x, cy + 1.25, -1.3); add(new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 10), IRON)).position.set(x, cy - 1, -1.3); room.anim.push(t => { c.rotation.y = Math.sin(t * 0.5 + x) * 0.3; }); break; }
-      case 'pews': { const pw = tm(['pv_dark_walnut', X]); for (let i = 0; i < 3; i++) { const px = x + i * 2.2 - 2.2; add(wbox(pw, px - 0.95, y + 0.44, px + 0.95, y + 0.5, -2.75, -2.3)); add(wbox(pw, px - 0.95, y + 0.55, px + 0.95, y + 1.15, -2.82, -2.76)); for (const ex of [-0.98, 0.98]) { add(wbox(pw, px + ex - 0.04, y, px + ex + 0.04, y + 1.25, -2.85, -2.25)); const fin = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), pw)); fin.position.set(px + ex, y + 1.36, -2.8); } } break; }
+      case 'pews': if (p.face) { const pw = tm(['pv_dark_walnut', X]), d = p.face; for (let i = 0; i < 4; i++) { const px = x + (i - 1.5) * 1.15; add(wbox(pw, px - 0.24, y + 0.42, px + 0.24, y + 0.48, -3.0, -0.9)); add(wbox(pw, px - d * 0.28 - 0.04, y, px - d * 0.28 + 0.04, y + 1.05, -3.0, -0.9)); const end = new THREE.Shape([[-0.32, 0], [0.32, 0], [0.32, 0.55], [0, 0.95], [-0.32, 1.1]].map(([a, c]) => new THREE.Vector2(a * d, c))); const eg = new THREE.ExtrudeGeometry(end, { depth: 0.07, bevelEnabled: false }); eg.translate(px, y, -0.97); worldUV(eg); add(new THREE.Mesh(eg, pw)).castShadow = true; } break; } else { const pw = tm(['pv_dark_walnut', X]); for (let i = 0; i < 3; i++) { const px = x + i * 2.2 - 2.2; add(wbox(pw, px - 0.95, y + 0.44, px + 0.95, y + 0.5, -2.75, -2.3)); add(wbox(pw, px - 0.95, y + 0.55, px + 0.95, y + 1.15, -2.82, -2.76)); for (const ex of [-0.98, 0.98]) { add(wbox(pw, px + ex - 0.04, y, px + ex + 0.04, y + 1.25, -2.85, -2.25)); const fin = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 4), pw)); fin.position.set(px + ex, y + 1.36, -2.8); } } break; }
       case 'throne': { const m = surface('oxblood_marble', 1, 1, { dir: X }); add(box(m, x - 3, y, x + 3, y + 0.6, ZB + 0.1, ZB + 3)); add(box(m, x - 1, y + 0.6, x + 1, y + 1.4, ZB + 0.5, ZB + 2)); add(box(m, x - 1, y + 1.4, x + 1, y + 5, ZB + 0.3, ZB + 0.7)); add(box(BRASS, x - 1.15, y + 4.9, x + 1.15, y + 5.2, ZB + 0.25, ZB + 0.75)); for (const dx of [-1, 1]) add(new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.9, 6), BRASS)).position.set(x + dx * 0.95, y + 5.6, ZB + 0.5); break; }
-      case 'gatearch': if (room.kit || (room.kit = await castleKit())) { kitPiece(room, room.kit, 'gatehouse', { stone: tm(['ashlar', T0], true), trim: tm(['bridge_ashlar', X], true), tunnel: tm(['ashlar', T0, 0x3a3a44], true), dark: IRON, glow: GLOW, roof: tm(['slate_roof', X], true) }, x - 2.8, y, 0); this.torch(room, x - 3.6, y + 3.2); this.light(room, x - 1, y + 2.5, 1.5, 0xff9a50, 10, 10); break; } else { const m = surface('ashlar', 2, 4); add(box(m, x - 4, y, x - 2.2, y + 11, -3.2, 0.2)); add(box(m, x + 0.1, y, x + 2.2, y + 11, -3.2, 0.2)); add(box(m, x - 4, y + 5.2, x + 2.2, y + 7, -3.2, 0.2)); for (let i = 0; i < 4; i++) { const c = add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), m)); c.position.set(x - 3.1 + (i % 2) * 4.2, y + 12.2 + (i > 1 ? 3 : 0), -1.5); if (i > 1) c.scale.setScalar(0.5); } this.torch(room, x - 2.6, y + 3.0); break; }
-      case 'portcullis': for (let i = 0; i < 6; i++) add(box(IRON, x + 0.15 * i - 0.4, y + 3.9, x + 0.15 * i - 0.35, y + 6.5, -2.6 + i * 0.7, -2.5 + i * 0.7)); break;
+      case 'gatearch': if (room.kit || (room.kit = await castleKit())) { const gx = x - 3.4; kitPiece(room, room.kit, 'gatehouse', { stone: tm(['bridge_ashlar', X], true), trim: tm(DRESS, true, 0.6), tunnel: tm(['ashlar', T0, 0x2a2a32], true), dark: IRON, glow: GLOW, glowdim: new THREE.MeshBasicMaterial({ color: 0x6a3a18, fog: false }), roof: tm(['slate_roof', X], true) }, gx, y, -1.0); for (const dx of [-2.75, 2.75]) this.torch(room, gx + dx, y + 3.4, -0.55); add(sprite(glowTex(), 0xff9040, 3.2, 3.6, gx, y + 1.9, -4.9, 0.35)); this.light(room, gx, y + 2.2, -4.2, 0xff8a40, 6, 6); break; } else { const m = surface('ashlar', 2, 4); add(box(m, x - 4, y, x - 2.2, y + 11, -3.2, 0.2)); add(box(m, x + 0.1, y, x + 2.2, y + 11, -3.2, 0.2)); add(box(m, x - 4, y + 5.2, x + 2.2, y + 7, -3.2, 0.2)); for (let i = 0; i < 4; i++) { const c = add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), m)); c.position.set(x - 3.1 + (i % 2) * 4.2, y + 12.2 + (i > 1 ? 3 : 0), -1.5); if (i > 1) c.scale.setScalar(0.5); } this.torch(room, x - 2.6, y + 3.0); break; }
+      case 'portcullis': { const py = y + DOOR_H - 0.15; add(wbox(DARK, x - 0.16, py, x + 0.16, py + 2.4, ZB, 1.25)); // the slot it rises into
+        for (let z = -2.9; z <= 1.0; z += 0.39) { add(box(IRON, x - 0.05, py - 0.05, x + 0.05, py + 2.2, z - 0.05, z + 0.05)); const t = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 5), IRON)); t.rotation.x = Math.PI; t.position.set(x, py - 0.2, z); }
+        for (const hy of [0.1, 0.8, 1.5]) add(box(IRON, x - 0.06, py + hy, x + 0.06, py + hy + 0.08, -3.0, 1.1)); break; }
+      case 'windlass': { const wd = tm(['adzed_beam', X]); for (const dx of [-0.9, 0.9]) { const a = add(wbox(wd, x + dx - 0.1, y, x + dx + 0.1, y + 1.9, -2.7, -2.5)); a.geometry.rotateZ(0); }
+        const drum = add(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.6, 14), wd)); drum.rotation.z = Math.PI / 2; drum.position.set(x, y + 1.5, -2.6);
+        for (let i = 0; i < 6; i++) { const sp = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 5), wd)); sp.position.set(x + 1.05, y + 1.5, -2.6); sp.rotation.x = i / 6 * Math.PI; }
+        add(new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.05, 6, 20), wd)).position.set(x + 1.05, y + 1.5, -2.6).constructor; g.children[g.children.length - 1].rotation.y = Math.PI / 2;
+        add(chain(0x6a6a6a, 0.24, top - y - 1.6, x - 0.3, (top + y + 1.6) / 2, -2.6)); add(chain(0x6a6a6a, 0.24, top - y - 1.6, x + 0.3, (top + y + 1.6) / 2, -2.6)); break; }
+      case 'dial': { // the great clock face: a backlit iron-ringed dial, hands still turning though it keeps no hour
+        const r = p.r || 3, cyy = Math.min(top - r - 0.6, y + (p.h ?? 7)), face = add(new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshBasicMaterial({ map: dialTex(), color: 0xd8c8a0, fog: false }))); face.position.set(x, cyy, ZB + 0.05);
+        const ring = add(new THREE.Mesh(new THREE.TorusGeometry(r + 0.12, 0.2, 8, 48), GEAR())); ring.position.set(x, cyy, ZB + 0.2);
+        const hand = (len, wdt, sp) => { const h = new THREE.Group(); h.position.set(x, cyy, ZB + 0.3 + wdt); const m = new THREE.Mesh(new THREE.BoxGeometry(wdt, len, 0.06), IRON); m.position.y = len / 2 - 0.25; h.add(m); add(h); room.anim.push(t => { h.rotation.z = -t * sp; }); };
+        hand(r * 0.62, 0.16, 0.05); hand(r * 0.88, 0.09, 0.6); add(sprite(glowTex(), 0xffc070, r * 3.2, r * 3.2, x, cyy, ZB + 0.02, 0.35)); this.light(room, x, cyy, ZB + 2.0, 0xffc078, 14, 14); break; }
+      case 'bellframe': { // the bell hung in its timber frame between the stone cradle piers
+        const wd = tm(['adzed_beam', X]), by = y + (p.h ?? 3.6); add(wbox(wd, x - 5.4, by, x + 5.4, by + 0.45, -2.2, -0.9));
+        for (const d of [-1, 1]) { const kb = wbox(wd, -0.09, -0.8, 0.09, 0.8, -0.09, 0.09); kb.geometry.rotateZ(d * 0.7); kb.geometry.translate(x + d * 4.3, by - 0.45, -1.55); worldUV(kb.geometry); add(kb); }
+        const k = await loadGLTF('assets/game/items/bells.glb'), src = k.scene.getObjectByName('bell_tenor');
+        if (src) { const piv = new THREE.Group(); piv.position.set(x, by, -1.55); const m = src.clone(); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); piv.add(m); const bb = new THREE.Box3().setFromObject(m), sz = bb.getSize(new THREE.Vector3()); m.scale.setScalar(2.6 / Math.max(sz.x, sz.y, sz.z)); const b2 = new THREE.Box3().setFromObject(m); m.position.y -= b2.max.y; m.position.x -= (b2.min.x + b2.max.x) / 2; m.position.z -= (b2.min.z + b2.max.z) / 2; m.traverse(o => { if (o.isMesh) o.castShadow = true; }); add(piv); room.anim.push(t => { piv.rotation.z = Math.sin(t * 0.6) * 0.03; }); }
+        break; }
       case 'bookshelf': { const w = 3.2, h = Math.min(4.6, top - y - 0.4); add(box(surface('pv_dark_walnut', 1, 1, { dir: X }), x - w / 2 - 0.12, y, x + w / 2 + 0.12, y + h + 0.15, ZB + 0.02, ZB + 0.7)); const t2 = tex('book_spines').clone(); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 3.2); add(plane(new THREE.MeshStandardMaterial({ map: t2, roughness: 0.85 }), w, h, x, y + h / 2 + 0.05, ZB + 0.72)); break; }
       case 'sarcophagus': { const k = await kit('sarcophagus'); if (k) { const mm = surface('mausoleum_marble', 1, 1, { dir: X }); k.traverse(c => { if (c.isMesh) c.material = Array.isArray(c.material) ? c.material.map(() => mm) : mm; }); k.scale.setScalar(0.92); k.position.set(x, y, -2.0); add(k); break; } const m = surface('mausoleum_marble', 1, 1, { dir: X }); add(box(m, x - 1.3, y, x + 1.3, y + 0.9, -2.6, -1.3)); add(box(m, x - 1.4, y + 0.9, x + 1.4, y + 1.1, -2.7, -1.2)); const eff = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 1.5, 4, 8), m)); eff.rotation.z = Math.PI / 2; eff.position.set(x, y + 1.25, -1.95); break; }
       case 'coffin': { const cs = new THREE.Shape([[0, 0], [0.24, 0], [0.42, 1.45], [0.3, 2.1], [-0.3, 2.1], [-0.42, 1.45], [-0.24, 0]].map(([a, c]) => new THREE.Vector2(a, c))); const cg = new THREE.ExtrudeGeometry(cs, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1 }); cg.translate(x, y, ZB + 0.15); worldUV(cg); const c = add(new THREE.Mesh(cg, tm(['pv_dark_walnut', X, 0x8a7060]))); c.castShadow = true; if (false) c.rotation.z = (Math.round(x) % 2 ? 1 : -1) * 0.08; add(box(BRASS, x - 0.2, y + 1.3, x + 0.2, y + 1.36, ZB + 0.6, ZB + 0.63)); add(box(BRASS, x - 0.03, y + 1.0, x + 0.03, y + 1.6, ZB + 0.6, ZB + 0.63)); break; }
@@ -654,7 +715,7 @@ export class World {
       case 'anvil': add(box(IRON, x - 0.5, y + 0.6, x + 0.6, y + 0.9, -2.2, -1.7)); add(box(IRON, x - 0.2, y + 0.3, x + 0.2, y + 0.6, -2.1, -1.8)); add(box(wood, x - 0.35, y, x + 0.35, y + 0.3, -2.3, -1.6)); break;
       case 'furnace': { const bm = surface('pv_hearth_brick', 1, 1, { dir: X }); add(box(bm, x - 1.7, y, x + 1.7, y + 3.4, ZB + 0.05, ZB + 1.5)); add(box(bm, x - 0.9, y + 3.4, x + 0.9, Math.min(top, y + 7), ZB + 0.05, ZB + 1.1)); add(plane(new THREE.MeshBasicMaterial({ map: lavaTex(), color: 0xffb060 }), 1.6, 1.3, x, y + 1.0, ZB + 1.52)); add(sprite(glowTex(), 0xff6a20, 5, 4, x, y + 1.1, ZB + 1.8, 0.5)); this.light(room, x, y + 1.3, -0.6, 0xff6a20, 18, 12); break; }
       case 'rubble': for (let i = 0; i < 9; i++) { const s = rnd(0.2, 0.7), r = add(box(stone, 0, 0, s, s * rnd(0.5, 1), 0, s)); r.position.set(x + rnd(-1.4, 1.4), y + s * 0.3, rnd(-3.0, -1.7)); r.rotation.set(rnd(0, 1), rnd(0, 3), rnd(0, 1)); } break;
-      case 'altar': { const m = surface('mausoleum_marble', 1, 1, { dir: X }); add(box(m, x - 1.5, y, x + 1.5, y + 1.0, -2.8, -1.6)); add(box(std(0x7a1018, { roughness: 0.9 }), x - 1.0, y + 1.0, x + 1.0, y + 1.03, -2.85, -1.5)); for (const dx of [-1.1, 1.1]) { add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), BRASS)).position.set(x + dx, y + 1.3, -2.2); add(sprite(flameTex(), 0xffb050, 0.14, 0.24, x + dx, y + 1.75, -2.2)); } this.light(room, x, y + 1.9, -1.4, 0xffa860, 7, 8); break; }
+      case 'altar': { if (p.steps) { const sm = tm(DRESS, false, 0.6); for (let i = 0; i < p.steps; i++) add(wbox(sm, x - 2.6 + i * 0.4, y + i * 0.2 - 0.2, x + 2.6 - i * 0.4, y + (i + 1) * 0.2 - 0.2, -3.3 + i * 0.25, -0.6 - i * 0.25)); } const m = surface('mausoleum_marble', 1, 1, { dir: X }); add(box(m, x - 1.5, y, x + 1.5, y + 1.0, -2.8, -1.6)); add(box(std(0x7a1018, { roughness: 0.9 }), x - 1.0, y + 1.0, x + 1.0, y + 1.03, -2.85, -1.5)); for (const dx of [-1.1, 1.1]) { add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), BRASS)).position.set(x + dx, y + 1.3, -2.2); add(sprite(flameTex(), 0xffb050, 0.14, 0.24, x + dx, y + 1.75, -2.2)); } this.light(room, x, y + 1.9, -1.4, 0xffa860, 7, 8); break; }
       case 'arch': { const h = Math.min(6, top - y - 0.6); for (const dx of [-2.2, 2.2]) add(box(stone, x + dx - 0.35, y, x + dx + 0.35, y + h - 2.2, ZB + 0.05, ZB + 0.8)); const a = add(new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.35, 6, 20, Math.PI), stone)); a.position.set(x, y + h - 2.2, ZB + 0.42); break; }
       case 'column': if (!(room.pillarX || []).some(px => Math.abs(px - x) < 2.2)) { room.kit ||= await castleKit(); room.slots ||= this.kitSlots(room); this.kitPier(room, x, y, Math.min(top - 0.2, y + 6.5), 0.8); } break;
       case 'waterfall': { const h = Math.min(top - y, 14), t2 = tex('moat_water').clone(); t2.wrapS = t2.wrapT = THREE.RepeatWrapping; t2.repeat.set(1, h / 4); const wf = add(plane(new THREE.MeshBasicMaterial({ map: t2, color: 0x9ad0e0, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }), 1.8, h, x, y + h / 2, ZB + 0.3)); add(sprite(glowTex(), 0xa0d8e8, 5, 2.5, x, y + 0.6, ZB + 0.8, 0.4)); room.anim.push(t => { t2.offset.y = t * 0.9; }); this.light(room, x, y + 2, -1, 0x5ab0d0, 7, 9); break; }
@@ -737,6 +798,11 @@ function stripTex(name, rep, dir = X) { const k = name + rep; if (!stripCache.ha
 function mirrorTex() { return _mirror ||= canvasTex(64, 128, x => { const g = x.createLinearGradient(0, 0, 64, 128); g.addColorStop(0, '#39405c'); g.addColorStop(0.45, '#10121e'); g.addColorStop(0.55, '#1c2034'); g.addColorStop(1, '#5a6288'); x.fillStyle = g; x.fillRect(0, 0, 64, 128); x.globalAlpha = 0.25; x.fillStyle = '#c8d4ff'; x.beginPath(); x.moveTo(8, 128); x.lineTo(30, 0); x.lineTo(40, 0); x.lineTo(18, 128); x.fill(); x.globalAlpha = 0.5; x.fillStyle = '#0a0a12'; x.beginPath(); x.ellipse(36, 92, 9, 26, 0, 0, 7); x.fill(); x.beginPath(); x.arc(36, 58, 7, 0, 7); x.fill(); }); }
 // soft black fade used to ground the tops and bottoms of tall walls
 function gradTex() { return _grad ||= canvasTex(4, 128, x => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(0,0,0,.85)'); g.addColorStop(0.4, 'rgba(0,0,0,.1)'); g.addColorStop(0.8, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.4)'); x.fillStyle = g; x.fillRect(0, 0, 4, 128); }); }
+let _dial; function dialTex() { return _dial ||= canvasTex(512, 512, x => { const g = x.createRadialGradient(256, 256, 40, 256, 256, 256); g.addColorStop(0, '#f2e2b8'); g.addColorStop(0.75, '#c8a870'); g.addColorStop(1, '#3a2a14'); x.fillStyle = g; x.beginPath(); x.arc(256, 256, 256, 0, 7); x.fill();
+  x.strokeStyle = '#2a1c0c'; x.lineWidth = 6; for (const r of [244, 196, 120]) { x.beginPath(); x.arc(256, 256, r, 0, 7); x.stroke(); }
+  x.fillStyle = '#20140a'; x.font = 'bold 44px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'].forEach((n, i) => { const a = i / 12 * Math.PI * 2; x.save(); x.translate(256 + Math.sin(a) * 220, 256 - Math.cos(a) * 220); x.rotate(a); x.fillText(n, 0, 0); x.restore(); });
+  for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2; x.beginPath(); x.moveTo(256 + Math.sin(a) * 196, 256 - Math.cos(a) * 196); x.lineTo(256 + Math.sin(a) * (i % 5 ? 184 : 170), 256 - Math.cos(a) * (i % 5 ? 184 : 170)); x.lineWidth = i % 5 ? 2 : 5; x.stroke(); }
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; x.beginPath(); x.moveTo(256, 256); x.lineTo(256 + Math.sin(a) * 120, 256 - Math.cos(a) * 120); x.lineWidth = 3; x.stroke(); } }); }
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 export function glowTex() { return _glow ||= canvasTex(64, 64, (x) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }); }
 export function flameTex() { return _flame ||= canvasTex(32, 64, x => { const g = x.createRadialGradient(16, 44, 2, 16, 40, 22); g.addColorStop(0, 'rgba(255,255,230,1)'); g.addColorStop(0.4, 'rgba(255,180,60,.9)'); g.addColorStop(1, 'rgba(255,60,0,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(16, 2); x.quadraticCurveTo(30, 40, 16, 62); x.quadraticCurveTo(2, 40, 16, 2); x.fill(); }); }

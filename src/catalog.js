@@ -7,7 +7,7 @@ export const THEME_NAMES = ['outdoor', 'hall', 'shaft', 'shrine', 'gallery', 'cr
   'courtyard', 'vestibule', 'servants', 'aqueduct', 'cistern', 'ossuary', 'prison', 'portrait', 'library', 'garden', 'menagerie',
   'catacomb', 'royalcrypt', 'clock', 'mine', 'forge', 'magma', 'mirror', 'observatory', 'rampart', 'belfry', 'sanctum', 'hollow'];
 
-export const PROP_TYPES = ['torch', 'lamp', 'banner', 'window', 'statue', 'candles', 'chain', 'pews', 'throne', 'gatearch', 'portcullis',
+export const PROP_TYPES = ['torch', 'lamp', 'banner', 'window', 'statue', 'candles', 'chain', 'pews', 'throne', 'gatearch', 'portcullis', 'windlass', 'dial', 'bellframe',
   'bookshelf', 'chandelier', 'sarcophagus', 'bones', 'skullwall', 'cage', 'gear', 'pendulum', 'barrel', 'crate', 'table', 'tapestry',
   'painting', 'mirror', 'tree', 'thornbush', 'fountain', 'grave', 'organ', 'bigbell', 'brazier', 'crystal', 'stalactite', 'pipe', 'web',
   'telescope', 'orrery', 'anvil', 'furnace', 'rubble', 'altar', 'arch', 'column', 'rug', 'gargoyle', 'coffin', 'ivy', 'waterfall', 'mushroom', 'hook', 'rosewindow'];

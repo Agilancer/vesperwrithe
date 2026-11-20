@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { cloneGLTF, weaponModel, audio, WEAPONS } from './assets.js';
+import { glowTex } from './world.js';
+import { cloneGLTF, weaponModel, audio, WEAPONS, addRim } from './assets.js';
+const RIM_COOL = new THREE.Color(0x7c8cb0), RIM_HOT = new THREE.Color(0xff3020), RIM_HIT = new THREE.Color(0xffffff);
 import { fitHeight } from './world.js';
 import { BESTIARY } from './catalog.js';
 
@@ -49,6 +51,7 @@ export class Enemy {
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });
+    this.rim = { col: RIM_COOL.clone(), k: 0.3 }; for (const m of this.mats) addRim(m, this.rim); this.weaponMats = [];
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
     try { await this.armUp(); } catch (e) { console.warn('arm', this.spec.t, e); }
@@ -64,7 +67,7 @@ export class Enemy {
     const T = this.T, ms = this.model.scale.x;
     const attach = async (bone, id, len, q, off) => {
       if (!bone || !WEAPONS[id]) return;
-      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s);
+      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
       const hs = bone.getWorldScale(new THREE.Vector3()).x || 1; s.scale.setScalar(len / hs); s.quaternion.copy(q); if (off) s.position.copy(off).multiplyScalar(1 / hs); s.add(w);
     };
     if (T.sword) { // UAL rig: blade along the knuckle line, handle across the palm
@@ -218,9 +221,15 @@ export class Enemy {
     this.root.position.set(this.pos.x, this.pos.y + (this.state === 'hang' ? T.h : 0), T.quad ? -0.3 : 0); this.model.rotation.y = this.yaw;
     this.root.rotation.z = this.state === 'hang' ? Math.PI : 0;
     // white = it was hit; a red heat building toward the blow = it is about to strike (held hot for the last fifth)
-    const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, wq = f ? 0 : Math.round(Math.min(1, this.warn || 0) * 8), key = f * 1000 + st * 10 + wq * 100;
+    // a cool rim keeps every foe readable against dark stone; a wind-up heats the rim to red and sets the weapon glowing,
+    // with a flare at the hand for the last moment; a hit flashes the rim white. The body itself only takes a light tint.
+    const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, w = f ? 0 : Math.min(1, this.warn || 0), key = f * 10 + st;
     this.warn = 0;
-    if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : wq ? 0xff2a10 : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st || wq ? col : m.userData.em); m.emissiveIntensity = f ? 0.7 : wq ? 0.08 + (wq / 8) * (wq >= 7 ? 0.75 : 0.45) : st ? 0.6 : m.userData.emI; } }
+    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
+    if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.25 : st ? 0.45 : m.userData.emI; } }
+    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat) { this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? 0xff3a10 : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
+    if (w > 0.78 || this.flare?.visible) { if (!this.flare) { this.flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); this.root.add(this.flare); }
+      const fl = this.flare; fl.visible = w > 0.78; if (fl.visible) { const at = this.hand ? this.hand.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(this.mouth.x, this.mouth.y, 0); this.root.worldToLocal(at); fl.position.copy(at); fl.position.z += 0.3; fl.scale.setScalar(0.7 + (w - 0.78) * 2.5); fl.material.opacity = (w - 0.78) / 0.22; } }
   }
 
   // ------------------------------------------------------------------------------------------------ taking hits
@@ -254,7 +263,7 @@ export class Enemy {
 
   damage(n, elem, quiet, crit, pushDir) {
     if (this.dead || this.invuln) return;
-    this.hp -= n; this.flash = 0.08; if (pushDir) this.lastPush = pushDir;
+    this.hp -= n; this.flash = 0.08; if (pushDir) this.lastPush = pushDir; this.lastMelee = !quiet && !!pushDir;
     if (quiet) this.g.ui.dmg(this.pos.x + rnd(-0.3, 0.3), this.pos.y + Math.min(this.T.h, 3.4) + 0.2, Math.round(n), elem);
     if (!quiet) audio.play('sword_impact_hit_' + (1 + (Math.random() * 3 | 0)), 0.55);
     this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 4 : 10, 3);
@@ -274,7 +283,7 @@ export class Enemy {
     this.dead = true; this.state = 'dead'; this.t = 0; this.mv = null; this.atk = null; this.air = false; this.hidden = false; this.root.visible = true; this.setAlpha(1); this.root.rotation.z = 0;
     const d = this.clipFor(this.T.anim.death); if (d) this.play(d, 0.1, { once: true, restart: true });
     audio.play(this.boss ? 'rock_wall_2' : 'bone_snap', 0.5);
-    if (!this.boss) { this.vel.x = (this.lastPush || -this.facing) * 4.5; if (!this.flying) this.vel.y = 3.2; this.g.stopT = Math.max(this.g.stopT || 0, 0.1); }
+    if (!this.boss) { this.vel.x = (this.lastPush || -this.facing) * 4.5; if (!this.flying) this.vel.y = 3.2; if (this.lastMelee) this.g.stopT = Math.max(this.g.stopT || 0, 0.1); } // the kill freeze answers your own blade, not a poison tick
     this.g.onEnemyDeath(this);
   }
 
@@ -503,7 +512,7 @@ const MOVE = {
     e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y);
     const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
     if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); } return true; }
-    return Math.abs(e.pos.x - mv.s.x0) > (m.range || 14) || mv.t > 2.6 || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram');
+    return Math.abs(e.pos.x - mv.s.x0) > (m.range || 14) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
   },
   ram(e, mv, dt, P, c) { return MOVE.charge(e, mv, dt, P, c); },
   leap(e, mv, dt, P, c) {

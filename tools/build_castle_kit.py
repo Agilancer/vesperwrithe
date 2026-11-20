@@ -22,7 +22,7 @@ def mat(name, col=(0.6, 0.6, 0.6)):
     if name not in MATS:
         m = bpy.data.materials.new(name); m.diffuse_color = (*col, 1); MATS[name] = m
     return MATS[name]
-for n, c in [('roseglow', (.6, .2, .2)), ('tunnel', (.25, .25, .27)), ('stone', (.55, .53, .5)), ('trim', (.62, .58, .52)), ('dark', (.08, .08, .09)), ('wood', (.25, .16, .1)),
+for n, c in [('glowdim', (.6, .4, .2)), ('roseglow', (.6, .2, .2)), ('tunnel', (.25, .25, .27)), ('stone', (.55, .53, .5)), ('trim', (.62, .58, .52)), ('dark', (.08, .08, .09)), ('wood', (.25, .16, .1)),
              ('glass', (.3, .35, .5)), ('glow', (1, .7, .35)), ('roof', (.12, .13, .16))]: mat(n, c)
 
 # ------------------------------------------------------------------------------------------------ helpers
@@ -202,10 +202,12 @@ def white(ob):
     me.color_attributes.active_color = attr
 
 PIECES = []
-def finish(ob, uv=True, ao=True, uvsize=4.0, **kw):
-    for m in ob.modifiers: pass
+def finish(ob, uv=False, ao=True, uvsize=4.0, smooth=35, **kw):
     bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.shade_flat()
+    bm = bmesh.new(); bm.from_mesh(ob.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4); bm.to_mesh(ob.data); bm.free()
+    if smooth:  # shared vertices across soft curves, split only where the stone has an arris
+        bpy.ops.object.shade_smooth(); ob.data.set_sharp_from_angle(angle=math.radians(smooth))
+    else: bpy.ops.object.shade_flat()
     if uv: box_uv(ob, uvsize)
     if ao: bake_ao(ob, **kw)
     else: white(ob)
@@ -269,9 +271,9 @@ def make_bay(name, rise, top):
     """A blind arcade bay, centred at x=0, from springing height 0 (the game puts it on the capitals) up to `top`.
     spandrel: wall face around the arch (front at y=-0.5, back at y=0); archivolt: moulded arch ring proud of it."""
     span = BAY - 1.0
-    hole = arch_xz(span, rise, 28)
-    outer = [(-BAY / 2, 0), (BAY / 2, 0), (BAY / 2, top), (-BAY / 2, top)]
-    finish(solid_face(name + '_spandrel', outer, [hole], 0.5, 'stone', -0.5))
+    arch = arch_xz(span, rise, 28)
+    outer = [(-BAY / 2, -0.35), (-span / 2, -0.35)] + arch + [(span / 2, -0.35), (BAY / 2, -0.35), (BAY / 2, top), (-BAY / 2, top)]
+    finish(solid_face(name + '_spandrel', outer, [], 0.5, 'stone', -0.5), smooth=0)
     finish(miter_sweep(name + '_arch', arch_xz(span + 0.36, rise + 0.2, 36), roll_uv(0.55, 0.5), -0.5, False, 'trim'))
     finish(miter_sweep(name + '_hood', arch_xz(span + 1.3, rise + 0.75, 36), [(-0.1, 0), (-0.1, 0.16), (-0.02, 0.22), (0.08, 0.18), (0.1, 0)], -0.5, False, 'trim'))
 
@@ -360,40 +362,36 @@ def windows(x0, x1, z0, z1, y, n, w=0.35, h=0.8, chance=0.55, rnd=random.Random(
     return out
 
 def make_gatehouse():
-    """Barbican seen from the causeway: the gate passage runs through it along x. Origin at the floor of the gate's
-    west face, centre of the play plane (y=0). Everything at y<-0.9 is behind the hero; the front face is at y=-3.2
-    only ABOVE the passage (z>5.6), so the hero walks under the overhang into the dark tunnel."""
+    """The barbican at the end of the causeway, seen face-on: origin = centre of the gate passage at the floor, the gate
+    wall's face at y=0 (the game sets it behind the play plane, so the hero walks up into the dark archway)."""
     S, T = [], []
-    # back mass and towers (behind the hero)
-    S.append(box('gh_back', 0, 0.9, 0, 12, 7.0, 5.6, 'tunnel')); S.append(box('gh_back2', 0, 0.9, 5.6, 12, 7.0, 21, 'stone'))
-    S += tower('gh_tw', -0.6, 3.6, 3.1, 0, 23, 1.15, seg=16)
-    S += tower('gh_tw2', 12.2, 4.2, 2.8, 0, 25, 1.25, seg=16)
-    # upper storey spanning over the passage toward the camera
-    S.append(box('gh_upper', 0.3, -3.2, 5.6, 12, 0.9, 19.5, 'stone'))
-    # machicolations: a corbelled parapet on the front, with merlons
-    for i in range(12):
-        x = 0.7 + i * 0.95; T.append(box('mc', x, -3.75, 17.6, x + 0.38, -3.2, 18.4, 'trim', 0.03))
-    T.append(box('gh_par', 0.2, -3.85, 18.4, 12.1, -3.0, 19.6, 'stone'))
-    for i in range(7): x = 0.4 + i * 1.7; T.append(box('mer', x, -3.85, 19.6, x + 1.0, -3.0, 20.7, 'stone', 0.03))
-    # pointed gate arch on the WEST face (seen edge-on) - a deep arch ring framing the tunnel mouth
-    ga = miter_sweep('gh_arch', [(-2.3, 0)] + arch_xz(4.6, 3.6, 20, 2.0) + [(2.3, 0)], roll_uv(0.9, 0.8), 0.0, False, 'trim')
-    ga.rotation_euler = (0, 0, -math.pi / 2); ga.location = (0.0, -1.2, 0); apply(ga); bpy.ops.object.transform_apply(location=True, rotation=False, scale=False); T.append(ga)
-    # tunnel vault seen from below: ribs across the passage
-    for i in range(6):
-        x = 0.9 + i * 2.0; T.append(box('rib', x, -3.2, 5.25, x + 0.4, 0.9, 5.6, 'tunnel', 0.04))
-    # portcullis teeth hanging in the slot just inside the mouth
-    for i in range(7):
-        y_ = -2.6 + i * 0.6; T.append(box('pc', 1.2, y_ - 0.05, 4.6, 1.32, y_ + 0.05, 5.6, 'dark')); T.append(cyl('pct', 1.26, y_, 4.25, 4.6, 0.06, 6, 'dark', 0.0))
-    T.append(box('pcbar', 1.15, -2.8, 5.0, 1.38, 1.0, 5.12, 'dark'))
-    # arrow loops and a heraldic panel on the front face
-    for x, z in [(2.2, 9), (5.5, 12.5), (9.0, 9), (2.2, 14.5), (9.0, 14.5)]:
-        T.append(box('loop', x - 0.09, -3.3, z, x + 0.09, -3.15, z + 1.6, 'dark')); T.append(box('loopx', x - 0.4, -3.3, z + 0.7, x + 0.4, -3.15, z + 0.86, 'dark'))
-    T.append(box('panel', 4.4, -3.35, 7.2, 7.4, -3.18, 10.6, 'trim', 0.05))
-    T.append(box('panelhood', 4.1, -3.55, 10.6, 7.7, -3.1, 10.95, 'trim', 0.04))
-    # string course
-    T.append(box('course', 0.2, -3.45, 11.2, 12.1, -3.1, 11.55, 'trim', 0.04))
-    T += windows(1, 11, 7, 16, -3.25, 6, chance=0.5)
-    finish(join('gatehouse', S + T), ao=True, samples=24, dist=3.0)
+    gw, spring, rise = 3.8, 3.3, 2.7
+    arch = arch_xz(gw, rise, 22, spring); opening = [(-gw / 2, 0)] + arch + [(gw / 2, 0)]
+    S.append(solid_face('gh_wall', [(-3.4, 0), (-gw / 2, 0)] + arch + [(gw / 2, 0), (3.4, 0), (3.4, 11.0), (-3.4, 11.0)], [], 0.9, 'stone', 0.0))
+    T.append(solid_face('gh_tunnel', [(-gw / 2 - 0.3, 0)] + arch_xz(gw + 0.6, rise + 0.3, 22, spring) + [(gw / 2 + 0.3, 0)], [opening], 3.8, 'tunnel', 0.9))
+    T.append(box('gh_back', -3.0, 4.6, -0.2, 3.0, 5.0, 7.2, 'tunnel'))
+    T.append(miter_sweep('gh_arch', [(-gw / 2 - 0.36, 0)] + arch_xz(gw + 0.72, rise + 0.3, 30, spring) + [(gw / 2 + 0.36, 0)], roll_uv(0.6, 0.72), 0.0, False, 'trim'))
+    T.append(miter_sweep('gh_hood', arch_xz(gw + 1.9, rise + 0.95, 30, spring), [(-0.12, 0), (-0.12, 0.2), (-0.02, 0.27), (0.1, 0.22), (0.12, 0)], 0.0, False, 'trim'))
+    # raised portcullis: its lower rail and teeth hang in the arch head
+    for i in range(10):
+        x = -1.7 + i * 0.378; top = spring + rise * 0.9
+        T.append(box('pc', x - 0.05, 0.75, 4.15, x + 0.05, 0.85, top, 'dark')); T.append(cyl('pct', x, 0.8, 3.8, 4.15, 0.06, 6, 'dark', 0.0))
+    for z in (4.2, 4.95, 5.7): T.append(box('pcr', -1.8, 0.72, z, 1.8, 0.88, z + 0.09, 'dark'))
+    # towers
+    for sx in (-1, 1):
+        S += tower('gh_t', sx * 5.0, 1.6, 2.3, 0, 12.5, 1.25, seg=18)
+        for z in (3.2, 7.4): T.append(box('loop', sx * 5.0 - 0.07, 1.6 - 2.4, z, sx * 5.0 + 0.07, 1.6 - 2.25, z + 1.5, 'dark')); T.append(box('loopx', sx * 5.0 - 0.32, 1.6 - 2.4, z + 0.62, sx * 5.0 + 0.32, 1.6 - 2.25, z + 0.78, 'dark'))
+        T.append(cyl('plinth', sx * 5.0, 1.6, 0, 1.2, 2.55, 18, 'trim', 2.35))
+    # string course, heraldic panel, machicolations on corbels, parapet and merlons
+    T.append(box('course', -3.4, -0.22, 6.9, 3.4, 0.0, 7.15, 'trim', 0.03))
+    sh = [(-0.75, 1.1), (0.75, 1.1), (0.75, 0.2), (0.5, -0.45), (0.0, -0.8), (-0.5, -0.45), (-0.75, 0.2)]
+    T.append(solid_face('arms', [(x, z + 8.4) for x, z in sh], [], 0.14, 'trim', -0.14))
+    T.append(box('armsframe', -1.05, -0.06, 7.35, 1.05, 0.0, 9.75, 'trim', 0.03))
+    for i in range(9):
+        x = -3.1 + i * 0.775; T.append(box('mc', x - 0.16, -0.75, 9.9, x + 0.16, 0.0, 10.55, 'trim', 0.03)); T.append(box('mcb', x - 0.12, -0.75, 9.6, x + 0.12, -0.15, 9.9, 'trim', 0.02))
+    T.append(box('gh_par', -3.5, -0.85, 10.55, 3.5, 0.6, 11.5, 'stone'))
+    for i in range(5): x = -3.2 + i * 1.6; T.append(box('mer', x, -0.85, 11.5, x + 0.95, -0.25, 12.4, 'stone', 0.03))
+    finish(join('gatehouse', S + T), ao=True, samples=24, dist=2.5, smooth=30)
 
 def make_skyline():
     """Castle Velscour seen from afar: one model, the same from every open-air room. Origin = base centre.
@@ -443,7 +441,10 @@ def make_skyline():
     for x0, x1, z0, z1, y, n in [(-22, 22, 26, 108, -6.1, 70), (-108, -52, 34, 62, -2.1, 26), (62, 82, 34, 96, -6.1, 26), (-52, -42, 34, 92, -6.1, 14), (-138, 138, 16, 32, -8.1, 50)]:
         glow += windows(x0, x1, z0, z1, y, max(4, n // 3), 0.5, 1.8, 0.5, rnd)
     sk = join('skyline', S + glow)
-    finish(sk, uvsize=16.0, ao=True, samples=16, dist=18.0)
+    lit = mat('stonelit'); sk.data.materials.append(lit); li = len(sk.data.materials) - 1
+    for f in sk.data.polygons:
+        if sk.material_slots[f.material_index].material.name.startswith('stone') and (f.normal.x < -0.55 or f.normal.z > 0.6): f.material_index = li
+    finish(sk, ao=True, samples=16, dist=18.0, smooth=0)
 
 # ------------------------------------------------------------------------------------------------ build
 make_pier()

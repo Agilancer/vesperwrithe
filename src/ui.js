@@ -130,11 +130,12 @@ export class UI {
   }
   renderInv() {
     const P = this.g.player, s = P.stats; P.refreshStats(); const d = P.d, pt = s.pts > 0;
-    const row = (k, v, key) => `<span class="k">${k}${key && pt ? ` <kbd>${key}</kbd>` : ''}</span><span>${v}</span>`;
+    const touch = document.body.classList.contains('touch'), row = (k, v, key) => `<span class="k">${k}${key && pt ? (touch ? ` <button class="plus" data-k="Digit${key}">+</button>` : ` <kbd>${key}</kbd>`) : ''}</span><span>${v}</span>`;
     $('stats').innerHTML = [row('Level', s.lvl), row('Experience', `${s.xp} / ${s.next}`), row('Life', `${Math.ceil(s.hp)} / ${s.hpMax}`), row('Mana', `${s.mp} / ${s.mpMax}`),
       row('Strength', d.str, 1), row('Constitution', d.con, 2), row('Intellect', d.int, 3), row('Luck', d.lck, 4), row('Agility', d.dex),
       row('Attack', `${d.dmg[0]}-${d.dmg[1]}` + d.elems.map(e => ` <em class="e-${e.elem}">+${e.dmg[0]}-${e.dmg[1]}</em>`).join('')), row('Critical', `${Math.round(d.crit)}%`), row('Attack speed', `+${Math.round(Math.min(120, d.ias))}%`), row('Defense', d.def), row('Magic find', `+${Math.round(d.mf)}%`), row('Gold', s.gold)].join('')
-      + (pt ? `<div class="pts">${s.pts} attribute point${s.pts > 1 ? 's' : ''} — press 1 · 2 · 3 · 4</div>` : '');
+      + (pt ? `<div class="pts">${s.pts} attribute point${s.pts > 1 ? 's' : ''} — ${touch ? 'tap + beside a stat' : 'press 1 · 2 · 3 · 4'}</div>` : '');
+    $('stats').querySelectorAll('button.plus').forEach(b => b.onclick = e => { e.stopPropagation(); this.invKey(b.dataset.k); });
     $('slots').innerHTML = SLOTS.map(sl => { const it = P.equip[sl.id]; return `<div class="slot"><span class="n">${sl.label}</span><span class="q-${it?.rarity || 'normal'}">${it ? it.name + sockDots(it) : '—'}</span></div>`; }).join('')
       + `<div class="bellrow">${BELL_ORDER.map(b => `<span class="${P.has(b) ? 'on' : ''}" style="--c:${hex(BELLS[b].color)}">${P.has(b) ? BELLS[b].verb : '· · ·'}</span>`).join('')}</div>`;
     $('tabs').innerHTML = TABS.map(t => `<span class="${t === this.tab ? 'on' : ''}">${t.toUpperCase()}</span>`).join('');

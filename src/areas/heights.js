@@ -147,7 +147,7 @@ export default [
 
   // Tempest Belfry - zigzag climb under two swinging blades, then a bare thornstep up the east wall to the ringing loft.
   // Secret: the bell-cage in the east wall is closed by a veil; Stormcall hangs inside.
-  { id: 'hg_belfry', name: 'Tempest Belfry', area: '31', col: 47, row: -21, w: 2, h: 4, theme: 'belfry',
+  { id: 'hg_belfry', name: 'Tempest Belfry', area: '31', col: 47, row: -21, w: 2, h: 4, theme: 'belfry', vista: 15,
     doors: [{ side: 'S', col: 47 }, { side: 'W', row: -21 }],
     blocks: [{ x: 19.5, y: 8.6, w: 6.67, h: 0.8 }, { x: 19.5, y: 13.7, w: 6.67, h: 1.0 }], // bell-cage floor and roof
     gates: [{ x: 20.3, y: 9.4, kind: 'veil' }],
@@ -270,7 +270,7 @@ export default [
   // ================================================================ THRONE OF THE HOLLOW SUN
   // The final arena: five screens of bloodstone floor, four one-way galleries in a rising-falling rhythm, the throne on
   // its dais at the far end under the tall windows.
-  { id: 'hk_throne', name: 'Throne of the Hollow Sun', area: '40', col: 54, row: -24, w: 5, h: 3, theme: 'hollow', boss: 'hollow_king',
+  { id: 'hk_throne', name: 'Throne of the Hollow Sun', area: '40', col: 54, row: -24, w: 5, h: 3, theme: 'hollow', vista: 17, boss: 'hollow_king',
     doors: [{ side: 'W', row: -22 }],
     blocks: [{ x: 53, y: 0.5, w: 13.17, h: 1.2 }],
     platforms: zig([[9, 3.6, 7], [18.5, 6.8, 7], [30.5, 3.6, 7], [41, 6.8, 7]]),

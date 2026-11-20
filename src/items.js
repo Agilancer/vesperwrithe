@@ -12,7 +12,7 @@ export const STYLES = {
   slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
   smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
   // maul: same overhead slam, slower with a longer recovery so the weight reads
-  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
+  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], cancel: 64, dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
   // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
   chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
   // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
