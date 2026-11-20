@@ -134,7 +134,8 @@ export class Player {
     const qw = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, up, fwd));
     const inv = fq.clone().invert();
     m.quaternion.copy(inv.clone().multiply(qw));
-    m.position.copy(fwd.clone().multiplyScalar(0.12).applyQuaternion(inv).divideScalar(ws)).add(new THREE.Vector3(0, 0.12 / ws, 0));
+    m.position.copy(fwd.clone().multiplyScalar(0.065).applyQuaternion(inv).divideScalar(ws)).add(new THREE.Vector3(0, 0.12 / ws, 0));
+    m.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.envMapIntensity = 0.5; if (o.material.emissive) o.material.emissiveIntensity = Math.min(o.material.emissiveIntensity ?? 1, 0.3); } });
     a.stop(); this.model.rotation.y = keepYaw; this.mixer.update(0);
   }
 
@@ -276,7 +277,7 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1];
-    if (f >= st.hit[0] - 3 && f <= st.hit[1] + 2) this.trail.push(this.weaponMesh, this.fx?.userData.elem); 
+    if (f >= st.hit[0] - 3 && f <= st.hit[1] + 2) this.trailOn = true; 
     if (A.active) this.g.playerHits(this.hitbox());
     if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
   }
@@ -355,7 +356,7 @@ export class Player {
         if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
       }
     }
-    this.mixer.update(dt); this.trail.update(dt); this.root.updateMatrixWorld(true); this.scarf.update(dt, this.facing, this.vel);
+    this.mixer.update(dt); this.root.updateMatrixWorld(true); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
@@ -373,36 +374,40 @@ export class Player {
 const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a };
 class Trail {
   constructor(scene) {
-    this.max = 14; this.pts = [];
+    this.max = 28; this.pts = [];
     this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.max * 2 * 3); this.alpha = new Float32Array(this.max * 2);
-    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.geo.setAttribute('alpha', new THREE.BufferAttribute(this.alpha, 1));
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); this.geo.setAttribute('alpha', new THREE.BufferAttribute(this.alpha, 1)); const w = new Float32Array(this.max * 2); for (let i = 0; i < this.max; i++) w[i * 2 + 1] = 1; this.geo.setAttribute('w', new THREE.BufferAttribute(w, 1));
     const idx = []; for (let i = 0; i < this.max - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
     this.mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(0x7fa0ff) }, fade: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      vertexShader: 'attribute float alpha; varying float a; void main(){ a=alpha; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-      fragmentShader: 'uniform vec3 col; uniform float fade; varying float a; void main(){ float e=a*a; vec3 c=mix(col, vec3(1.), smoothstep(.85,1.,a)*.6); float f=e*e*fade*.75; gl_FragColor=vec4(c*f*1.8, f); }' });
+      vertexShader: 'attribute float alpha; attribute float w; varying float a; varying float v; void main(){ a=alpha; v=w; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: 'uniform vec3 col; uniform float fade; varying float a; varying float v; void main(){ float body=a*v*v*.55; float edge=a*smoothstep(.82,1.,v)*1.3; float f=(body+edge)*fade; vec3 c=mix(col, vec3(1.), smoothstep(.9,1.,v)*a*.7); gl_FragColor=vec4(c*f*1.6, f); }' });
     this.mesh = new THREE.Mesh(this.geo, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh); this.life = 0;
   }
   push(weapon, elem) {
     if (!weapon) return;
     const len = weapon.userData.len * 1.8 / weapon.scale.x;
-    const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.5, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
-    this.pts.unshift([base, tip]); if (this.pts.length > this.max) this.pts.pop();
-    this.mat.uniforms.col.value.setHex(TRAIL_COL[elem] || 0xdde4ff); this.life = 0.13; this.mesh.visible = true; this.write();
+    const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.35, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
+    // fill big per-frame jumps with arc-interpolated samples so the ribbon curves instead of fanning into a flat card
+    const prev = this.pts[0];
+    if (prev) { const L = tip.distanceTo(base), d0 = prev[1].clone().sub(prev[0]).normalize(), d1 = tip.clone().sub(base).normalize(), steps = Math.min(4, Math.ceil(d0.angleTo(d1) / 0.18));
+      for (let s = 1; s < steps; s++) { const t = s / steps, b = prev[0].clone().lerp(base, t), d = d0.clone().lerp(d1, t).normalize(); this.pts.unshift([b, b.clone().addScaledVector(d, L)]); } }
+    this.pts.unshift([base, tip]); while (this.pts.length > this.max) this.pts.pop();
+    this.mat.uniforms.col.value.setHex(TRAIL_COL[elem] || 0x7fa0ff); this.life = 0.16; this.mesh.visible = true; this.write();
   }
   write() {
     const n = this.pts.length;
     for (let i = 0; i < this.max; i++) { const p = this.pts[Math.min(i, n - 1)]; const k = i < n ? 1 - i / n : 0;
-      this.pos.set([p[0].x, p[0].y, p[0].z], i * 6); this.pos.set([p[1].x, p[1].y, p[1].z], i * 6 + 3); this.alpha[i * 2] = 0; this.alpha[i * 2 + 1] = k; }
+      this.pos.set([p[0].x, p[0].y, p[0].z], i * 6); this.pos.set([p[1].x, p[1].y, p[1].z], i * 6 + 3); this.alpha[i * 2] = k * k; this.alpha[i * 2 + 1] = k * k; }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.alpha.needsUpdate = true;
   }
   end() { this.pts.length = 0; }
-  update(dt) { if (this.life > 0) { this.life -= dt; this.mat.uniforms.fade.value = Math.max(0, this.life / 0.13); if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
+  update(dt) { if (this.life > 0) { this.life -= dt; this.mat.uniforms.fade.value = Math.max(0, this.life / 0.16); if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
 }
 
 // Crimson scarf: a short verlet ribbon pinned at the neck — a colour accent that reads from the side and shows motion.
 class Scarf {
   constructor(scene, anchor) {
-    this.anchor = anchor; this.n = 9; this.seg = 0.13; this.p = []; this.o = [];
+    this.anchor = anchor; this.n = 8; this.seg = 0.075; this.p = []; this.o = [];
     for (let i = 0; i < this.n; i++) { this.p.push(new THREE.Vector3()); this.o.push(new THREE.Vector3()); }
     this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.n * 2 * 3);
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
@@ -413,12 +418,13 @@ class Scarf {
   update(dt, facing, vel) {
     if (!this.anchor) return;
     const a = this.anchor.getWorldPosition(new THREE.Vector3()); a.y -= 0.02; a.x -= facing * 0.1;
+    if (this.init && this.p[1].distanceTo(a) > 0.6) this.init = false;
     if (!this.init) { this.p.forEach((p, i) => { p.copy(a).x -= facing * i * this.seg; this.o[i].copy(p); }); this.init = true; }
     const g = -26 * dt * dt, wind = (-facing * 1.5 - vel.x * 1.6) * dt * dt;
     this.p[0].copy(a); this.o[0].copy(a);
-    for (let i = 1; i < this.n; i++) { const p = this.p[i], o = this.o[i], vx = (p.x - o.x) * 0.96, vy = (p.y - o.y) * 0.96; o.copy(p); p.x += vx + wind; p.y += vy + g; p.z = a.z - 0.05; }
+    for (let i = 1; i < this.n; i++) { const p = this.p[i], o = this.o[i], vx = (p.x - o.x) * 0.9, vy = (p.y - o.y) * 0.9; o.copy(p); p.x += vx + wind; p.y += vy + g; p.z = a.z - 0.05; }
     for (let k = 0; k < 3; k++) for (let i = 1; i < this.n; i++) { const A = this.p[i - 1], B = this.p[i], d = B.clone().sub(A), L = d.length() || 1e-4; B.copy(A).addScaledVector(d, this.seg / L); }
-    for (let i = 0; i < this.n; i++) { const p = this.p[i], w = 0.11 * (1 - i / this.n * 0.5); this.pos.set([p.x, p.y + w / 2, p.z + 0.02], i * 6); this.pos.set([p.x, p.y - w / 2, p.z - 0.02], i * 6 + 3); }
+    for (let i = 0; i < this.n; i++) { const p = this.p[i], w = 0.13 * (1 - i / this.n * 0.7); this.pos.set([p.x, p.y + w / 2, p.z + 0.02], i * 6); this.pos.set([p.x, p.y - w / 2, p.z - 0.02], i * 6 + 3); }
     this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals();
   }
 }

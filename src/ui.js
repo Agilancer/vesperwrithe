@@ -19,7 +19,7 @@ export class UI {
   }
   toast(text, cls = '') { const el = document.createElement('div'); el.className = 'toast ' + cls; el.textContent = text; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3800); }
   prompt(text) { const p = $('prompt'); if (text) { p.textContent = text; p.classList.add('show'); } else p.classList.remove('show'); }
-  roomName(name) { const r = $('roomName'); r.textContent = name; r.classList.add('show'); clearTimeout(this._rn); this._rn = setTimeout(() => r.classList.remove('show'), 2400); }
+  roomName(name, hold = 2400) { const r = $('roomName'); r.textContent = name; r.classList.add('show'); clearTimeout(this._rn); this._rn = setTimeout(() => r.classList.remove('show'), hold); }
 
   hud() {
     const s = this.g.player.stats;

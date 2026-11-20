@@ -41,7 +41,9 @@ export class Enemy {
     // a faint cold key so dark armour never reads black-on-black; ember eyes on armoured foes
     const L = new THREE.PointLight(this.boss ? 0xff7a7a : 0xc8d4ff, this.boss ? 12 : 6, 4.5, 1.5); L.position.set(0.5, T.h * 0.8, 1.7); this.root.add(L);
     if (this.spec.t !== 'zombie') { const head = this.model.getObjectByName('head') || this.model.getObjectByName('mixamorigHead'); if (head) head.add(new THREE.PointLight(this.boss ? 0xff2020 : 0xff6030, 3, 1.2, 2)); }
-    this.model.traverse(o => { if (o.isMesh && o.material.color) { o.material.color.multiplyScalar(1.3); o.material.envMapIntensity = 1.2; } });
+    const lift = this.spec.t === 'knight' ? 1.75 : 1.3;
+    this.model.traverse(o => { if (o.isMesh && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(lift); o.material.envMapIntensity = this.spec.t === 'knight' ? 1.8 : 1.2; if (this.spec.t === 'knight' && o.material.emissive) { o.material.emissive.setHex(0x161c2a); } } });
+    if (this.spec.t === 'knight') { const rim = new THREE.PointLight(0x9fc0ff, 9, 3.2, 1.6); rim.position.set(-0.6, T.h * 0.9, -1.1); this.root.add(rim); }
     this.room.group.add(this.root);
     this.play(this.state === 'buried' ? T.anim.rise : T.anim.idle, 0, this.state === 'buried' ? { paused: true } : {});
     if (this.state === 'buried') this.root.visible = false;
@@ -79,7 +81,7 @@ export class Enemy {
         if (!sees) { this.vel.x = 0; this.play(T.anim.idle); this.state = 'idle'; break; }
         this.state = 'chase'; this.facing = Math.sign(dx) || this.facing;
         const enraged = this.boss && this.hp < T.hp * 0.5;
-        if (T.block && adx < 3.6 && this.cool <= 0 && Math.random() < 0.012) { this.state = 'guard'; this.t = 0; this.play(T.anim.block, 0.12, { restart: true }); this.g.fx.glint(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0x8ab0ff); break; }
+        if (T.block && adx < 3.6 && this.cool <= 0 && Math.random() < 0.012) { this.state = 'guard'; this.t = 0; this.play(T.anim.block, 0.12, { restart: true }); this.g.fx.glint(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0x8ab0ff); this.g.fx.burst(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0x8ab0ff, 10, 2); this.g.guardRing?.(this); audio.play('sword_blocked_2', 0.3, 1.3); break; }
         if (adx < T.reach + 0.3 && this.cool <= 0) { this.startAttack(enraged); break; }
         if (this.boss && this.enraged && adx < 6 && this.cool <= 0 && Math.random() < 0.015) { this.startAttack(true, 'slam'); break; }
         if (this.boss && adx > 7 && this.cool <= 0 && Math.random() < 0.02) { this.startAttack(enraged, 'bash'); break; }

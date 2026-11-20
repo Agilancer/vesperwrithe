@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+const CAMZ = 10.7; // ~13% closer than the first pass: fighters read bigger on screen
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -244,7 +245,7 @@ class Game {
     const P = this.player, col = { fire: 0xff6a10, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a }[elem];
     this.slowMo(0.8); this.flash(); audio.play(elem === 'fire' ? 'firebuff_2' : elem === 'ice' ? 'ice_freeze_1' : 'spell_impact_3', 0.7);
     for (let i = 0; i < 40; i++) setTimeout(() => this.fx.burst(P.pos.x + P.facing * 0.5, P.pos.y + 1.2, col, 3, 3), i * 18);
-    this.ui.roomName(elem === 'fire' ? 'THE BLADE CATCHES FIRE' : 'THE BLADE AWAKENS');
+    this.ui.roomName(elem === 'fire' ? 'THE BLADE CATCHES FIRE' : 'THE BLADE AWAKENS', 4200);
     if (elem === 'fire' && !this.flags['thorn:lowerhall']) { this.objective = { c: 19.8, r: 0.6 }; this.ui.toast('Objective: burn the blackthorn in the Hall of Lost Pilgrims (marked on map)', 'unique'); }
   }
   shockwave(src, x, y, dir) {
@@ -257,6 +258,11 @@ class Game {
     for (const w of this.waves || []) { w.t += dt; w.x += w.dir * 8 * dt; w.m.position.x = w.x; w.m.scale.y = 1 + Math.sin(w.t * 30) * 0.15; if (Math.random() < 0.5) this.fx.spawn(w.x, w.y + 0.2, 0.3, 0, 2, 0xff5020, 0.3, 0.3, 0);
       if (!w.hit && Math.abs(P.pos.x - w.x) < 0.5 && P.pos.y < w.y + 1.2) { w.hit = true; P.takeHit(w.dmg, w.x - w.dir); } if (w.t > 1.8) { w.done = true; w.room.group.remove(w.m); } }
     this.waves = (this.waves || []).filter(w => !w.done);
+  }
+  guardRing(e) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 32), new THREE.MeshBasicMaterial({ color: 0x8ab0ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2; m.position.set(e.pos.x, e.pos.y + 0.04, 0); e.room.group.add(m);
+    let t = 0; const tick = () => { t += 1 / 60; m.scale.setScalar(1 + t * 5); m.material.opacity = Math.max(0, 0.9 - t * 2.2); if (t < 0.45) setTimeout(tick, 16); else e.room.group.remove(m); }; tick();
   }
   burnThorns(t) {
     t.gone = true; this.flags['thorn:' + this.room.def.id] = true; this.objective = null; this.slowMo(0.5); audio.play('fire_big', 0.6); audio.play('firespray_1', 0.5);
@@ -344,7 +350,7 @@ class Game {
 
   render(dt) {
     const P = this.player, b = this.room.b, cam = this.camera;
-    const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * 12.3, halfW = halfH * cam.aspect;
+    const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * CAMZ, halfW = halfH * cam.aspect;
     let tx = P.pos.x + P.facing * 1.4, ty = P.pos.y + 1.3;
     const boss = this.room.enemies.find(e => e.boss && e.awake && !e.dead); // stage the boss: frame him on entrance, keep both in shot
     if (boss) tx = boss.state === 'intro' && boss.t < 2 && !boss.enraged ? boss.pos.x - boss.facing * 1.2 : (P.pos.x + boss.pos.x) / 2;
@@ -355,7 +361,7 @@ class Game {
     if (this.snapCam) { this.camPos.set(tx, ty); this.snapCam = false; }
     else { const k = 1 - Math.exp(-dt * 7); this.camPos.x += (tx - this.camPos.x) * k; this.camPos.y += (ty - this.camPos.y) * (1 - Math.exp(-dt * 5)); }
     let sx = 0, sy = 0; if (this.shakeT > 0) { this.shakeT -= dt; sx = (Math.random() - 0.5) * this.shakeT * 0.5; sy = (Math.random() - 0.5) * this.shakeT * 0.5; }
-    cam.position.set(this.camPos.x + sx, this.camPos.y + 0.9 + sy, 12.3); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
+    cam.position.set(this.camPos.x + sx, this.camPos.y + 0.9 + sy, CAMZ); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
     this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 5, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.camFill.position.set(this.camPos.x + 3, this.camPos.y + 4, 14); this.camFill.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.moon.position.set(this.camPos.x - 8, this.camPos.y + 18, 14); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1);
