@@ -18,6 +18,12 @@ for f in ('index.html', 'viewer.html'):
 for d in ('src', 'vendor', 'assets/game/audio', 'assets/game/music', 'assets/game/tex', 'assets/game/interior'):  # room themes name textures indirectly
     shutil.copytree(d, os.path.join(out, d))
 
+# shipped by the folder copies above but never loaded by the game: the old interior kit model and the forest foliage cards
+import glob
+for junk in [os.path.join(out, 'assets/game/interior/interior.glb')] + glob.glob(os.path.join(out, 'assets/game/tex/pine*')):
+    if os.path.exists(junk):
+        os.remove(junk)
+
 files = set(check_assets.referenced_files())
 files.update(['assets/game/weapons/grips.json', 'assets/game/weapons/weapons.json'])
 for f in sorted(files):

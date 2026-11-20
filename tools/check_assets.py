@@ -42,6 +42,25 @@ def referenced_files():
                         p = f'{d}{name}_{s}.webp'
                         if os.path.exists(p):
                             found.add(p)
+    # the bestiary names its models through helpers: tr('a', 'b') -> assets/monsters/tripo/a.glb, M + 'x', TR + 'x'
+    cat = os.path.join('src', 'catalog.js')
+    if os.path.exists(cat):
+        src = open(cat, encoding='utf-8').read()
+        for args in re.findall(r"\btr\(([^)]*)\)", src):
+            found.update(f'assets/monsters/tripo/{n}.glb' for n in re.findall(r"'([\w-]+)'", args))
+        found.update('assets/monsters/' + n for n in re.findall(r"\bM \+ '([^']+\.glb)'", src))
+        found.update('assets/monsters/tripo/' + n for n in re.findall(r"\bTR \+ '([^']+\.glb)'", src))
+    # hand-made swords (staffs are not in the game), the skull props, and every texture set a room theme can pick
+    sw = 'assets/game/items/swords.json'
+    if os.path.exists(sw):
+        found.add(sw)
+        for v in json.load(open(sw))['swords'].values():
+            if v.get('file') and v.get('hands') != 3:
+                found.add(v['file'])
+    found.update(f'assets/game/items/skull_0{i}.glb' for i in range(1, 9))
+    for d in ('assets/game/tex2', 'assets/game/items/icons'):
+        if os.path.isdir(d):
+            found.update(f'{d}/{n}' for n in os.listdir(d) if n.endswith('.webp'))
     return sorted(f for f in found if os.path.exists(f))
 
 
