@@ -131,7 +131,7 @@ class Game {
       const room = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshBasicMaterial({ color: 0x120c08, side: THREE.BackSide })); room.position.y = 3; es.add(room);
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshBasicMaterial({ color: 0x1a120a })); floor.rotation.x = -Math.PI / 2; floor.position.y = -1.9; es.add(floor);
       for (const [x, z] of [[-6, -6], [6, -5], [-5, 6], [7, 5]]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa050).multiplyScalar(6), side: THREE.DoubleSide })); c.position.set(x, 1.5, z); c.lookAt(0, 1, 0); es.add(c); }
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x5868a0).multiplyScalar(2.5), side: THREE.DoubleSide })); win.position.set(0, 4, -9.5); es.add(win);
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x6a6878).multiplyScalar(1.4), side: THREE.DoubleSide })); win.scale.setScalar(0.6); win.position.set(0, 4, -9.5); es.add(win);
       this.world.setMetalEnv(pm.fromScene(es, 0.04).texture); }
     this.loot = []; this.shots = []; this.waves = []; this.erupts = []; this.suns = []; this.seals = []; this.visited = new Set(); this.flags = {};
     this.camPos = new THREE.Vector2(); this.camZ = CAMZ; this.shakeT = 0; this.stopT = 0; this.time = 0; this.playTime = 0;
