@@ -41,7 +41,7 @@ export const BESTIARY = {
     anim: A({ attack: 'atk1', attack2: 'atk3', attack3: 'atk5' }), windup: [0.35, 0.6], atkDur: 1.0, aggro: 18,
     moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.6 }, { k: 'melee', anim: 'atk3', w: 2, range: 2.6, dur: 0.8 }, { k: 'leap', anim: 'jump', w: 3, min: 3, range: 9 }, { k: 'charge', anim: 'run', w: 2, min: 4, range: 12, speed: 10 }] },
   caddoc:   { name: 'Oathbreaker Sir Caddoc', tier: 1, lvl: 6, ai: 'boss', boss: true, files: [TR + 'possessed_knight_1.glb'], h: 2.75, w: 1.2, hp: 420, dmg: 22, touch: 10, speed: 2.0, reach: 2.4, xp: 300,
-    anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk3', bash: 'bash', block: 'block' }), windup: [0.4, 0.66], atkDur: 1.3, aggro: 30, bell: 'slide', title: 'OATHBREAKER VANQUISHED',
+    anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk3', bash: 'bash', block: 'block' }), windup: [0.4, 0.66], atkDur: 1.3, aggro: 30, bell: 'slide', title: 'OATHBREAKER VANQUISHED', arm: ['spiked_longsword'],
     moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.9 }, { k: 'melee', anim: 'atk2', w: 2, range: 2.9 }, { k: 'charge', anim: 'bash', w: 3, min: 5, range: 14, speed: 9 }, { k: 'slam', anim: 'atk3', w: 3, range: 7, phase: 2 }, { k: 'leap', anim: 'jump', w: 2, min: 4, range: 10, phase: 2 }] },
 
   // ---------------------------------------------------------------- act 2
@@ -131,7 +131,7 @@ export const BESTIARY = {
     anim: { idle: 'idle', walk: 'walk', run: 'run', attack: 'bite', hit: 'hit', death: 'death', roar: 'roar' }, windup: [0.35, 0.5], atkDur: 1.8, aggro: 26,
     moves: [{ k: 'melee', anim: 'bite', w: 3, range: 5.5, dur: 1.7 }, { k: 'melee', anim: 'claw_slam', w: 2, range: 5.5, dur: 2.2, shock: true }, { k: 'melee', anim: 'tail_whip', w: 2, range: 6.5, low: true, dur: 2.2 }, { k: 'breath', anim: 'breath', w: 3, min: 3, range: 14, elem: 'fire', dur: 3.2 }, { k: 'sweep', anim: 'breath_sweep', w: 2, elem: 'fire', dur: 3.4 }, { k: 'leap', anim: 'pounce', w: 2, min: 5, range: 14, dur: 2.2 }] },
   archivist: { name: 'Malgrave, the Last Archivist', tier: 6, lvl: 25, ai: 'boss', boss: true, files: [TR + 'necromancer_lord.glb'], h: 2.6, w: 1.0, hp: 2600, dmg: 52, touch: 14, speed: 2.4, reach: 2.4, xp: 4200,
-    anim: A({ attack: 'atk1', attack2: 'atk3' }), windup: [0.45, 0.6], atkDur: 1.2, aggro: 30, bell: 'echo', title: 'THE LAST PAGE TURNS', arm: ['gravecaller'],
+    anim: A({ attack: 'atk1', attack2: 'atk3' }), windup: [0.45, 0.6], atkDur: 1.2, aggro: 30, bell: 'echo', title: 'THE LAST PAGE TURNS', arm: ['voidfang_dagger'],
     moves: [{ k: 'blink', anim: 'atk5', w: 3, dur: 0.9 }, { k: 'volley', anim: 'atk2', w: 3, shot: 'skull', n: 3, dur: 1.4 }, { k: 'fan', anim: 'atk4', w: 3, shot: 'orb', n: 7, dur: 1.5 }, { k: 'melee', anim: 'atk1', w: 2, range: 3 }, { k: 'summon', anim: 'roar', w: 2, what: 'zombie', max: 3, dur: 1.8 },
       { k: 'mirror', anim: 'roar', w: 4, n: 3, phase: 2, dur: 1.6 }, { k: 'rain', anim: 'atk3', w: 3, shot: 'book', n: 12, phase: 2, dur: 2.2 }, { k: 'pillars', anim: 'atk4', w: 2, n: 5, elem: 'poison', phase: 2, dur: 1.8 }] },
 

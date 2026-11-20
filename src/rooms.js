@@ -57,11 +57,11 @@ export function roomSolids(r) {
   const spans = (s, e, gaps) => { let o = [[s, e]]; for (const [a, c] of gaps) o = o.flatMap(([p, q]) => (c <= p || a >= q) ? [[p, q]] : [[p, a], [c, q]].filter(([u, v]) => v - u > 0.01)); return o; };
   const side = sd => r.doors.filter(d => d.side === sd).map(d => [rowFloorY(d.row) + FLOOR, rowFloorY(d.row) + FLOOR + DOOR_H]);
   const vert = sd => r.doors.filter(d => d.side === sd).map(d => [d.col * SW + SW / 2 - HOLE_W / 2, d.col * SW + SW / 2 + HOLE_W / 2]);
-  for (const [p, q] of spans(b.x0, b.x1, vert('S'))) S(p, b.y0 - 1.5, q, b.y0 + FLOOR, { kind: 'floor' });
-  if (!r.open) for (const [p, q] of spans(b.x0, b.x1, vert('N'))) S(p, b.y1 - FLOOR, q, b.y1 + 1.5, { kind: 'ceil' });
+  for (const [p, q] of spans(b.x0, b.x1, vert('S'))) S(p, b.y0 - FLOOR, q, b.y0 + FLOOR, { kind: 'floor' }); // 1 m slab, shared exactly with the ceiling of any room below
+  if (!r.open) for (const [p, q] of spans(b.x0, b.x1, vert('N'))) S(p, b.y1 - FLOOR, q, b.y1 + FLOOR, { kind: 'ceil' });
   for (const sd of ['W', 'E']) {
     const x0 = sd === 'W' ? b.x0 - 0.6 : b.x1 - 0.5, x1 = sd === 'W' ? b.x0 + 0.5 : b.x1 + 0.6;
-    for (const [p, q] of spans(b.y0, b.y1 + (r.open ? 30 : 1.5), side(sd))) S(x0, p, x1, q, { kind: 'wall', side: sd });
+    for (const [p, q] of spans(b.y0 - FLOOR, b.y1 + (r.open ? 30 : FLOOR), side(sd))) S(x0, p, x1, q, { kind: 'wall', side: sd });
     for (const d of r.doors.filter(d => d.side === sd)) {
       const fy = rowFloorY(d.row);
       if (fy > b.y0 + 1 && !d.noledge) { const lx0 = sd === 'W' ? b.x0 : b.x1 - 3; S(lx0, fy - 0.6, lx0 + 3, fy + FLOOR, { kind: 'ledge', side: sd }); }

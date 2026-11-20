@@ -15,7 +15,7 @@ const THEMES = {
   throne:    { back: ['wall_ashlar', I, 0xb0a0c0], floor: ['marble', I, 0x6a6070], wall: ['ashlar', T0], block: ['oxblood_marble', X], fog: [0x0a0610, 18, 60], amb: 0.32, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xc0a060 },
   courtyard: { sky: 'moon', backWall: ['pv_curtain_granite_a', X], floor: ['pv_courtyard_setts_a', X], wall: ['pv_curtain_granite_b', X], block: ['pv_rusticated_plinth_a', X], fog: [0x161c30, 20, 110], amb: 0.5, moon: 1.7, trim: 0x8a94a8 },
   vestibule: { back: ['pv_limestone_interior_a', X], floor: ['pv_velscour_inlay_a', X], wall: ['pv_keep_dressed_stone_a', X], block: ['oxblood_marble', X], fog: [0x0e0a12, 20, 70], amb: 0.4, moon: 0.6, pillars: true, rug: ['pv_red_gothic', X], trim: 0xd0b070 },
-  servants:  { back: ['pv_timber_plaster', X], floor: ['worn_floorboards', X], wall: ['pv_city_clay_brick_a', X], block: ['pv_hearth_brick', X], fog: [0x100b08, 14, 46], amb: 0.36, moon: 0.3, trim: 0xa07a50, beams: true },
+  servants:  { back: ['pv_warm_grey_plaster', X], wainscot: ['pv_wood_panelling', X], floor: ['worn_floorboards', X], wall: ['pv_city_clay_brick_a', X], block: ['pv_hearth_brick', X], fog: [0x100b08, 14, 46], amb: 0.36, moon: 0.3, trim: 0xa07a50, beams: true },
   aqueduct:  { back: ['waterline_wall', X], floor: ['pv_undercroft_blocks_a', X], wall: ['pv_undercroft_blocks_c', X], block: ['pv_undercroft_blocks_b', X], fog: [0x06100e, 12, 44], amb: 0.32, moon: 0.25, trim: 0x6a9a8a, damp: true },
   cistern:   { back: ['pv_bastion_basalt_a', X], floor: ['pv_hall_flagstones_c', X], wall: ['pv_bastion_basalt_b', X], block: ['pv_bastion_basalt_c', X], fog: [0x040c12, 14, 60], amb: 0.3, moon: 0.3, pillars: true, trim: 0x5a9ab0, damp: true },
   ossuary:   { back: ['bone_wall', X], floor: ['bone_joint_flags', X], wall: ['bone_inlay_stone', X], block: ['bone_plaster', X], fog: [0x0c0a08, 14, 52], amb: 0.36, moon: 0.4, trim: 0xd0c4a0 },
@@ -102,8 +102,8 @@ export class World {
     room.trim = TRIM;
     for (const s of room.solids) {
       switch (s.kind) {
-        case 'floor': add(box(floorM, s.x0, s.y0, s.x1, s.y1)); break;
-        case 'ceil': add(box(wallM, s.x0, s.y0, s.x1, s.y1)); break;
+        case 'floor': add(box(floorM, s.x0, s.y0 - 1, s.x1, s.y1)); break;
+        case 'ceil': add(box(wallM, s.x0, s.y0, s.x1, s.y1 + 0.99)); break;
         case 'wall': if (!def.open || T.backWall) add(box(wallM, s.x0, s.y0, s.x1, Math.min(s.y1, b.y1 + 1.5), ZB, 1.2)); break;
         case 'ledge': add(box(floorM, s.x0, s.y0, s.x1, s.y1, -2.2, 1.6)); break;
         case 'plat': {
@@ -351,9 +351,9 @@ export class World {
         this.light(room, x + 1.5, cy - 2.5, 0.6, lit ? 0xff8060 : 0x8aa0ff, lit ? 14 : 12, 16); break;
       }
       case 'statue': case 'gargoyle': {
-        const garg = p.t === 'gargoyle', file = garg ? 'assets/monsters/tripo/dragonling_black.glb' : ['assets/game/knights/knight.glb', 'assets/game/knights/paladin_bellwright.glb', 'assets/game/knights/paladin_fifthwatch.glb'][Math.abs(Math.round(x)) % 3];
+        const garg = p.t === 'gargoyle', file = garg ? 'assets/monsters/tripo/dragonling_black.glb' : 'assets/armor/velscour_knight.glb';
         const k = await cloneGLTF(file), sm = surface('limestone_1', 1, 1, { tint: garg ? 0x6a6a70 : 0x9a9690 });
-        if (garg && k.animations.length) { const mx = new THREE.AnimationMixer(k.scene), c = k.animations.find(a => a.name === 'roar') || k.animations[0]; mx.clipAction(c).play(); mx.setTime(c.duration * 0.45); }
+        if (k.animations.length) { const mx = new THREE.AnimationMixer(k.scene), c = k.animations.find(a => a.name === (garg ? 'roar' : ['Sword_Idle', 'Idle_FoldArms_Loop', 'Sword_Block'][Math.abs(Math.round(x)) % 3])) || k.animations[0]; mx.clipAction(c).play(); mx.setTime(c.duration * 0.45); } // statues are posed, never T-posed
         k.scene.traverse(o => { if (o.isMesh) { o.material = sm; o.castShadow = true; o.frustumCulled = false; } });
         fitHeight(k.scene, garg ? 1.5 : 2.6); const ped = garg ? 0 : 0.9; k.scene.position.set(x, y + ped, garg ? -1.2 : ZB + 1.2); if (garg) k.scene.rotation.y = (Math.round(x) % 2 ? 1 : -1) * 1.0; add(k.scene);
         if (!garg) add(box(stone, x - 0.8, y, x + 0.8, y + 0.9, ZB + 0.3, ZB + 2.0));
