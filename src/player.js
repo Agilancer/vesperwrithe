@@ -406,7 +406,7 @@ export class Player {
     if (st.cancel !== undefined) {
       if (A.mode === 'idle' && this.onGround && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); }
       if (f >= st.cancel) {
-        if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.attack = null; this.startAttack(A.ci + 1); return; }
+        if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(A.ci + 1); return; }
         if (this.inpX && !A.queued && f >= st.cancel + 2) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); return; }
       }
     }

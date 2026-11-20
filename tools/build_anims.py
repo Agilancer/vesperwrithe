@@ -188,7 +188,12 @@ def build():
     loop('vw_run_armed', 'sword_and_shield_run', 1, 22, armed)
     # ---- attacks ------------------------------------------------------------------------------------------
     upright = lambda w: (lambda p, f: blend(p, pose(*GUARD), w, SPINE))   # cap the forward pitch so the head stays up
-    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=upright(0.45))
+    # link 1: keep the torso up, and turn the wrist as the cut lands so the blade finishes in the screen plane, pointing
+    # down and forward (the mocap ends with it foreshortened toward the camera, which read as a bow with no sword)
+    def cut1(p, f):
+        p = blend(p, pose(*GUARD), 0.6, SPINE)
+        return aim_blade(p, (-0.12, -0.80, -0.58), max(0, min(1, (f - 158) / 3)))
+    attack('vw_slash1', 'standing_melee_combo_attack_ver_2', 150, 155, 162, 164, na=3, rate=1.2, nf=5, nr=9, legs='guard', legs_w=0.6, fix=cut1)
     attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7, legs='guard', legs_w=0.85)
     attack('vw_slash3', 'standing_melee_attack_downward', 44, 49, 55, 58, na=4, rate=1.0, nf=4, nr=9)
     attack('vw_great', 'great_sword_slash', 40, 45, 55, 58, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight

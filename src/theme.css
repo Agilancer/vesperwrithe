@@ -227,3 +227,6 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .t-logo::before{background:linear-gradient(248deg,transparent 22%,rgba(2,8,11,.42) 55%,rgba(2,8,11,.7) 80%,rgba(2,8,11,.84) 100%)}
 .t-logo img{filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(14px -10px 26px rgba(190,250,240,.4)) drop-shadow(-12px 20px 30px rgba(0,0,0,.65))}
 #title .controls{font-size:12px;opacity:.64}#title .controls kbd{font-size:11px}
+#minimap{right:calc(20px + env(safe-area-inset-right));top:calc(18px + env(safe-area-inset-top))}
+#touch .ttop{right:calc(244px + env(safe-area-inset-right))}
+@media (max-height:520px){#touch .ttop{right:calc(186px + env(safe-area-inset-right))}}
