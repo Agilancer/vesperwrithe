@@ -228,7 +228,7 @@ class Game {
   // ------------------------------------------------------------------ combat hooks
   playerHits(hb) {
     const P = this.player, room = this.room;
-    for (const e of room.enemies) { if (hb.attack.hitIds.has(e.id)) continue; const roll = P.rollDamage(); if (e.hit(hb, roll, P)) { this.hitStop((e.boss ? 0.09 : e.spec.t === 'knight' ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); if (roll.crit) this.flash(); } }
+    for (const e of room.enemies) { if (hb.attack.hitIds.has(e.id)) continue; const roll = P.rollDamage(); if (e.hit(hb, roll, P)) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.spec.t === 'knight' ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); if (roll.crit) this.flash(); } }
     for (const bk of room.breakables || []) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
     for (const t of room.thorns || []) if (!t.gone && !hb.attack.hitIds.has('thorn') && hb.x0 < t.x1 && hb.x1 > t.x0 && hb.y0 < t.y1 && hb.y1 > t.y0) {
       hb.attack.hitIds.add('thorn');
@@ -326,11 +326,13 @@ class Game {
   }
   promptFor() {
     const P = this.player, r = this.room; if (this.tutorial) return;
-    let t = '';
-    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) t = 'E — Rest at the coffin (heal & save)';
-    else if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8) t = 'E — Touch the mirror';
-    else if (r.chests.some(c => !c.opened && Math.abs(P.pos.x - c.x) < 1.4)) t = 'E — Open';
+    let t = '', ctx = '';
+    const touch = document.body.classList.contains('touch'), key = touch ? '' : 'E — ';
+    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8) { t = key + 'Rest at the coffin (heal & save)'; ctx = 'REST'; }
+    else if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8) { t = key + 'Touch the mirror'; ctx = 'TOUCH'; }
+    else if (r.chests.some(c => !c.opened && Math.abs(P.pos.x - c.x) < 1.4)) { t = key + 'Open the chest'; ctx = 'OPEN'; }
     else for (const l of r.def.lore || []) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3) t = l.text;
+    this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
   }
 
@@ -386,7 +388,7 @@ class Game {
 }
 
 const game = new Game(); window.game = game;
-initTouch(game.input, () => game.ui.open);
+game.touch = initTouch(game.input, () => { const P = game.player; return { menu: game.ui.open, ctx: game.ctxAction, potions: P.stats.potions, canDouble: !P.onGround && P.jumpsLeft > 0 && P.state === 'free' }; });
 // Debug helpers (console): sim(frames, heldKeys, pressedKeys) steps the game; shot(...) frames a still with the free camera.
 window.sim = (n, keys = [], press = []) => { const I = game.input; press.forEach(k => I.pressed.add(k)); keys.forEach(k => I.keys.add(k)); for (let i = 0; i < n; i++) { if (i === 1) I.pressed.clear(); game.step(1 / 60); } keys.forEach(k => I.keys.delete(k)); };
 window.shot = (x, y, z, lx, ly, lz = 0) => { window.__pause = true; game.camera.position.set(x, y, z); game.camera.lookAt(lx, ly, lz); };
@@ -396,7 +398,7 @@ game.load(t => $('loadMsg').textContent = t).then(() => {
   $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';
   $('startBtn').classList.remove('hidden');
   if (game.readSave()) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem('vesperwrithe_save'); begin(true); }; }
-  const begin = (fresh) => { audio.resume(); $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) { game.room = null; game.newGame(true); } game.start(); removeEventListener('keydown', k); };
+  const begin = (fresh) => { audio.resume(); $('title').classList.add('hidden'); document.body.classList.add('playing'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) { game.room = null; game.newGame(true); } game.start(); removeEventListener('keydown', k); };
   const k = e => { if (e.code === 'Enter') begin(false); if (e.code === 'KeyN') { localStorage.removeItem('vesperwrithe_save'); begin(true); } };
   $('startBtn').onclick = () => begin(false); addEventListener('keydown', k);
 }).catch(e => { console.error(e); $('loadMsg').textContent = 'Failed to load: ' + e.message; });

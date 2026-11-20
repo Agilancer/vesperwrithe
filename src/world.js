@@ -221,6 +221,7 @@ export class World {
         const k = await cloneGLTF('assets/game/knights/knight.glb');
         const stone = surface('limestone_1', 1, 1, { tint: 0x9a9690 });
         k.scene.traverse(o => { if (o.isMesh) { o.material = stone; o.castShadow = true; } });
+        restPose(k.scene); // the rig ships in a T-pose: lower the arms into a guardian's stance
         fitHeight(k.scene, 2.6); k.scene.position.set(x, y + 0.9, ZB + 1.2); g.add(k.scene);
         g.add(box(surface('ashlar', 1, 1), x - 0.8, y, x + 0.8, y + 0.9, ZB + 0.3, ZB + 2.0));
         break;
@@ -306,4 +307,27 @@ function glassTex() {
   for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(${120 + Math.random() * 60 | 0},${140 + Math.random() * 60 | 0},220,${0.08 + Math.random() * 0.12})`; x.fillRect((Math.random() * 4 | 0) * 16, (Math.random() * 8 | 0) * 16, 16, 16); }
   x.strokeStyle = 'rgba(10,8,16,.85)'; x.lineWidth = 1.5; for (let i = 16; i < 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke(); } for (let i = 16; i < 128; i += 16) { x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
   _glass = new THREE.CanvasTexture(c); _glass.colorSpace = THREE.SRGBColorSpace; return _glass;
+}
+
+// Statue pose for the knight rig (it has no animations, so it would stand in a T-pose): upper arms down at the sides,
+// forearms brought forward across the body.
+function restPose(root) {
+  root.updateMatrixWorld(true);
+  const V = THREE.Vector3, Q = THREE.Quaternion;
+  const aim = (bone, child, dir) => {
+    const o = bone.getWorldPosition(new V()), c = child.getWorldPosition(new V());
+    const q = new Q().setFromUnitVectors(c.sub(o).normalize(), dir.clone().normalize());
+    const wq = q.multiply(bone.getWorldQuaternion(new Q())), pq = bone.parent.getWorldQuaternion(new Q());
+    bone.quaternion.copy(pq.invert().multiply(wq)); bone.updateMatrixWorld(true);
+  };
+  const b = n => root.getObjectByName(n);
+  // the model's forward: from the pelvis towards the toes
+  const fwd = b('ball_l') && b('foot_l') ? b('ball_l').getWorldPosition(new V()).sub(b('foot_l').getWorldPosition(new V())).setY(0).normalize() : new V(0, 0, 1);
+  for (const side of ['l', 'r']) {
+    const up = b('upperarm_' + side), lo = b('lowerarm_' + side), hand = b('hand_' + side);
+    if (!up || !lo || !hand) continue;
+    const out = up.getWorldPosition(new V()).sub(b('spine_03').getWorldPosition(new V())).setY(0).normalize();
+    aim(up, lo, new V(0, -1, 0).addScaledVector(out, 0.18).addScaledVector(fwd, 0.12));
+    aim(lo, hand, new V(0, -0.35, 0).addScaledVector(fwd, 1).addScaledVector(out, -0.55));
+  }
 }

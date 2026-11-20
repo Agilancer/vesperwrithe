@@ -25,7 +25,7 @@ export class UI {
     const s = this.g.player.stats;
     $('hpFill').style.width = (100 * s.hp / s.hpMax) + '%'; $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
     $('mpFill').style.width = (100 * s.mp / s.mpMax) + '%'; $('mpText').textContent = `${s.mp}`;
-    $('lvl').textContent = s.lvl; $('gold').innerHTML = `${s.gold} <small>GOLD</small> &nbsp; ${s.potions} <small>POTIONS (Q)</small>`;
+    $('lvl').textContent = s.lvl; $('gold').innerHTML = `${s.gold} <small>GOLD</small>${document.body.classList.contains('touch') ? '' : ` &nbsp; ${s.potions} <small>${s.potions === 1 ? 'POTION' : 'POTIONS'} (Q)</small>`}`;
     this.minimap();
   }
 
