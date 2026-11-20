@@ -1,0 +1,223 @@
+/* Vesperwrithe UI theme — everything takes its cue from the title logo: hairline moon-white serif capitals,
+   wide tracking, cold teal light on blue-black, mist instead of boxes. Loaded after style.css and overrides it. */
+:root{
+  --ink:#04070a; --ink2:#0a1418; --glass:rgba(6,13,17,.78); --glass2:rgba(10,22,27,.86);
+  --moon:#f1f8f6; --mist:#a9c2c0; --dim:#6f8a8a; --teal:#74e6d8; --teal2:#2c8f88; --violet:#b9a2ff;
+  --hair:rgba(196,240,233,.2); --hair2:rgba(196,240,233,.42); --blood:#d9596d;
+  --gold:var(--moon); --bone:var(--moon); --line:var(--hair); --panel:var(--glass);
+  --serif:"Cormorant Garamond","Cormorant","Cinzel","Trajan Pro","Perpetua Titling MT","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+  --glow:0 0 14px rgba(116,230,216,.45);
+}
+html,body{font-family:var(--serif);color:var(--moon);background:var(--ink)}
+::selection{background:rgba(116,230,216,.3)}
+*{scrollbar-width:thin;scrollbar-color:rgba(196,240,233,.25) transparent}
+kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10px;letter-spacing:.08em;color:var(--moon);background:rgba(196,240,233,.05);font-family:inherit}
+
+/* ------------------------------------------------------------------ HUD */
+.frame{left:22px;top:20px;gap:14px;align-items:flex-start}
+.portrait{width:46px;height:46px;margin:6px 4px 0 6px;border:1px solid var(--hair2);background:radial-gradient(circle at 50% 40%,rgba(116,230,216,.16),rgba(4,7,10,.82) 70%);box-shadow:0 0 0 3px rgba(4,7,10,.55),0 0 0 4px var(--hair),0 0 22px rgba(116,230,216,.18)}
+.portrait span{font-size:19px;font-weight:300;color:var(--moon);text-shadow:var(--glow)}
+#lvl.pts{color:var(--teal);text-shadow:0 0 12px var(--teal)}
+.bars{gap:7px;margin-left:4px;padding-top:4px}
+.bar{height:7px;width:250px;background:rgba(4,9,12,.72);border:0;box-shadow:0 0 0 1px var(--hair),0 2px 10px rgba(0,0,0,.5)}
+.bar::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.22),transparent 55%);pointer-events:none}
+.bar i{transition:width .25s cubic-bezier(.2,.7,.2,1)}
+.bar.hp i{background:linear-gradient(90deg,#7c2236,var(--blood) 70%,#ffc2cc);box-shadow:0 0 10px rgba(217,89,109,.55)}
+.bar.mp{width:190px;height:5px}
+.bar.mp i{background:linear-gradient(90deg,#1c5f66,var(--teal) 75%,#e2fffb);box-shadow:0 0 10px rgba(116,230,216,.55)}
+.bar.xp{height:2px;width:190px;margin-top:0;border:0;background:rgba(196,240,233,.12);box-shadow:none}
+.bar.xp::after{display:none}
+.bar.xp i{background:linear-gradient(90deg,#6a56c9,var(--violet));box-shadow:0 0 6px var(--violet)}
+.bar b{right:auto;left:calc(100% + 10px);top:-5px;font-size:12px;font-weight:400;letter-spacing:.14em;color:var(--mist);white-space:nowrap;text-shadow:0 1px 3px #000}
+#gold{left:96px;top:auto;position:absolute;margin:0;color:var(--mist);font-size:12px;letter-spacing:.16em;text-shadow:0 1px 3px #000}
+#hud #gold{top:82px}
+#gold small{font-size:9px;letter-spacing:.28em;opacity:.65;margin-left:2px}
+#bells{gap:7px;margin-top:2px}
+#bells i{width:9px;height:11px;border-radius:5px 5px 2px 2px;border:1px solid var(--hair);background:rgba(4,9,12,.6)}
+#bells i.on{border-color:rgba(255,255,255,.7)}
+#minimap{right:20px;top:18px;border:0;background:rgba(4,9,12,.55);box-shadow:0 0 0 1px var(--hair),0 0 0 5px rgba(4,9,12,.28),0 8px 26px rgba(0,0,0,.5);backdrop-filter:blur(3px)}
+#roomName{top:11%;font-size:25px;font-weight:300;letter-spacing:.52em;text-indent:.52em;text-transform:uppercase;color:var(--moon)!important;-webkit-text-stroke:0;
+  text-shadow:0 0 3px rgba(0,0,0,.9),0 0 14px rgba(0,0,0,.85),0 0 26px rgba(116,230,216,.55)!important;padding:0 0 14px;transition:opacity .9s,letter-spacing 1.6s cubic-bezier(.2,.7,.2,1)}
+#roomName:not(.show){letter-spacing:.38em}
+#roomName::after{content:"";position:absolute;left:50%;bottom:0;width:min(120%,70vw);height:1px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,var(--hair2) 30%,rgba(255,255,255,.8) 50%,var(--hair2) 70%,transparent)}
+#prompt{bottom:15%;font-size:15px;letter-spacing:.08em;color:var(--moon);background:var(--glass);border:0;box-shadow:0 0 0 1px var(--hair),0 10px 30px rgba(0,0,0,.5);padding:9px 22px;backdrop-filter:blur(6px);max-width:min(760px,86vw);text-align:center;line-height:1.45}
+#toasts{right:22px;bottom:24px;gap:8px}
+.toast{background:linear-gradient(90deg,rgba(6,13,17,0),var(--glass) 18%);border:0;border-right:1px solid var(--teal);padding:8px 16px 8px 34px;font-size:14px;letter-spacing:.06em;color:var(--moon);box-shadow:none;text-shadow:0 1px 3px #000;animation:tin .45s cubic-bezier(.2,.7,.2,1)}
+.toast.magic{border-color:#8fb4ff;color:#c3d5ff}.toast.rare{border-color:#f1dc8a;color:#f6e9b4}.toast.unique{border-color:#e9a86a;color:#f3c797}.toast.gem{border-color:#ff8fc4;color:#ffc0dd}
+@keyframes tin{from{transform:translateX(24px);opacity:0}}
+#bossBar{bottom:38px;font-size:13px;font-weight:400;letter-spacing:.5em;text-indent:.5em;color:var(--moon);text-shadow:0 0 12px rgba(217,89,109,.7),0 1px 3px #000}
+#bossBar div{height:5px;border:0;margin-top:9px;background:rgba(4,9,12,.75);box-shadow:0 0 0 1px var(--hair)}
+#bossBar i{background:linear-gradient(90deg,#5c1626,var(--blood) 80%,#ffd0d7);box-shadow:0 0 12px rgba(217,89,109,.6);transition:width .3s cubic-bezier(.2,.7,.2,1)}
+.dmg{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:.04em;color:var(--moon);text-shadow:0 0 2px #000,0 2px 3px #000,0 0 12px rgba(116,230,216,.35)}
+.dmg.crit{font-size:29px;color:#fff;text-shadow:0 0 2px #000,0 2px 3px #000,0 0 18px var(--teal)}
+.dmg.player{color:#ff8296}.dmg.heal{color:#9dffd6}
+#bellGet{background:radial-gradient(ellipse at center,rgba(4,9,12,.9),rgba(4,9,12,0) 72%)}
+#bellGet small{letter-spacing:.5em;color:var(--mist);font-size:11px}
+#bellGet h2{font:300 46px/1.1 var(--serif);letter-spacing:.18em;text-transform:uppercase}
+#bellGet b{font-weight:400;letter-spacing:.5em;color:var(--moon);font-size:14px}
+#bellGet p{color:var(--mist);font-size:15px;letter-spacing:.04em}
+
+/* ------------------------------------------------------------------ panels: pack, shop menus, map */
+#inv,#menu,#mapScreen{background:radial-gradient(ellipse at 70% 0%,rgba(40,84,86,.34),rgba(2,5,7,.9) 62%);backdrop-filter:blur(7px)}
+.inv-wrap{background:linear-gradient(160deg,var(--glass2),var(--glass));border:0;box-shadow:0 0 0 1px var(--hair),0 0 0 7px rgba(4,9,12,.35),0 0 0 8px rgba(196,240,233,.07),0 30px 90px rgba(0,0,0,.75);position:relative}
+.inv-wrap::before{content:"";position:absolute;left:10%;right:10%;top:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);pointer-events:none}
+.inv-wrap header{padding:16px 24px 13px;border-bottom:1px solid var(--hair);align-items:baseline}
+.inv-wrap h2{color:var(--moon);font-weight:300;font-size:21px;letter-spacing:.5em;text-transform:uppercase;text-shadow:var(--glow)}
+.hint{font-size:11px;letter-spacing:.12em;color:var(--dim);opacity:1}
+.paper{border-right:1px solid var(--hair);padding:18px}
+.stats{font-size:13px;gap:5px 12px;letter-spacing:.04em}
+.stats .k{opacity:1;color:var(--dim);font-size:11px;letter-spacing:.2em;text-transform:uppercase;align-self:center}
+.stats .pts{color:var(--teal)}.stats kbd{border-color:rgba(116,230,216,.5);color:var(--teal)}
+.slots{gap:5px}
+.slot{padding:8px 10px;border:0;box-shadow:0 0 0 1px rgba(196,240,233,.1);background:rgba(196,240,233,.025);font-size:13px;align-items:baseline;gap:10px}
+.slot .n{opacity:1;color:var(--dim);font-size:9px;letter-spacing:.26em;text-transform:uppercase;flex:none}
+.slot.sel,#packList li.sel,#menuList li.sel{border-color:transparent;background:linear-gradient(90deg,rgba(116,230,216,.16),rgba(116,230,216,.02) 85%);box-shadow:inset 2px 0 0 var(--teal),0 0 0 1px rgba(116,230,216,.22)}
+.tabs{border-bottom:1px solid var(--hair);padding:0 10px}
+.tabs span{padding:12px 14px 10px;font-size:10px;letter-spacing:.3em;color:var(--dim);opacity:1;border-bottom:1px solid transparent;margin-bottom:-1px;transition:color .2s}
+.tabs span:hover{color:var(--moon)}
+.tabs span.on{color:var(--moon);border-bottom:1px solid var(--teal);text-shadow:var(--glow)}
+#packList,#menuList{padding:10px}
+#packList li,#menuList li{list-style:none;padding:7px 12px;font-size:14px;letter-spacing:.03em;border:0;margin-bottom:2px;align-items:center;transition:background .15s}
+#menuList li{display:flex;justify-content:space-between;cursor:pointer}
+#packList li:hover,#menuList li:hover{background:rgba(196,240,233,.05)}
+#packList li small,#menuList li small{opacity:1;color:var(--dim);font-size:9px;letter-spacing:.24em;text-transform:uppercase;margin-left:auto;padding-left:12px}
+.detail{border-left:1px solid var(--hair);padding:20px;font-size:13px;letter-spacing:.03em;line-height:1.5;background:linear-gradient(200deg,rgba(116,230,216,.05),transparent 50%)}
+.detail h3{font-size:21px;font-weight:400;letter-spacing:.08em;margin-bottom:4px;text-shadow:0 0 16px currentColor}
+.detail .type{opacity:1;color:var(--dim);font-size:10px;letter-spacing:.26em;text-transform:uppercase;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--hair)}
+.detail .aff{color:#a9c4ff}
+.detail .act{margin-top:16px;padding-top:12px;border-top:1px solid var(--hair);color:var(--teal);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+.sock{width:22px;height:22px;border:1px solid var(--hair2);background:radial-gradient(circle,rgba(0,0,0,.7),rgba(196,240,233,.06))}
+.bellrow span{border-color:var(--hair);color:var(--dim)}
+.q-normal{color:var(--moon)}.q-magic{color:#9dbcff}.q-rare{color:#f1dc8a}.q-unique{color:#eeac72}.q-gem{color:#ff9bcb}.q-socketed{color:var(--mist)}
+.line.echo{color:var(--teal);text-shadow:0 0 8px rgba(116,230,216,.4)}
+.ico.ring{border-color:var(--mist)}
+#bigmap{border:0;box-shadow:0 0 0 1px var(--hair),0 0 0 7px rgba(4,9,12,.35),0 30px 90px rgba(0,0,0,.7);background:rgba(4,9,12,.6)}
+.maphint{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mist);opacity:1}
+
+/* ------------------------------------------------------------------ ending */
+#ending{background:radial-gradient(ellipse at 80% 0%,rgba(60,120,120,.35),rgba(2,5,7,.97) 65%);color:var(--moon)}
+#ending h1{font-size:0;margin:0 0 26px;width:min(760px,84vw);aspect-ratio:3/1;background:url(../assets/ui/logo.webp) center/contain no-repeat;filter:drop-shadow(0 0 22px rgba(116,230,216,.35));text-shadow:none}
+#ending p{font-size:18px;letter-spacing:.04em;color:var(--mist)}#ending .k{color:var(--dim);letter-spacing:.2em;text-transform:uppercase;font-size:12px}
+#ending .sub{letter-spacing:.2em;text-transform:uppercase;font-size:11px}
+
+/* ------------------------------------------------------------------ title */
+#title{background:#020507;display:block;overflow:hidden;isolation:isolate}
+#title>*{position:absolute}
+.t-sky{inset:0;background:
+  radial-gradient(ellipse 62% 78% at 100% 0%,rgba(214,246,240,.5) 0%,rgba(120,196,190,.26) 22%,rgba(40,92,98,.16) 46%,transparent 72%),
+  radial-gradient(ellipse 120% 70% at 50% 108%,rgba(18,52,58,.75),transparent 70%),
+  linear-gradient(200deg,#0c1f25 0%,#06101a 38%,#020507 78%)}
+.t-moon{right:-12vmax;top:-14vmax;width:44vmax;height:44vmax;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.97) 0%,rgba(240,253,250,.9) 7%,rgba(206,246,239,.64) 14%,rgba(158,228,219,.38) 25%,rgba(104,186,182,.19) 41%,rgba(60,130,132,.08) 58%,transparent 72%);
+  filter:blur(7px);animation:moonPulse 9s ease-in-out infinite alternate}
+@keyframes moonPulse{from{opacity:.88;transform:scale(1)}to{opacity:1;transform:scale(1.04)}}
+/* broad volumetric shafts falling from the moon across the fog and the lettering (down and to the left only) */
+.t-rays{inset:-12%;pointer-events:none;mix-blend-mode:screen;filter:blur(18px);
+  background:conic-gradient(from 0deg at 90% 12%,transparent 0deg,transparent 198deg,rgba(196,246,238,.2) 206deg,rgba(196,246,238,.03) 214deg,rgba(196,246,238,.26) 224deg,rgba(196,246,238,.05) 233deg,rgba(196,246,238,.18) 241deg,rgba(196,246,238,.02) 250deg,rgba(196,246,238,.12) 258deg,transparent 268deg,transparent 360deg);
+  -webkit-mask-image:radial-gradient(circle at 90% 12%,#000 0%,rgba(0,0,0,.7) 34%,rgba(0,0,0,.25) 62%,transparent 86%);mask-image:radial-gradient(circle at 90% 12%,#000 0%,rgba(0,0,0,.7) 34%,rgba(0,0,0,.25) 62%,transparent 86%);
+  animation:rays 19s ease-in-out infinite alternate}
+@keyframes rays{from{opacity:.55;transform:rotate(-.8deg)}to{opacity:.95;transform:rotate(.9deg)}}
+.t-fog{inset:0;width:100%;height:100%;pointer-events:none}
+.t-fog.back{z-index:1}.t-fog.front{z-index:3;mix-blend-mode:screen}
+.t-logo{z-index:2;left:50%;top:43%;width:min(1180px,92vw);margin:0;transform:translate(-50%,-50%);line-height:0;animation:logoIn 3.2s cubic-bezier(.2,.6,.2,1) both}
+.t-logo img{width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none;
+  filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 0 16px rgba(150,240,228,.42)) drop-shadow(-10px 18px 30px rgba(0,0,0,.6))}
+/* moonlight falls from the upper right: the far side of the word sits in shade, and a slow glint crosses it */
+.t-logo::before,.t-logo::after{content:"";position:absolute;inset:0;pointer-events:none;-webkit-mask:url(../assets/ui/logo.webp) center/100% 100% no-repeat;mask:url(../assets/ui/logo.webp) center/100% 100% no-repeat}
+.t-logo::before{background:linear-gradient(248deg,transparent 30%,rgba(2,8,11,.5) 78%,rgba(2,8,11,.72) 100%)}
+.t-logo::after{background:linear-gradient(248deg,transparent 42%,rgba(255,255,255,.95) 50%,transparent 58%) no-repeat;background-size:260% 100%;animation:glint 11s cubic-bezier(.4,0,.2,1) infinite;mix-blend-mode:screen}
+@keyframes glint{0%,58%{background-position:-160% 0}100%{background-position:160% 0}}
+@keyframes logoIn{from{opacity:0;filter:blur(14px);letter-spacing:0}to{opacity:1;filter:blur(0)}}
+.t-menu{z-index:4;left:50%;top:67%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;width:min(560px,90vw);text-align:center}
+#loadMsg{margin:0 0 14px;min-height:1.4em;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--mist);text-shadow:0 0 12px rgba(0,0,0,.9);animation:breathe 2.6s ease-in-out infinite alternate}
+@keyframes breathe{from{opacity:.45}to{opacity:1}}
+#title button{font:300 19px/1 var(--serif);letter-spacing:.46em;text-indent:.46em;text-transform:uppercase;color:var(--mist);background:none;border:0;padding:13px 30px;margin:0;cursor:pointer;position:relative;transition:color .35s,letter-spacing .5s cubic-bezier(.2,.7,.2,1),text-shadow .35s;text-shadow:0 0 12px rgba(0,0,0,.9)}
+#title button::after{content:"";position:absolute;left:50%;bottom:5px;width:0;height:1px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#fff,transparent);transition:width .5s cubic-bezier(.2,.7,.2,1)}
+#title button:hover,#title button:focus-visible,#startBtn{color:#fff;text-shadow:0 0 18px rgba(116,230,216,.85),0 0 4px rgba(255,255,255,.5);outline:0}
+#title button:hover,#title button:focus-visible{letter-spacing:.56em;background:none}
+#title button:hover::after,#title button:focus-visible::after,#startBtn::after{width:72%}
+#newBtn{font-size:14px!important;margin-left:0}
+#title .controls{z-index:4;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);margin:0;width:min(1100px,94vw);max-width:none;gap:7px 20px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);opacity:1;text-shadow:0 1px 4px #000}
+#title .controls .lore{flex-basis:100%;text-align:center;text-transform:none;letter-spacing:.1em;font-style:italic;font-size:13px;color:var(--mist);margin-bottom:4px}
+#title.leaving{animation:titleOut .9s ease-in forwards}
+@keyframes titleOut{to{opacity:0;filter:blur(6px)}}
+
+/* ------------------------------------------------------------------ touch */
+#touch .tbtn{color:var(--moon);font:400 11px/1 var(--serif);letter-spacing:.22em;background:radial-gradient(circle at 40% 30%,rgba(116,230,216,.16),rgba(4,9,12,.5));border:1px solid var(--hair2);box-shadow:0 0 14px rgba(0,0,0,.55),inset 0 0 10px rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+#touch .tbtn.on{background:radial-gradient(circle,rgba(116,230,216,.5),rgba(20,70,70,.5));border-color:#fff;color:#fff;box-shadow:0 0 18px rgba(116,230,216,.6)}
+.tpad{background:radial-gradient(circle,rgba(4,9,12,.35),rgba(4,9,12,.12) 70%,transparent 72%)}
+.tact .t-attack{border-color:rgba(255,160,175,.7)}
+@media (orientation:portrait){body.touch #rotate{background:var(--ink);color:var(--moon);letter-spacing:.3em;text-transform:uppercase;font-size:12px}}
+
+@media (max-height:520px){
+  .bar{width:160px;height:6px}.bar.mp,.bar.xp{width:120px}.portrait{width:36px;height:36px}.portrait span{font-size:15px}
+  #hud #gold{top:66px;left:78px;font-size:10px}
+  #roomName{font-size:16px;letter-spacing:.4em}
+  .t-logo{top:36%;width:min(760px,80vw)}.t-menu{top:60%}
+  #title button{font-size:15px;padding:8px 20px}#newBtn{font-size:12px!important}
+  #title .controls{font-size:9px;gap:4px 12px;bottom:8px}#title .controls .lore{display:none}
+  .inv-wrap h2{font-size:15px}.inv-wrap header{padding:8px 14px}
+}
+@media (prefers-reduced-motion:reduce){.t-logo,.t-logo::after,.t-rays,.t-moon,#loadMsg{animation:none}}
+
+/* ------------------------------------------------------------------ iteration 2 (critic notes) */
+/* legibility: nothing in the HUD or panels under 12px, dim text lifted */
+:root{--dim:#93adac}
+.bar b{font-size:13px;color:var(--moon)}
+#hud #gold{font-size:14px;top:86px;color:var(--moon)}#gold small{font-size:11px;opacity:.8;color:var(--mist)}
+#bells{gap:8px;margin-top:4px}#bells i{width:11px;height:13px}
+.hint{font-size:12px;color:var(--mist)}
+.stats .k,.slot .n,.tabs span,.detail .type,#packList li small,#menuList li small,.maphint{font-size:12px;letter-spacing:.16em}
+.stats{font-size:14px}.slot{font-size:14px}.detail{font-size:14px}.detail .act{font-size:12px}
+/* pack: the sheet fills its column; stats in two columns so every slot is visible without scrolling */
+.inv-wrap{height:min(700px,94vh)}
+.inv-body{grid-template-columns:minmax(340px,1.05fr) 1.2fr minmax(300px,1fr)}
+.paper{display:flex;flex-direction:column;gap:16px}
+.stats{grid-template-columns:1fr auto 1fr auto;gap:6px 14px;margin:0;padding-bottom:16px;border-bottom:1px solid var(--hair)}
+.stats>span:nth-child(4n+2){padding-right:14px;border-right:1px solid rgba(196,240,233,.1)}
+.slots{flex:1;justify-content:space-between;gap:6px}.slot{flex:1;align-items:center;max-height:46px}
+#packList,#menuList{max-height:none}
+/* world-space callouts share the pack panel's hairline frame and tracked capitals */
+#prompt{bottom:22%;font-size:13px;letter-spacing:.2em;text-transform:uppercase;padding:11px 26px;box-shadow:0 0 0 1px var(--hair2),0 0 0 5px rgba(4,9,12,.35),0 0 0 6px rgba(196,240,233,.08),0 10px 30px rgba(0,0,0,.55)}
+#prompt::before{content:"";position:absolute;left:14%;right:14%;top:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent)}
+.toast{background:var(--glass);border:0;border-right:0;padding:9px 20px 9px 22px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;box-shadow:0 0 0 1px var(--hair2),inset 3px 0 0 var(--teal),0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+.toast.magic{box-shadow:0 0 0 1px var(--hair2),inset 3px 0 0 #8fb4ff,0 8px 24px rgba(0,0,0,.5)}.toast.rare{box-shadow:0 0 0 1px var(--hair2),inset 3px 0 0 #f1dc8a,0 8px 24px rgba(0,0,0,.5)}
+.toast.unique{box-shadow:0 0 0 1px var(--hair2),inset 3px 0 0 #e9a86a,0 8px 24px rgba(0,0,0,.5)}.toast.gem{box-shadow:0 0 0 1px var(--hair2),inset 3px 0 0 #ff8fc4,0 8px 24px rgba(0,0,0,.5)}
+#roomName{padding:16px 60px 18px;background:radial-gradient(ellipse 60% 100% at 50% 50%,rgba(3,8,11,.72),rgba(3,8,11,.4) 55%,transparent 100%)}
+#roomName::before{content:"";position:absolute;left:50%;top:0;width:min(70%,50vw);height:1px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,var(--hair2) 30%,rgba(255,255,255,.6) 50%,var(--hair2) 70%,transparent)}
+#minimap{box-shadow:0 0 0 1px var(--hair2),0 0 0 5px rgba(4,9,12,.4),0 0 0 6px rgba(196,240,233,.1),0 8px 26px rgba(0,0,0,.5)}
+/* hits must pop: warm, outlined, and they land with a punch */
+.dmg{font-size:23px;font-weight:700;color:#fff3e2;-webkit-text-stroke:.6px rgba(20,8,4,.9);paint-order:stroke fill;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(255,170,90,.35);animation:dmgPop .85s cubic-bezier(.2,.8,.2,1) forwards}
+.dmg.crit{font-size:36px;color:#ffd27a;letter-spacing:.06em;-webkit-text-stroke:1px rgba(40,12,0,.95);text-shadow:0 3px 0 rgba(0,0,0,.85),0 0 18px rgba(255,150,50,.85),0 0 40px rgba(255,120,40,.4);animation:critPop .95s cubic-bezier(.2,.8,.2,1) forwards}
+.dmg.player{color:#ff8a9c;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(255,60,90,.5)}.dmg.heal{color:#a4ffd9;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(100,255,190,.4)}
+.dmg.fire{color:#ffa35c}.dmg.ice{color:#a6e4ff}.dmg.lightning{color:#fff08a}.dmg.poison{color:#a8ff7a}.dmg.shadow{color:#cfaaff}
+@keyframes dmgPop{0%{transform:translate(-50%,6px) scale(1.5);opacity:1}14%{transform:translate(-50%,-8px) scale(1);opacity:1}70%{opacity:1}100%{transform:translate(-50%,-58px) scale(.92);opacity:0}}
+@keyframes critPop{0%{transform:translate(-50%,10px) scale(1.9) rotate(-5deg);opacity:1}16%{transform:translate(-50%,-12px) scale(1) rotate(0);opacity:1}26%{transform:translate(-50%,-12px) scale(1.12)}74%{opacity:1}100%{transform:translate(-50%,-72px) scale(.95);opacity:0}}
+/* map: a titled chart on gridded paper rather than a black void */
+#mapScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.maptitle{margin:0;font-weight:300;font-size:21px;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--moon);text-shadow:var(--glow);position:relative;padding-bottom:12px}
+.maptitle::after{content:"";position:absolute;left:-30%;right:-30%;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--hair2) 25%,rgba(255,255,255,.75) 50%,var(--hair2) 75%,transparent)}
+#bigmap{max-height:74vh;background:
+  radial-gradient(ellipse at 50% 45%,rgba(40,90,92,.2),rgba(3,7,9,.92) 78%),
+  repeating-linear-gradient(0deg,rgba(196,240,233,.05) 0 1px,transparent 1px 28px),
+  repeating-linear-gradient(90deg,rgba(196,240,233,.05) 0 1px,transparent 1px 28px),#050b0e;
+  box-shadow:0 0 0 1px var(--hair2),0 0 0 7px rgba(4,9,12,.4),0 0 0 8px rgba(196,240,233,.1),0 30px 90px rgba(0,0,0,.7)}
+.maphint{position:static;max-width:92vw;text-align:center;line-height:1.9;padding:8px 22px;background:var(--glass);box-shadow:0 0 0 1px var(--hair)}
+/* title: one quiet row of controls, no second line of text under the logo */
+#title .controls{flex-wrap:nowrap;justify-content:center;gap:0 18px;font-size:11px;letter-spacing:.14em;opacity:.5;white-space:nowrap;transition:opacity .4s}
+#title .controls:hover{opacity:.9}
+#title .controls kbd{font-size:10px;padding:1px 5px}
+@media (max-width:1000px){#title .controls{flex-wrap:wrap;gap:4px 14px;white-space:normal}}
+@media (max-height:520px){#hud #gold{top:66px;font-size:11px}.bar b{font-size:11px}.inv-wrap{height:96vh}.stats{font-size:12px}.slot{font-size:12px;max-height:30px}.maptitle{font-size:14px;padding-bottom:6px}#mapScreen{gap:6px}#bigmap{max-height:70vh}}
+.stats>span{white-space:nowrap}.stats{grid-template-columns:auto 1fr auto 1fr;gap:7px 12px}.stats>span:nth-child(4n+2){padding-right:10px}
+.inv-body{grid-template-columns:minmax(390px,1.15fr) 1.15fr minmax(290px,.95fr)}.paper{overflow-x:hidden}
+.stats{gap:7px 8px}.stats .k{letter-spacing:.1em}.stats>span:nth-child(4n+2){padding-right:8px}.stats>span:nth-child(4n+3){padding-left:4px}
+/* ------------------------------------------------------------------ iteration 3 (critic notes) */
+#prompt{bottom:8.5%}                                   /* on the foreground floor band: never over the hero */
+.frame::before{content:"";position:absolute;left:-30px;top:-26px;width:470px;height:150px;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 70% 70% at 30% 40%,rgba(3,8,11,.5),rgba(3,8,11,.22) 55%,transparent 100%)}
+.frame{isolation:isolate}
+#bells i{background:rgba(196,240,233,.14);border-color:rgba(196,240,233,.45)}
+@media (max-height:520px){#prompt{bottom:auto}}
+.bellrow{flex:none;margin-top:8px;padding-top:12px;border-top:1px solid var(--hair);gap:5px 6px}
+.bellrow::before{content:"Bells of Velscour";flex-basis:100%;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.bellrow span{font-size:11px;padding:3px 8px;color:var(--dim);border-color:var(--hair)}

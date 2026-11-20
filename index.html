@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#07050a">
 <title>Vesperwrithe</title>
 <link rel="stylesheet" href="src/style.css">
+<link rel="stylesheet" href="src/theme.css">
+<link rel="preload" as="image" href="assets/ui/logo.webp">
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/build/three.module.js",
@@ -53,23 +55,26 @@
   </div>
 </div>
 
-<div id="mapScreen" class="hidden"><canvas id="bigmap" width="1200" height="700"></canvas><div class="maphint">M close · Castle Velscour — Pilgrim Causeway &amp; Blackthorn Gatehouse</div></div>
+<div id="mapScreen" class="hidden"><h2 class="maptitle">Castle Velscour</h2><canvas id="bigmap" width="1200" height="700"></canvas><div class="maphint">M close · Castle Velscour — Pilgrim Causeway &amp; Blackthorn Gatehouse</div></div>
 
 <div id="title">
-  <div class="t-inner">
-    <h1>VESPERWRITHE</h1>
-    <p class="sub">Castle Velscour</p>
+  <div class="t-sky"></div>
+  <div class="t-moon"></div>
+  <div class="t-rays"></div>
+  <canvas class="t-fog back"></canvas>
+  <h1 class="t-logo"><img src="assets/ui/logo.webp" alt="Vesperwrithe" draggable="false"></h1>
+  <canvas class="t-fog front"></canvas>
+  <div class="t-menu">
     <p id="loadMsg">Summoning the castle…</p>
     <button id="startBtn" class="hidden">Enter the Castle</button>
     <button id="newBtn" class="hidden">New Journey</button>
-    <div class="controls">
-      <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd>/<kbd>K</kbd> jump · double jump</span>
-      <span><kbd>J</kbd> attack</span><span><kbd>L</kbd> shield / off-hand</span><span><kbd>Shift</kbd> backdash</span>
-      <span><kbd>E</kbd> interact</span><span><kbd>I</kbd> inventory</span><span><kbd>M</kbd> map</span><span>Gamepad supported</span>
-      <span class="touch-only">Play sideways · left thumb anywhere to move (pull down to crouch) · ATTACK, JUMP (tap again in the air to double jump), GUARD, DASH, HEAL on the right · USE appears when there is something to use</span>
-    </div>
+  </div>
+  <div class="controls">
+    <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>↓</kbd> crouch</span><span><kbd>Space</kbd> jump</span><span><kbd>J</kbd> attack</span><span><kbd>L</kbd> guard</span><span><kbd>Shift</kbd> dash</span><span><kbd>Q</kbd> potion</span><span><kbd>E</kbd> interact</span><span><kbd>I</kbd> pack</span><span><kbd>M</kbd> map</span>
+    <span class="touch-only">Play sideways · left thumb to move · buttons on the right</span>
   </div>
 </div>
+<script type="module" src="src/title.js"></script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
