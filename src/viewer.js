@@ -30,7 +30,8 @@ const grid = new THREE.GridHelper(30, 30, 0x3d3226, 0x241d18); grid.position.y =
 const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 200);
 const controls = new OrbitControls(camera, canvas); controls.enabled = false; controls.target.set(0.8, 1.0, 0); controls.enableDamping = true;
 let camMode = 'side';
-function sideCam() { camera.position.set(0.8, 1.6, 5.2); camera.lookAt(0.8, 1.0, 0); controls.target.set(0.9, 1.0, 0); }
+// frame the hero (and his reach) to fill the stage whatever its shape
+function sideCam() { const a = Math.max(0.6, camera.aspect || 1), d = a < 1 ? 5.4 / a ** 0.5 : 4.2; camera.position.set(0.7, 1.45, d); camera.lookAt(0.7, 1.0, 0); controls.target.set(0.7, 1.0, 0); }
 sideCam();
 
 // spell preview: an orb gathers between the hands through the wind-up and flies off on the release frame
@@ -58,7 +59,7 @@ let showHit = true;
 
 function resize() {
   const r = canvas.parentElement.getBoundingClientRect();
-  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); if (camMode === 'side') sideCam();
 }
 new ResizeObserver(resize).observe(canvas.parentElement);
 
@@ -92,14 +93,14 @@ function tipWorld() {
 const bone = n => P.model.getObjectByName('mixamorig' + n);
 let LIMBS = null;
 function strikeSample() {
-  LIMBS ||= { chest: bone('Spine2'), L: bone('LeftHand'), RF: bone('RightToeBase'), LF: bone('LeftToeBase') };
+  LIMBS ||= { chest: bone('Spine2'), L: bone('LeftHand'), RF: bone('RightToeBase'), LF: bone('LeftToeBase'), RK: bone('RightLeg'), LK: bone('LeftLeg') };
   const v = o => o.getWorldPosition(new THREE.Vector3());
   return { chest: v(LIMBS.chest), fwd: new THREE.Vector3(Math.sin(YAW), 0, Math.cos(YAW)),
-    limbs: { R: tipWorld(), L: v(LIMBS.L), RF: v(LIMBS.RF), LF: v(LIMBS.LF) } };
+    limbs: { R: tipWorld(), L: v(LIMBS.L), RF: v(LIMBS.RF), LF: v(LIMBS.LF), RK: v(LIMBS.RK), LK: v(LIMBS.LK) } };
 }
 const fullWin = () => ({ name: 'Whole clip', from: 0, to: clipLen(), hit: [0, clipLen()], box: null });
 function useStrike(s) {
-  S.from = s.from; S.to = s.to; S.hit = [...s.hit]; S.box = s.box ? { ...s.box } : null; S.frame = S.from;
+  S.from = s.from; S.to = s.to; S.hit = [...s.hit]; S.box = s.box && !s.back ? { ...s.box } : null; S.frame = S.from;
   S.dur = +Math.max(0.15, Math.min(1.2, (S.to - S.from) / FPS * 0.62)).toFixed(2);
   $('dur').value = S.dur; $('durText').textContent = S.dur.toFixed(2) + ' s';
 }
@@ -206,6 +207,10 @@ $('swings').onclick = e => {
   useStrike(b.dataset.swing === 'all' ? fullWin() : S.swings[+b.dataset.swing]);
   renderSwings(); renderTrack();
 };
+const step = d => { S.playing = false; S.frame = Math.max(0, Math.min(clipLen(), Math.round(S.frame) + d)); };
+$('prevF').onclick = () => step(-1); $('nextF').onclick = () => step(1);
+addEventListener('keydown', e => { if (e.target.closest?.('select,input')) return; if (e.key === ',' || e.key === 'ArrowLeft') step(-1); if (e.key === '.' || e.key === 'ArrowRight') step(1); if (e.key === ' ') { e.preventDefault(); $('play').click(); } });
+$('listToggle').onclick = () => document.body.classList.toggle('listOpen');
 $('play').onclick = () => { S.playing = !S.playing; $('play').textContent = S.playing ? '❚❚' : '▶'; };
 $('scrub').oninput = e => { S.frame = +e.target.value; S.playing = false; $('play').textContent = '▶'; };
 $('upperOnly').onchange = e => { S.upperOnly = e.target.checked; applyUpper(); };
@@ -261,7 +266,8 @@ function tick(now) {
     P.trail.update(dt); P.scarf.update(dt, 1, { x: 0, y: 0 });
     spellFX(f);
     const on = f >= S.hit[0] && f <= S.hit[1];
-    hitBox.visible = showHit && on;
+    const finisher = ATTACK_CLIPS.find(c => c.name === S.clip)?.use === 'finisher';
+    hitBox.visible = showHit && on && !finisher; // paired clips turn the hero round: a box would mislead
     const bx = S.box || st;
     if (on) { hitBox.scale.set(bx.reach, bx.height, 1); hitBox.position.set(0.15 + bx.reach / 2, bx.yOff, 0.3); }
     $('scrub').value = Math.round(f); $('frame').textContent = `${Math.round(f)} / ${clipLen()}`;

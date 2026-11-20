@@ -10,16 +10,18 @@ export const RARITY = { normal: 'normal', magic: 'magic', rare: 'rare', unique: 
 export const STYLES = {
   slash1h: { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [16, 24], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
   slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
-  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 64, hit: [47, 57], dur: 0.55, reach: 1.45, height: 2.1, yOff: 1.1 },
+  smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
+  // maul: same overhead slam, slower with a longer recovery so the weight reads
+  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
   // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
-  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 62, hit: [47, 56], dur: 0.46, reach: 1.6, height: 1.8, yOff: 1.05 },
+  chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
   // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
-  // (frames 231-254) with a forward grip pushes the point out level; its legs kick there, so it plays on the upper body
-  // only. Fists: the boxing set's straight (frame 165). Daggers: a quick slash.
-  thrust:  { anim: 'fist_fight_a', from: 231, to: 254, hit: [236, 247], dur: 0.42, reach: 2.6, height: 1.0, yOff: 0.85, grip: 'forward', upperOnly: true },
-  lance:   { anim: 'fist_fight_a', from: 229, to: 256, hit: [236, 248], dur: 0.56, reach: 3.2, height: 1.0, yOff: 0.85, grip: 'forward', upperOnly: true },
+  // (frames 236-262, level at 246-257) with a forward grip pushes the point out level; its legs kick there, so it plays on the upper body
+  // only. Fists: the boxing set's straight, arm fully out f170-180. Daggers: a quick slash.
+  thrust:  { anim: 'fist_fight_a', from: 236, to: 262, hit: [246, 257], dur: 0.44, reach: 2.6, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
+  lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
   stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
-  punch:   { anim: 'fist_fight_a', from: 154, to: 174, hit: [161, 168], dur: 0.3, reach: 0.9, height: 0.8, yOff: 1.2 },
+  punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
 };
 
 // Weapon bases. model = BM weapons.json id; kind drives the grip in assets/game/weapons/grips.json.
@@ -33,7 +35,7 @@ export const BASES = {
   morning_star:   { name: 'Morning Star', slot: 'weapon', model: 'morning_star', kind: 'mace', hands: 1, style: 'smash', dmg: [13, 20], sockets: [0, 2], scale: 0.95, lvl: 4 },
   hatchet:        { name: 'Iron Hatchet', slot: 'weapon', model: 'iron_hatchet', kind: 'axe', hands: 1, style: 'chop', dmg: [9, 14], sockets: [0, 2], scale: 0.9, lvl: 2 },
   iron_greataxe:  { name: 'Iron Greataxe', slot: 'weapon', model: 'iron_greataxe', kind: 'great_axe', hands: 2, style: 'slash2h', dmg: [20, 31], sockets: [0, 4], scale: 1.0, lvl: 4 },
-  iron_maul:      { name: 'Iron Maul', slot: 'weapon', model: 'great_studded_mace', kind: 'great_mace', hands: 2, style: 'smash', dmg: [22, 34], sockets: [0, 4], scale: 1.0, lvl: 5 },
+  iron_maul:      { name: 'Iron Maul', slot: 'weapon', model: 'great_studded_mace', kind: 'great_mace', hands: 2, style: 'smash2h', dmg: [22, 34], sockets: [0, 4], scale: 1.0, lvl: 5 },
   iron_spear:     { name: 'Iron Spear', slot: 'weapon', model: 'iron_spear', kind: 'spear', hands: 2, style: 'thrust', dmg: [14, 22], sockets: [0, 3], scale: 0.95, lvl: 2 },
   black_pike:     { name: 'Black Pike', slot: 'weapon', model: 'black_pike', kind: 'spear', hands: 2, style: 'thrust', dmg: [17, 26], sockets: [0, 3], scale: 1.0, lvl: 5 },
   silver_lance:   { name: 'Silver Lance', slot: 'weapon', model: 'silver_lance', kind: 'lance', hands: 2, style: 'lance', dmg: [24, 36], sockets: [0, 4], scale: 0.95, lvl: 5 },

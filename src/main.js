@@ -228,7 +228,7 @@ class Game {
   // ------------------------------------------------------------------ combat hooks
   playerHits(hb) {
     const P = this.player, room = this.room;
-    for (const e of room.enemies) { if (hb.attack.hitIds.has(e.id)) continue; const roll = P.rollDamage(); if (e.hit(hb, roll, P)) { this.hitStop((e.boss ? 0.09 : e.spec.t === 'knight' ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); if (roll.crit) this.flash(); } }
+    for (const e of room.enemies) { if (hb.attack.hitIds.has(e.id)) continue; const roll = P.rollDamage(); if (e.hit(hb, roll, P)) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.spec.t === 'knight' ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); if (roll.crit) this.flash(); } }
     for (const bk of room.breakables || []) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
     for (const t of room.thorns || []) if (!t.gone && !hb.attack.hitIds.has('thorn') && hb.x0 < t.x1 && hb.x1 > t.x0 && hb.y0 < t.y1 && hb.y1 > t.y0) {
       hb.attack.hitIds.add('thorn');
@@ -388,7 +388,7 @@ class Game {
 }
 
 const game = new Game(); window.game = game;
-initTouch(game.input, () => game.ui.open, () => game.ctxAction, () => game.player.stats.potions);
+game.touch = initTouch(game.input, () => { const P = game.player; return { menu: game.ui.open, ctx: game.ctxAction, potions: P.stats.potions, canDouble: !P.onGround && P.jumpsLeft > 0 && P.state === 'free' }; });
 // Debug helpers (console): sim(frames, heldKeys, pressedKeys) steps the game; shot(...) frames a still with the free camera.
 window.sim = (n, keys = [], press = []) => { const I = game.input; press.forEach(k => I.pressed.add(k)); keys.forEach(k => I.keys.add(k)); for (let i = 0; i < n; i++) { if (i === 1) I.pressed.clear(); game.step(1 / 60); } keys.forEach(k => I.keys.delete(k)); };
 window.shot = (x, y, z, lx, ly, lz = 0) => { window.__pause = true; game.camera.position.set(x, y, z); game.camera.lookAt(lx, ly, lz); };

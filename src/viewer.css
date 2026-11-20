@@ -53,6 +53,8 @@ select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;p
 #scrub::-moz-range-track{height:4px;background:#3d3226}
 #scrub::-moz-range-thumb{width:6px;height:28px;background:var(--gold);border:0;border-radius:2px}
 #frame{min-width:64px;text-align:right}
+button.step{width:34px;height:34px;padding:0;font-size:18px;flex:none;border-radius:50%}
+.phone-only{display:none}
 .ctrls{display:flex;flex-direction:column;gap:7px}
 .opts,.marks,.act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .chk{display:flex;align-items:center;gap:6px;font-size:13px}
@@ -78,8 +80,8 @@ select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;p
   #clips{display:block;overflow:auto;flex:1}
   .clip{width:100%;max-width:none;margin:0 0 4px}
   #bar{gap:4px;padding:5px 10px calc(5px + env(safe-area-inset-bottom))}
-  .ctrls{display:flex;flex-direction:row;gap:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
-  .ctrls>div{flex-wrap:nowrap;flex:none}
+  .ctrls{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 14px}
+  .ctrls>div{flex-wrap:wrap;gap:6px}
   .ctrls .act{order:-1}
   .chk{white-space:nowrap}
   #grip option{font-size:13px}
@@ -92,4 +94,11 @@ select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;p
   #side h1{font-size:14px}
   .lab{margin:6px 0 3px}
   .clip{padding:5px 8px}
+}
+/* phones: the animation list folds away so the stage gets the room; controls wrap, nothing clips */
+@media (max-height:500px) and (min-width:600px), (max-width:820px){
+  .phone-only{display:inline-block;font-size:12px;min-height:30px;padding:3px 10px}
+  body:not(.listOpen) #side .grow{display:none}
+  body:not(.listOpen) #side{padding-bottom:6px}
+  #bar{overflow:auto}
 }

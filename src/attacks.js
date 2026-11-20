@@ -14,7 +14,7 @@ export const KINDS = {
   axe:        { label: 'Axe (one hand)', style: 'chop' },
   mace:       { label: 'Mace (one hand)', style: 'smash' },
   great_axe:  { label: 'Greataxe', style: 'slash2h' },
-  great_mace: { label: 'Maul', style: 'smash' },
+  great_mace: { label: 'Maul', style: 'smash2h' },
   spear:      { label: 'Spear / pike', style: 'thrust' },
   lance:      { label: 'Lance', style: 'lance' },
 };
@@ -103,8 +103,8 @@ export function detectSwings(duration, sample) {
 // A strike is a speed peak during which the limb moves away from the chest (so wind-ups back and recoveries are
 // dropped). Each gets a readable name from its limb and direction, a frame window, hit frames and a hit box fitted
 // to where the limb actually travels while the hit is live. Returns strikes sorted by hit frame.
-const LIMB = { R: 'Right', L: 'Left', RF: 'Right', LF: 'Left' };
-const MIN_SPEED = { R: 0.9, L: 0.9, RF: 1.0, LF: 1.0 }; // m/s: below this it's stance sway, not a blow
+const LIMB = { R: 'Right', L: 'Left', RF: 'Right', LF: 'Left', RK: 'Right', LK: 'Left' };
+const MIN_SPEED = { R: 0.9, L: 0.9, RF: 1.0, LF: 1.0, RK: 1.1, LK: 1.1 }; // m/s: below this it's stance sway, not a blow
 export function detectStrikes(duration, sample, opts = {}) {
   const n = Math.floor(duration * FPS), fr = [];
   for (let f = 0; f <= n; f++) { const s = sample(f / FPS); fr.push({ chest: s.chest.clone(), fwd: s.fwd.clone(), limbs: Object.fromEntries(Object.entries(s.limbs).map(([k, v]) => [k, v.clone()])) }); }
@@ -127,20 +127,27 @@ export function detectStrikes(duration, sample, opts = {}) {
       // direction of travel through the hit, in the hero's frame
       const d = fr[b].limbs[limb].clone().sub(fr[a].limbs[limb]), fw = fr[f].fwd;
       const fwdC = d.x * fw.x + d.z * fw.z, up = d.y, side = Math.hypot(d.x - fw.x * fwdC, d.z - fw.z * fwdC), len = d.length() || 1;
-      const foot = limb === 'RF' || limb === 'LF', hand = LIMB[limb];
+      const foot = limb === 'RF' || limb === 'LF', knee = limb === 'RK' || limb === 'LK', hand = LIMB[limb];
       let topY = -1e9; for (let k = a; k <= b; k++) topY = Math.max(topY, fr[k].limbs[limb].y - (opts.ground ? opts.ground(k) : 0));
       if (foot && topY < 0.5) { f = b; continue; } // a step or a landing, not a kick
+      if (knee && (topY < 0.85 || fr[b].limbs[limb].y - fr[a].limbs[limb].y < 0.15)) { f = b; continue; } // only a driving knee
       let kind;
-      if (foot) kind = topY > 1.1 ? 'high kick' : topY > 0.8 ? 'kick' : 'low kick';
+      if (knee) kind = 'knee';
+      else if (foot) kind = topY > 1.1 ? 'high kick' : topY > 0.8 ? 'kick' : 'low kick';
       else if (up < -0.55 * len) kind = opts.weapon ? 'downward strike' : 'overhand';
       else if (up > 0.55 * len) kind = opts.weapon ? 'rising slash' : 'uppercut';
       else if (fwdC > 0.6 * len) kind = opts.weapon ? 'thrust' : 'jab';
       else if (side > 0.6 * len) kind = opts.weapon ? 'horizontal slash' : 'hook';
       else kind = opts.weapon ? 'slash' : 'strike';
+      // the blow lands at full extension (or the lowest point of a downward strike), not at peak speed: anchor the live
+      // window there — a speed-anchored window fires while the limb is still on its way
+      const down = / downward| overhand/.test(kind), metric = k => down ? -fr[k].limbs[limb].y : reach(k);
+      let e = f; for (let k = f; k <= Math.min(n, f + 14); k++) if (metric(k) > metric(e) + 0.005) e = k;
+      a = Math.max(from + 1, e - 5); b = Math.min(n, e + 3); to = Math.max(to, Math.min(n, e + 8));
       // hit box: where the limb is while the hit is live, relative to the hero (x forward, y up)
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
       for (let k = a; k <= b; k++) { const p = fr[k].limbs[limb], c = fr[k].chest, fx = (p.x - c.x) * fw.x + (p.z - c.z) * fw.z; x0 = Math.min(x0, fx); x1 = Math.max(x1, fx); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
-      out.push({ limb, name: `${hand} ${kind}`, from, to, hit: [a, b], peak: pk,
+      out.push({ limb, name: `${hand} ${kind}`, from, to, hit: [a, b], peak: pk, back: x1 < 0.25,
         box: { reach: +Math.max(0.6, x1 + 0.15).toFixed(2), height: +Math.max(0.5, y1 - y0 + 0.3).toFixed(2), yOff: +((y0 + y1) / 2).toFixed(2) } });
       f = b;
     }

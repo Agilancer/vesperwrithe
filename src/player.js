@@ -24,12 +24,18 @@ const ANIM = {
 // The clip's opening frames are the crouched wind-up with feet planted (mid-air that read as standing on something
 // invisible), and the old 'falling' clip is a head-first skydive (the dive at the end of every jump); neither is used.
 const JUMP_WIN = {
-  axe_unarmed_jump:      { rise: [27, 34], apex: 35, fall: [35, 43], land: [44, 52], tuck: 34 },
-  sword_and_shield_jump: { rise: [3, 9], apex: 10, fall: [11, 19], land: [19, 25], tuck: 9 },
-  // the legs of every jump: a one-legged drive (lead knee up, trailing leg long) instead of the two-footed squat
-  axe_unarmed_jump_running: { rise: [9, 15], apex: 16, fall: [16, 27], land: [31, 38], tuck: 15 },
+  // arms: the plain jump clips keep bent, natural arms (unarmed) or the blade held ready (armed)
+  axe_unarmed_jump:      { rise: [27, 34], fall: [35, 43], land: [44, 50] },
+  sword_and_shield_jump: { rise: [3, 9], fall: [11, 19], land: [19, 25], tuck: 9 },
+  // legs of every jump: a one-legged drive (lead knee up, trailing leg long), then the knees bend and reach for
+  // the floor as it comes up (f22-30, never straight hanging legs), touch-down f30-35
+  axe_unarmed_jump_running: { rise: [10, 14], fall: [19, 30], land: [30, 35] },
+  // empty-handed arms in the air: the sprint's arm pump, elbows bent (the jump clips hold the arms out stiff)
+  running: { rise: [6, 11], fall: [11, 17], land: [17, 21] },
+  // double-jump somersault: knees to chest
+  jump: { tuck: 61 },
 };
-const JUMP_LEGS = 'axe_unarmed_jump_running';
+const JUMP_LEGS = 'axe_unarmed_jump_running', JUMP_TUCK = 'jump';
 const LAND_T = 0.16;
 const NO_HIPS_POS = /jump|fall|flying|run_back|impact/;
 
@@ -199,7 +205,7 @@ export class Player {
     const V = THREE.Vector3, S = B.arm.getWorldPosition(new V()), E = B.fore.getWorldPosition(new V()), W = B.hand.getWorldPosition(new V());
     const tgt = m.localToWorld(T.local.clone());
     const a = S.distanceTo(E), c = E.distanceTo(W), d0 = S.distanceTo(tgt);
-    const want = d0 < (a + c) * 1.25 ? 1 : 0; // unreachable (arms flung wide) → let the clip have the left arm
+    const want = d0 < (a + c) * 1.8 ? 1 : 0; // only when the clip flings the arms far apart does the left arm go free
     T.weight += (want - T.weight) * 0.35; if (T.weight < 0.02) return;
     const keep = [B.arm.quaternion.clone(), B.fore.quaternion.clone(), B.hand.quaternion.clone()];
     const n = tgt.clone().sub(S).normalize(), d = Math.min(d0, (a + c) * 0.999);
@@ -305,9 +311,9 @@ export class Player {
     // gravity & integration
     if (this.state !== 'dash') { this.vel.y -= P.grav * dt; if (this.vel.y < -P.fallMax) this.vel.y = -P.fallMax; }
     if (this.jumpBuf > 0) this.jumpBuf -= dt; if (this.dropT > 0) this.dropT -= dt;
-    const wasGround = this.onGround;
+    const wasGround = this.onGround, vyBefore = this.vel.y;
     this.move(dt);
-    if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { this.landT = LAND_T; audio.play('stone_land', 0.3); this.g.fx.dust(this.pos.x, this.pos.y); } }
+    if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { this.landT = LAND_T; this.dip = { t: 0, a: Math.min(1, Math.max(0.25, -vyBefore / 13)) }; audio.play('stone_land', 0.3); this.g.fx.dust(this.pos.x, this.pos.y); } }
     else if (wasGround && this.vel.y <= 0) { /* walked off ledge: keep coyote */ } else if (this.coyote > 0) this.coyote -= dt;
     if (!this.onGround && this.coyote > 0) this.coyote -= dt;
 
@@ -361,7 +367,7 @@ export class Player {
     const st = attackFor(base);
     const ias = 1 + (this.d?.ias || 0) / 100;
     const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
-    this.attack = { st, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || base.style === 'smash'), swung: false };
+    this.attack = { st, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)), swung: false };
     const fullBody = mode === 'idle' && !st.upperOnly;
     this.setLayer('upper', st.anim, 0.06, { manual: true, at: st.from / FPS, restart: true });
     if (fullBody) this.setLayer('lower', st.anim, 0.08, { manual: true, at: st.from / FPS, restart: true });
@@ -444,17 +450,36 @@ export class Player {
       want = Math.min(0, this.pos.y - lo + this.spin.position.y - 0.95); // negative = drop the body by this much
       want = Math.max(want, -0.6);
     }
-    const y = 0.95 + want, k = want < this.spin.position.y - 0.95 ? 1 : Math.min(1, dt * 12);
-    this.spin.position.y += (y - this.spin.position.y) * k;
+    // landing absorb: a quick knee dip scaled by impact speed (also when landing at a run)
+    let dip = 0;
+    if (this.dip) { this.dip.t += dt; const u = this.dip.t / 0.2; if (u >= 1) this.dip = null; else dip = -0.13 * this.dip.a * Math.sin(Math.PI * Math.min(1, u * 1.3)) * (1 - u * 0.3); }
+    const base = 0.95 + want; this.footY = (this.footY ?? base) + (base - (this.footY ?? base)) * (want < (this.footY ?? base) - 0.95 ? 1 : Math.min(1, dt * 12));
+    this.spin.position.y = this.footY + dip;
+    // lean into the jump with the run speed (spine pitch, layered on top of the clip)
+    this.spineB ||= this.model.getObjectByName('mixamorigSpine1');
+    const lean = !this.onGround && !(this.flip > 0) && this.state === 'free' ? 0.3 * Math.min(1, Math.abs(this.vel.x) / PHYS.walk) : 0;
+    this.leanA = (this.leanA || 0) + (lean - (this.leanA || 0)) * Math.min(1, dt * 8);
+    if (this.leanA > 0.005) this.spineB.rotateX(this.leanA);
     this.root.updateMatrixWorld(true);
   }
   // Frame of the jump clip for the current moment of the arc.
-  airFrame(J) {
+  // Rising: by vertical speed. Falling: by time to impact (distance to the floor below / fall speed), so the legs
+  // reach for the floor just before touching down whatever the height. Eased per clip so a cut jump never pops.
+  airFrame(J, name, dt) {
     const lerp = ([a, b], k) => a + (b - a) * Math.min(1, Math.max(0, k));
-    if (this.onGround) return lerp(J.land, 1 - this.landT / LAND_T);
-    if (this.flip > 0 || this.state === 'dash') return J.tuck; // somersault and shade dash: hold the tight tuck
-    if (this.vel.y > 0) { const k = 1 - this.vel.y / PHYS.jumpV; return lerp(J.rise, k * 1.15); }
-    return lerp(J.fall, -this.vel.y / 9);
+    let f;
+    if (this.onGround) f = lerp(J.land, 1 - this.landT / LAND_T);
+    else if ((this.flip > 0 || this.state === 'dash') && J.tuck !== undefined) f = J.tuck;
+    else if (this.vel.y > 0) f = lerp(J.rise, (1 - this.vel.y / PHYS.jumpV) * 1.15);
+    else {
+      const floor = this.g.floorBelow ? this.g.floorBelow(this.pos.x, this.pos.y) : -1e9;
+      const tHit = floor > -1e8 ? (this.pos.y - floor) / Math.max(1, -this.vel.y) : 9;
+      f = lerp(J.fall, 1 - tHit / 0.35);
+    }
+    this.jf ||= {};
+    const prev = this.jf[name];
+    this.jf[name] = prev === undefined || this.onGround !== this.jfGround ? f : prev + (f - prev) * Math.min(1, dt * 18);
+    return this.jf[name];
   }
   animate(dt) {
     const armed = this.armed;
@@ -477,23 +502,24 @@ export class Player {
         if (base === ANIM.jog || base === ANIM.jogArmed) opts.speed = 1.15;
         if (base === ANIM.hurt) { opts.once = true; }
         // jumps: the legs drive off one foot; the double-jump somersault and shade dash keep the tight tuck
-        const lo = JUMP_WIN[base] && !(this.flip > 0 || this.state === 'dash') ? JUMP_LEGS : base;
-        this.setLayer('lower', lo, JUMP_WIN[lo] ? 0.08 : 0.14, opts);
-        if (JUMP_WIN[lo]) this.clipAct(lo, 'lower').time = this.airFrame(JUMP_WIN[lo]) / FPS;
+        const tuck = this.flip > 0 || this.state === 'dash';
+        const lo = JUMP_WIN[base] ? (tuck ? JUMP_TUCK : JUMP_LEGS) : base;
+        this.setLayer('lower', lo, JUMP_WIN[lo] ? (tuck ? 0.05 : 0.1) : 0.14, opts);
+        if (JUMP_WIN[lo]) this.clipAct(lo, 'lower').time = this.airFrame(JUMP_WIN[lo], lo + 'L', dt) / FPS;
       }
       if (!this.attack) {
         let upper = this.blocking ? (this.crouch ? ANIM.crouchBlock : ANIM.block) : (lowerBusy ? this.layers.lower.cur : base);
-        if (upper === base && this.layers.lower.cur === JUMP_LEGS && !armed) upper = JUMP_LEGS; // empty hands swing with the drive; armed keeps the blade ready
+        if (upper === base && JUMP_WIN[base] && !armed) upper = this.flip > 0 || this.state === 'dash' ? JUMP_TUCK : 'running'; // arms hug the knees in the somersault, pump otherwise
         const opts = {}; if (JUMP_WIN[upper]) opts.manual = true; if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = 1.15; if (upper === ANIM.hurt) opts.once = true;
         this.setLayer('upper', upper, 0.12, opts);
         // keep the two halves of a locomotion clip in phase
         if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
-        else if (JUMP_WIN[upper]) this.clipAct(upper, 'upper').time = this.airFrame(JUMP_WIN[upper]) / FPS;
+        else if (JUMP_WIN[upper]) this.clipAct(upper, 'upper').time = this.airFrame(JUMP_WIN[upper], upper + 'U', dt) / FPS;
       }
     }
     if (this.landT > 0) this.landT -= dt;
     this.mixer.update(dt); this.root.updateMatrixWorld(true);
-    this.groundFeet(dt); this.twoHandIK(); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
+    this.groundFeet(dt); this.jfGround = this.onGround; this.twoHandIK(); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);

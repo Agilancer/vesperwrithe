@@ -18,6 +18,7 @@
   <aside id="side">
     <header>
       <h1>Attack Viewer</h1>
+      <button id="listToggle" class="phone-only" aria-label="Show the animation list">Animations ▾</button>
       <a href="index.html" class="link">Play ▸</a>
     </header>
     <section>
@@ -48,7 +49,9 @@
   <footer id="bar">
     <div id="swings"></div>
     <div class="tl">
+      <button id="prevF" class="step" aria-label="Previous frame" title="Previous frame (,)">‹</button>
       <button id="play" class="big" aria-label="Play">▶</button>
+      <button id="nextF" class="step" aria-label="Next frame" title="Next frame (.)">›</button>
       <div id="track"><div id="win"></div><div id="hitwin"></div><input id="scrub" type="range" min="0" max="100" value="0" step="1"></div>
       <span id="frame" class="mono">0 / 0</span>
     </div>
