@@ -31,7 +31,7 @@ export class UI {
 
   hud() {
     const s = this.g.player.stats;
-    $('hpFill').style.width = (100 * s.hp / s.hpMax) + '%'; $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
+    const hpw = (100 * s.hp / s.hpMax) + '%'; if (hpw !== this._hpw) { this._hpw = hpw; $('hpFill').style.width = hpw; $('hpTrail').style.width = hpw; $('hpBar').classList.toggle('low', s.hp < s.hpMax * 0.25); } $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
     $('mpFill').style.width = (100 * s.mp / s.mpMax) + '%'; $('mpText').textContent = `${s.mp}`;
     $('xpFill').style.width = Math.min(100, 100 * s.xp / s.next) + '%';
     $('lvl').textContent = s.lvl; $('lvl').classList.toggle('pts', s.pts > 0);

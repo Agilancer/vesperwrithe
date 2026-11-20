@@ -40,9 +40,9 @@ export const BESTIARY = {
   werewolf: { name: 'Moonbitten Warden', tier: 1, lvl: 5, ai: 'boss', mini: true, files: [TR + 'werewolf_brown.glb'], h: 2.4, w: 1.0, hp: 240, dmg: 18, touch: 8, speed: 3.4, reach: 2.0, xp: 150,
     anim: A({ attack: 'atk1', attack2: 'atk3', attack3: 'atk5' }), windup: [0.35, 0.6], atkDur: 1.0, aggro: 18,
     moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.6 }, { k: 'melee', anim: 'atk3', w: 2, range: 2.6, dur: 0.8 }, { k: 'leap', anim: 'jump', w: 3, min: 3, range: 9 }, { k: 'charge', anim: 'run', w: 2, min: 4, range: 12, speed: 10 }] },
-  caddoc:   { name: 'Oathbreaker Sir Caddoc', tier: 1, lvl: 6, ai: 'boss', boss: true, files: [TR + 'possessed_knight_1.glb'], h: 3.3, w: 1.3, hp: 600, dmg: 22, touch: 10, speed: 2.0, reach: 2.4, xp: 300,
+  caddoc:   { name: 'Oathbreaker Sir Caddoc', tier: 1, lvl: 6, ai: 'boss', boss: true, files: [TR + 'possessed_knight_1.glb'], h: 3.3, w: 1.3, hp: 450, dmg: 22, touch: 10, speed: 2.0, reach: 2.4, xp: 300,
     anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk3', bash: 'bash', block: 'block' }), windup: [0.4, 0.66], atkDur: 1.3, aggro: 30, bell: 'slide', title: 'OATHBREAKER VANQUISHED', arm: ['spiked_longsword'],
-    moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.9 }, { k: 'melee', anim: 'atk2', w: 2, range: 2.9 }, { k: 'charge', anim: 'bash', w: 3, min: 5, range: 14, speed: 9 }, { k: 'slam', anim: 'atk3', w: 3, range: 7, phase: 2 }, { k: 'leap', anim: 'jump', w: 2, min: 4, range: 10, phase: 2 }] },
+    moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.9 }, { k: 'melee', anim: 'atk2', w: 2, range: 2.9 }, { k: 'ram', anim: 'bash', w: 3, min: 5, range: 30, speed: 9 }, { k: 'slam', anim: 'atk3', w: 3, range: 7, phase: 2 }, { k: 'leap', anim: 'jump', w: 2, min: 4, range: 10, phase: 2 }] },
 
   // ---------------------------------------------------------------- act 2
   goblin_armored: { name: 'Goblin Reaver', tier: 2, lvl: 5, ai: 'hopper', files: tr('goblin_green_armored_1', 'goblin_green_armored_2', 'goblin_red_armored_1', 'goblin_red_armored_2'), h: 1.3, w: 0.6, hp: 48, dmg: 14, touch: 6, speed: 3.2, reach: 1.3, xp: 30,

@@ -49,18 +49,39 @@ export async function cloneGLTF(url) {
 }
 
 // Stone/wood surfaces from the BM texture sets: *_c = colour, *_d = tangent normal (rgb) + height (a).
+// One image per file: every repeat/tint variant is a clone sharing the same Source, so the GPU holds it once.
+const baseTex = new Map();
+function tiled(url, srgb, repX, repY) {
+  let b = baseTex.get(url);
+  if (!b) { b = { clones: [], ready: false }; b.tex = texLoader.load(url, t => { fitTexture(t); b.ready = true; for (const c of b.clones) c.needsUpdate = true; b.clones.length = 0; }); baseTex.set(url, b); }
+  const t = b.tex.clone(); if (!b.ready) b.clones.push(t); else t.needsUpdate = true;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = LOW_MEM ? 2 : 8;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+// Large-scale breakup so a tiling wall never reads as wallpaper: a slow world-space mottle in value and a little hue,
+// darker toward the foot of walls (grime and occlusion where stone meets the floor).
+function weather(m) {
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vWP;
+float hsh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hsh(i), hsh(i + vec2(1, 0)), f.x), mix(hsh(i + vec2(0, 1)), hsh(i + vec2(1, 1)), f.x), f.y); }`).replace('#include <map_fragment>', `#include <map_fragment>
+{ vec2 q = vWP.xy + vWP.zz * 0.7; float n = vn(q * 0.09) * 0.6 + vn(q * 0.31) * 0.4; float m2 = vn(q * 0.9 + 7.0);
+  diffuseColor.rgb *= mix(0.74, 1.1, n) * mix(0.9, 1.04, m2);
+  diffuseColor.rgb *= mix(vec3(1.0), vec3(0.96, 0.98, 1.05), smoothstep(0.55, 0.9, n)); }`);
+  };
+  m.customProgramCacheKey = () => 'weather';
+  return m;
+}
 export function surface(name, repX = 1, repY = 1, opts = {}) {
-  const key = `${name}|${repX}|${repY}|${opts.tint || ''}|${opts.rough ?? ''}`;
+  const key = `${name}|${repX}|${repY}|${opts.tint || ''}|${opts.rough ?? ''}|${opts.dir || ''}|${opts.vc ? 1 : 0}`;
   if (texCache.has(key)) return texCache.get(key);
   const dir = opts.dir || 'assets/game/tex/';
-  const mk = (suffix, srgb) => {
-    const t = texLoader.load(`${dir}${name}_${suffix}.webp`, fitTexture);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = LOW_MEM ? 2 : 8;
-    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  };
-  const m = new THREE.MeshStandardMaterial({ map: mk('c', true), normalMap: mk('d', false), roughness: opts.rough ?? 0.92, metalness: 0, color: opts.tint ?? 0xffffff });
+  const m = new THREE.MeshStandardMaterial({ map: tiled(`${dir}${name}_c.webp`, true, repX, repY), normalMap: tiled(`${dir}${name}_d.webp`, false, repX, repY), roughness: opts.rough ?? 0.92, metalness: 0, color: opts.tint ?? 0xffffff, vertexColors: !!opts.vc });
   m.normalScale.set(1.2, 1.2);
+  if (opts.weather !== false) weather(m);
   texCache.set(key, m);
   return m;
 }

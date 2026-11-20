@@ -19,11 +19,11 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .portrait span{font-size:19px;font-weight:300;color:var(--moon);text-shadow:var(--glow)}
 #lvl.pts{color:var(--teal);text-shadow:0 0 12px var(--teal)}
 .bars{gap:7px;margin-left:4px;padding-top:4px}
-.bar{height:7px;width:250px;background:rgba(4,9,12,.72);border:0;box-shadow:0 0 0 1px var(--hair),0 2px 10px rgba(0,0,0,.5)}
+.bar{height:10px;width:250px;background:rgba(4,9,12,.72);border:0;box-shadow:0 0 0 1px var(--hair),0 2px 10px rgba(0,0,0,.5)}
 .bar::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.22),transparent 55%);pointer-events:none}
 .bar i{transition:width .25s cubic-bezier(.2,.7,.2,1)}
 .bar.hp i{background:linear-gradient(90deg,#7c2236,var(--blood) 70%,#ffc2cc);box-shadow:0 0 10px rgba(217,89,109,.55)}
-.bar.mp{width:190px;height:5px}
+.bar.mp{width:190px;height:6px}
 .bar.mp i{background:linear-gradient(90deg,#1c5f66,var(--teal) 75%,#e2fffb);box-shadow:0 0 10px rgba(116,230,216,.55)}
 .bar.xp{height:2px;width:190px;margin-top:0;border:0;background:rgba(196,240,233,.12);box-shadow:none}
 .bar.xp::after{display:none}
@@ -46,7 +46,7 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .toast.magic{border-color:#8fb4ff;color:#c3d5ff}.toast.rare{border-color:#f1dc8a;color:#f6e9b4}.toast.unique{border-color:#e9a86a;color:#f3c797}.toast.gem{border-color:#ff8fc4;color:#ffc0dd}
 @keyframes tin{from{transform:translateX(24px);opacity:0}}
 #bossBar{bottom:38px;font-size:13px;font-weight:400;letter-spacing:.5em;text-indent:.5em;color:var(--moon);text-shadow:0 0 12px rgba(217,89,109,.7),0 1px 3px #000}
-#bossBar div{height:5px;border:0;margin-top:9px;background:rgba(4,9,12,.75);box-shadow:0 0 0 1px var(--hair)}
+#bossBar div{height:10px;border:0;margin-top:9px;background:rgba(4,9,12,.75);box-shadow:0 0 0 1px var(--hair)}
 #bossBar i{background:linear-gradient(90deg,#5c1626,var(--blood) 80%,#ffd0d7);box-shadow:0 0 12px rgba(217,89,109,.6);transition:width .3s cubic-bezier(.2,.7,.2,1)}
 .dmg{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:.04em;color:var(--moon);text-shadow:0 0 2px #000,0 2px 3px #000,0 0 12px rgba(116,230,216,.35)}
 .dmg.crit{font-size:29px;color:#fff;text-shadow:0 0 2px #000,0 2px 3px #000,0 0 18px var(--teal)}
@@ -150,7 +150,7 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 @media (orientation:portrait){body.touch #rotate{background:var(--ink);color:var(--moon);letter-spacing:.3em;text-transform:uppercase;font-size:12px}}
 
 @media (max-height:520px){
-  .bar{width:160px;height:6px}.bar.mp,.bar.xp{width:120px}.portrait{width:36px;height:36px}.portrait span{font-size:15px}
+  .bar{width:160px;height:8px}.bar.mp,.bar.xp{width:120px}.portrait{width:36px;height:36px}.portrait span{font-size:15px}
   #hud #gold{top:66px;left:78px;font-size:10px}
   #roomName{font-size:16px;letter-spacing:.4em}
   .t-logo{top:36%;width:min(760px,80vw)}.t-menu{top:60%}
@@ -230,3 +230,9 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 #minimap{right:calc(20px + env(safe-area-inset-right));top:calc(18px + env(safe-area-inset-top))}
 #touch .ttop{right:calc(244px + env(safe-area-inset-right))}
 @media (max-height:520px){#touch .ttop{right:calc(186px + env(safe-area-inset-right))}}
+
+/* damage just taken: a pale trail that drains after the fill, and a pulse when life runs low */
+.bar s{position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(255,236,226,.55);transition:width .5s cubic-bezier(.4,0,.2,1) .35s}
+.bar.hp.low i{animation:lowpulse .9s ease-in-out infinite}
+@keyframes lowpulse{50%{filter:brightness(1.7);box-shadow:0 0 16px rgba(255,80,100,.9)}}
+#bossBar div{position:relative}#bossBar s{position:absolute;left:0;top:0;bottom:0;background:rgba(255,236,226,.5);transition:width .6s cubic-bezier(.4,0,.2,1) .4s}
