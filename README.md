@@ -43,6 +43,9 @@ Open `viewer.html` (e.g. http://localhost:8410/viewer.html, works on phones too)
 
 ## Code map
 
+- `src/moves.js` + `tools/build_anims.py` — the hero's authored clips. The script runs in Blender on `assets/player/vesper_player_rig.blend` (`blender -b assets/player/vesper_player_rig.blend --python tools/build_anims.py`) and writes `assets/player/vesper_moves.glb` and `moves.json`: sword-ready guard stance, stride-matched run, and attack clips with wind-up / strike / held follow-through / recovery, hit windows and cancel frames. `moves.js` turns the sword and two-hand styles into chains of those clips (press attack again after the cancel frame to flow on) and pins the finger grip. Jump, thrusts, smashes and the two-hand hold stay in `player.js` / `attacks.js`.
+- `src/title.js` + `src/theme.css` — the title screen (logo, WebGL mist, moonlight) and the UI theme every HUD element and panel takes from the logo.
+
 - `src/attacks.js` — which attack each weapon class uses (defaults + Attack Viewer overrides), the attack clip list and swing detection.
 - `src/viewer.js` — the Attack Viewer (`viewer.html`).
 - `src/touch.js` — on-screen touch controls (multi-touch d-pad + action buttons) that feed the shared input.

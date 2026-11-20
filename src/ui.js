@@ -38,10 +38,10 @@ export class UI {
     for (const r of ROOMS) {
       const seen = this.g.visited.has(r.id); if (!seen && !full) continue;
       const x = ox + r.col * cell, y = oy + r.row * cell, w = r.w * cell, h = r.h * cell;
-      ctx.fillStyle = !seen ? 'rgba(60,60,90,.25)' : r.save ? '#b5243a' : r.warp ? '#c9a23a' : r.id === cur?.id ? '#3b47c9' : '#2a33a6';
+      ctx.fillStyle = !seen ? 'rgba(120,170,170,.14)' : r.save ? '#b8485c' : r.warp ? '#d9c48a' : r.id === cur?.id ? '#4fb3aa' : '#1d4f55';
       ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-      ctx.strokeStyle = 'rgba(220,220,240,.75)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-      if (full && seen) { ctx.fillStyle = 'rgba(233,224,204,.85)'; ctx.font = `${Math.max(9, cell * 0.22)}px Georgia`; ctx.fillText(r.name, x + 4, y + cell * 0.32); }
+      ctx.strokeStyle = 'rgba(214,246,240,.62)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      if (full && seen) { ctx.fillStyle = 'rgba(233,224,204,.85)'; ctx.font = `${Math.max(12, cell * 0.27)}px Palatino Linotype, Georgia`; ctx.fillText(r.name, x + 4, y + cell * 0.32); }
       if (seen) for (const d of r.doors) { ctx.fillStyle = '#000'; if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 3, oy + d.row * cell + cell * 0.55, 4, cell * 0.3); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 3, cell * 0.3, 4); }
     }
     if (this.g.objective) { const o = this.g.objective; ctx.fillStyle = '#ff7a30'; ctx.beginPath(); ctx.arc(ox + o.c * cell, oy + o.r * cell, Math.max(3, cell * 0.18) * (1 + 0.25 * Math.sin(performance.now() / 160)), 0, 7); ctx.fill(); }
@@ -53,9 +53,8 @@ export class UI {
   }
   bigmap() {
     const c = $('bigmap'), ctx = c.getContext('2d');
-    ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, c.width, c.height);
     this.drawMap(ctx, c.width, c.height, 46, 13.5, -2.2, true);
-    ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over';
+    // no opaque backing: the themed chart paper (grid + vignette) behind the canvas shows through
   }
 
   // ------------------------------------------------------------------ inventory

@@ -3,6 +3,7 @@ import { loadGLTF, weaponModel, audio } from './assets.js';
 import { BASES, GEMS, itemStats } from './items.js';
 import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
+import { loadMoves, strideSpeed, Grip } from './moves.js';
 
 // Movement tuned from Symphony of the Night frame data (docs/research), converted at 1 SotN px ≈ 3.35 cm, 60 fps:
 // walk 1.5 px/f → 4.7 m/s · jump 4.9 px/f → 9.85 m/s · double jump 4.1 px/f → 8.25 m/s · fall cap 7 px/f → 14 m/s
@@ -13,7 +14,7 @@ const UPPER = /Spine|Neck|Head|Shoulder|Arm|Hand/;
 const ELEM_COLOR = { fire: 0xff5a1a, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a };
 
 const ANIM = {
-  idle: 'axe_unarmed_idle', idleArmed: 'sword_and_shield_idle', jog: 'jogging', jogArmed: 'sword_and_shield_run',
+  idle: 'axe_unarmed_idle', idleArmed: 'vw_guard', jog: 'vw_run', jogArmed: 'vw_run_armed',
   jump: 'axe_unarmed_jump', jumpArmed: 'sword_and_shield_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
   backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'sitting',
   block: 'sword_and_shield_block_idle', crouchBlock: 'sword_and_shield_crouch_block_idle', pickup: 'axe_unarmed_equip_over_shoulder',
@@ -108,12 +109,16 @@ export class Player {
 
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = {};
-    for (const c of g.animations) {
+    const mv = await loadMoves(); this.moves = mv.meta; // authored clips (tools/build_anims.py), bound to this rig by bone name
+    for (const c of [...g.animations, ...mv.clips]) {
       const tracks = c.tracks.filter(t => !(t.name.endsWith('.position') && !t.name.includes('Hips')) && !(NO_HIPS_POS.test(c.name) && t.name.includes('Hips.position')) && !t.name.endsWith('.scale'));
       const up = tracks.filter(t => UPPER.test(t.name)), lo = tracks.filter(t => !UPPER.test(t.name));
       const game = new THREE.AnimationClip(c.name + '_g', c.duration, tracks);
       this.clips[c.name] = { full: c, game, up: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_u', c.duration, up)), lo: this.mixer.clipAction(new THREE.AnimationClip(c.name + '_l', c.duration, lo)), dur: c.duration };
     }
+    // stride-match the run cycles so the feet do not skate, and keep the fingers closed on whatever is held
+    this.stride = {}; for (const n of [ANIM.jog, ANIM.jogArmed]) this.stride[n] = strideSpeed(this.mixer, this.model, this.clips[n].full) || 4;
+    this.grip = new Grip(this.model, this.clips.vw_grip?.full);
     this.setLayer('lower', ANIM.idle, 0); this.setLayer('upper', ANIM.idle, 0);
   }
 
@@ -183,6 +188,8 @@ export class Player {
     }
     sock.add(m); this[slot + 'Mesh'] = m;
     if (slot === 'weapon') this.setupTwoHand(base, grip || attackFor(base).grip);
+    // a faint cold edge-light so the blade reads against dark armour and dark rooms (element FX override it)
+    if (slot === 'weapon') m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x8fb4c8); o.material.emissiveIntensity = 0.16; } });
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
   }
 
@@ -248,7 +255,7 @@ export class Player {
     const e = elems[0]?.elem; if (!e) return;
     const col = ELEM_COLOR[e];
     m.traverse(o => { if (o.isMesh) { o.material.emissive = new THREE.Color(col); o.material.emissiveIntensity = 0.35; } });
-    const grp = new THREE.Group(); const len = m.userData.len * 1.8 / m.scale.x;
+    const grp = new THREE.Group(); const len = m.userData.len / m.scale.x; // blade length in the weapon's own units
     const mat = new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
     grp.userData.parts = [];
     for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(mat.clone()); s.userData = { t: Math.random(), along: 0.15 + Math.random() * 0.85 }; grp.add(s); grp.userData.parts.push(s); }
@@ -289,7 +296,11 @@ export class Player {
       let speed = P.walk;
       if (this.crouch || this.blocking && this.onGround) speed = 0;
       if (attacking && this.onGround) speed = heavy ? 0 : P.walk * 0.55;
-      this.vel.x = dir * speed;
+      { // a few frames of acceleration and braking: weight without losing SotN precision
+        const tv = dir * speed, rev = tv * this.vel.x < 0, acc = (!this.onGround ? 90 : rev ? 130 : tv === 0 ? 80 : 62) * dt;
+        if (rev && this.onGround && Math.abs(this.vel.x) > 3 && !this.skidT) { this.skidT = 0.12; this.g.fx.dust(this.pos.x + Math.sign(this.vel.x) * 0.3, this.pos.y); }
+        this.vel.x += THREE.MathUtils.clamp(tv - this.vel.x, -acc, acc); if (this.skidT > 0) this.skidT = Math.max(0, this.skidT - dt);
+      }
       // jump / double jump / drop-through
       if (inp.jumpP) this.jumpBuf = P.buffer;
       if (this.jumpBuf > 0) {
@@ -305,6 +316,8 @@ export class Player {
       }
       // attack
       if (inp.attackP && !attacking) this.startAttack();
+      else if (inp.attackP && attacking) this.attack.queued = true; // buffered: flows into the next link of the chain
+      this.inpX = dir;
     }
     if (this.attack) this.updateAttack(dt);
 
@@ -362,15 +375,18 @@ export class Player {
     if (!this.crouch) for (const s of solids) if (!s.oneway && !s.gone && a.x1 > s.x0 && a.x0 < s.x1 && a.y1 > s.y0 && a.y0 < s.y0 && this.onGround) { this.crouch = true; break; }
   }
 
-  startAttack() {
+  startAttack(ci = 0) {
     const w = this.equip.weapon, base = w ? BASES[w.base] : null;
-    const st = attackFor(base);
+    // a style with a chain plays link `ci` of it (unless the Attack Viewer has swapped the style's clip)
+    const st0 = attackFor(base), chain = st0.chain && st0.anim === st0.chain[0].anim ? st0.chain : null;
+    const st = chain ? { ...st0, ...chain[ci % chain.length] } : st0;
+    if (ci && this.inpX && this.onGround) this.facing = Math.sign(this.inpX); // re-aim between links
     const ias = 1 + (this.d?.ias || 0) / 100;
     const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 ? 'move' : 'idle';
-    this.attack = { st, t: 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)), swung: false };
+    this.attack = { st, chain, ci, t: ci ? (st.dur / ias) * 2 / (st.to - st.from) : 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)), swung: false };
     const fullBody = mode === 'idle' && !st.upperOnly;
-    this.setLayer('upper', st.anim, 0.06, { manual: true, at: st.from / FPS, restart: true });
-    if (fullBody) this.setLayer('lower', st.anim, 0.08, { manual: true, at: st.from / FPS, restart: true });
+    this.setLayer('upper', st.anim, ci ? 0.1 : 0.06, { manual: true, at: st.from / FPS, restart: true });
+    if (fullBody) this.setLayer('lower', st.anim, ci ? 0.1 : 0.08, { manual: true, at: st.from / FPS, restart: true });
   }
 
   updateAttack(dt) {
@@ -383,8 +399,17 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1];
-    if (f >= st.hit[0] - 3 && f <= st.hit[1] + 2) this.trailOn = true; 
+    const pad = st.cancel !== undefined ? 1 : 3; // authored clips: the ribbon belongs to the cut, not the wind-up
+    if (f >= st.hit[0] - pad && f <= st.hit[1] + pad - 1) this.trailOn = true;
     if (A.active) this.g.playerHits(this.hitbox());
+    // a planted swing steps into the cut (eased out); chains flow on a buffered press; holding a direction walks out of the recovery
+    if (st.cancel !== undefined) {
+      if (A.mode === 'idle' && this.onGround && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); }
+      if (f >= st.cancel) {
+        if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(A.ci + 1); return; }
+        if (this.inpX && !A.queued && f >= st.cancel + 2) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); return; }
+      }
+    }
     if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
   }
 
@@ -493,24 +518,26 @@ export class Player {
       else if (this.crouch) base = this.blocking ? ANIM.crouchBlock : (armed ? ANIM.crouchArmed : ANIM.crouch);
       else if (Math.abs(this.vel.x) > 0.4) base = armed ? ANIM.jogArmed : ANIM.jog;
       else base = armed ? ANIM.idleArmed : ANIM.idle;
+      const isRun = base === ANIM.jog || base === ANIM.jogArmed, runScale = isRun ? THREE.MathUtils.clamp(Math.abs(this.vel.x) / this.stride[base], 0.55, 2.8) : 1;
       const lowerBusy = this.attack && this.layers.lower.cur === this.attack.st.anim;
       if (!lowerBusy) {
         const opts = {};
         if (JUMP_WIN[base]) opts.manual = true;
         if (base === ANIM.fall) opts.at = 0.2;
         if (base === ANIM.backdash) opts.speed = 1.6;
-        if (base === ANIM.jog || base === ANIM.jogArmed) opts.speed = 1.15;
+        if (isRun) opts.speed = runScale;
         if (base === ANIM.hurt) { opts.once = true; }
         // jumps: the legs drive off one foot; the double-jump somersault and shade dash keep the tight tuck
         const tuck = this.flip > 0 || this.state === 'dash';
         const lo = JUMP_WIN[base] ? (tuck ? JUMP_TUCK : JUMP_LEGS) : base;
-        this.setLayer('lower', lo, JUMP_WIN[lo] ? (tuck ? 0.05 : 0.1) : 0.14, opts);
+        this.setLayer('lower', lo, JUMP_WIN[lo] ? (tuck ? 0.05 : 0.1) : isRun ? 0.11 : 0.16, opts);
+        if (isRun) this.clipAct(lo, 'lower').timeScale = runScale;
         if (JUMP_WIN[lo]) this.clipAct(lo, 'lower').time = this.airFrame(JUMP_WIN[lo], lo + 'L', dt) / FPS;
       }
       if (!this.attack) {
         let upper = this.blocking ? (this.crouch ? ANIM.crouchBlock : ANIM.block) : (lowerBusy ? this.layers.lower.cur : base);
         if (upper === base && JUMP_WIN[base] && !armed) upper = this.flip > 0 || this.state === 'dash' ? JUMP_TUCK : 'running'; // arms hug the knees in the somersault, pump otherwise
-        const opts = {}; if (JUMP_WIN[upper]) opts.manual = true; if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = 1.15; if (upper === ANIM.hurt) opts.once = true;
+        const opts = {}; if (JUMP_WIN[upper]) opts.manual = true; if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = runScale; if (upper === ANIM.hurt) opts.once = true;
         this.setLayer('upper', upper, 0.12, opts);
         // keep the two halves of a locomotion clip in phase
         if (this.layers.upper.cur === this.layers.lower.cur) { const u = this.clipAct(upper, 'upper'), l = this.clipAct(upper, 'lower'); u.time = l.time; }
@@ -518,13 +545,17 @@ export class Player {
       }
     }
     if (this.landT > 0) this.landT -= dt;
-    this.mixer.update(dt); this.root.updateMatrixWorld(true);
+    this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand); this.root.updateMatrixWorld(true);
     this.groundFeet(dt); this.jfGround = this.onGround; this.twoHandIK(); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
     this.root.position.set(this.pos.x, this.pos.y, 0);
     this.model.rotation.set(0, this.yaw, 0);
+    // lean into the run and into acceleration
+    const ax = dt > 0 ? THREE.MathUtils.clamp((this.vel.x - (this._pvx ?? 0)) / dt, -70, 70) : 0; this._pvx = this.vel.x; this.leanV = (this.leanV || 0) + (ax - (this.leanV || 0)) * Math.min(1, dt * 10);
+    const runLean = this.state === 'free' && this.onGround && !this.attack ? -(this.vel.x / PHYS.walk) * 0.035 - this.leanV * 0.0016 : 0;
+    if (!(this.flip > 0)) this.spin.rotation.z += (runLean - this.spin.rotation.z) * Math.min(1, dt * 18);
     if (this.flip > 0) { this.flip += dt * 2.3; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (a * a * (3 - 2 * a)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; this.spin.rotation.z = 0; } } // smoothstep flip: gathers, whips round, settles upright
     // i-frame blink
     this.model.visible = !(this.inv > 0 && this.state !== 'block' && Math.floor(this.inv * 20) % 2 === 0 && this.inv < 1.05 && this.inv > 0.3);
@@ -548,7 +579,7 @@ class Trail {
   }
   push(weapon, elem) {
     if (!weapon) return;
-    const len = weapon.userData.len * 1.8 / weapon.scale.x;
+    const len = weapon.userData.len / weapon.scale.x; // was 1.8x too long: the ribbon overshot the tip
     const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.35, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
     // fill big per-frame jumps with arc-interpolated samples so the ribbon curves instead of fanning into a flat card
     const prev = this.pts[0];
