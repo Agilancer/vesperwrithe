@@ -253,7 +253,7 @@ export class Player {
     const e = elems[0]?.elem; if (!e) return;
     const col = ELEM_COLOR[e];
     m.traverse(o => { if (o.isMesh) { o.material.emissive = new THREE.Color(col); o.material.emissiveIntensity = 0.35; } });
-    const grp = new THREE.Group(); const len = m.userData.len * 1.8 / m.scale.x;
+    const grp = new THREE.Group(); const len = m.userData.len / m.scale.x; // blade length in the weapon's own units
     const mat = new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
     grp.userData.parts = [];
     for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(mat.clone()); s.userData = { t: Math.random(), along: 0.15 + Math.random() * 0.85 }; grp.add(s); grp.userData.parts.push(s); }
@@ -577,7 +577,7 @@ class Trail {
   }
   push(weapon, elem) {
     if (!weapon) return;
-    const len = weapon.userData.len * 1.8 / weapon.scale.x;
+    const len = weapon.userData.len / weapon.scale.x; // was 1.8x too long: the ribbon overshot the tip
     const base = weapon.localToWorld(new THREE.Vector3(0, len * 0.35, 0)), tip = weapon.localToWorld(new THREE.Vector3(0, len * 1.02, 0));
     // fill big per-frame jumps with arc-interpolated samples so the ribbon curves instead of fanning into a flat card
     const prev = this.pts[0];

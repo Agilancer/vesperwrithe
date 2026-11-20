@@ -23,6 +23,11 @@ export const KINDS = {
 // use: attack (ground) · air (leaping/plunge) · finisher (paired, needs a victim) · spell (cast; hands = which hand(s) release).
 // Long clips hold several swings: the viewer detects each one and lets you pick it.
 export const ATTACK_CLIPS = [
+  // authored clips (tools/build_anims.py): guard pose in and out, eased wind-up, held follow-through
+  { name: 'vw_slash1', group: 'Sword', note: 'Authored chain link 1: overhead cut down to the front' },
+  { name: 'vw_slash2', group: 'Sword', note: 'Authored chain link 2: planted horizontal sweep' },
+  { name: 'vw_slash3', group: 'Sword', note: 'Authored chain link 3: stepping overhead finisher' },
+  { name: 'vw_great', group: 'Two-hand', note: 'Authored two-hand cleave with a long held follow-through' },
   { name: 'sword_and_shield_slash', group: 'Sword', note: 'Quick one-hand forehand slash' },
   { name: 'sword_and_shield_slash_2', group: 'Sword', note: 'Wide spinning one-hand slash' },
   { name: 'sword_and_shield_attack', group: 'Sword', note: 'Step-in sword-and-board strike' },
