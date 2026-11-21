@@ -272,10 +272,10 @@ export default [
   { id: 'huntsmans_hall', name: 'The Huntsmen\'s Trophy Hall', area: '34', col: 45, row: -6, w: 2, h: 1, theme: 'portrait', secret: true,
     doors: [{ side: 'W', row: -6 }],
     platforms: P([[9, 2.9, 3.5], [14.5, 4.9, 3.5]]),
-    items: [{ x: 22, unique: 'gravelantern', altar: true, glow: 0xb080ff }, { x: 16.2, y: 4.9, up: 'life' }],
+    items: [{ x: 22, unique: 'huntsmans_signet', altar: true, glow: 0xd8b070 }, { x: 16.2, y: 4.9, up: 'life' }],
     enemies: [{ t: 'mannequin', x: 8 }, { t: 'mannequin', x: 13 }, { t: 'mannequin', x: 18 }],
     breakables: [{ x: 4 }, { x: 25 }],
-    props: [{ t: 'painting', x: 5 }, { t: 'painting', x: 11 }, { t: 'painting', x: 20 }, { t: 'statue', x: 2.5 }, { t: 'statue', x: 25.5 }, { t: 'banner', x: 8, house: 'tess' }, { t: 'banner', x: 17, house: 'tess' },
-      { t: 'chandelier', x: 13, y: 6 }, { t: 'rug', x: 13 }, { t: 'table', x: 6.5 }, { t: 'candles', x: 20.5 }, { t: 'candles', x: 23.5 }],
+    props: [{ t: 'frame', x: 4.6 }, { t: 'trophy', x: 9.6 }, { t: 'trophy', x: 20.2 }, { t: 'trophy', x: 24.2 }, { t: 'spears', x: 13.2 }, { t: 'pelt', x: 10.2, y: 2.9 }, { t: 'pelt', x: 15.8, y: 4.9 },
+      { t: 'statue', x: 2.2 }, { t: 'statue', x: 25.6 }, { t: 'banner', x: 12, house: 'tess' }, { t: 'chandelier', x: 13, y: 6 }, { t: 'rug', x: 13 }, { t: 'table', x: 6.5 }, { t: 'candles', x: 21 }],
     lore: [{ x: 3.5, text: 'The Queen\'s huntsmen hung their kills here. The largest frame is empty, and its hooks are bent outward.' }] },
 ];

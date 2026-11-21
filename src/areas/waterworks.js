@@ -303,7 +303,7 @@ export default [
     enemies: [{ t: 'harpy', x: 16, y: 5 }, { t: 'spider_red', x: 24 }, { t: 'harpy', x: 30, y: 5.5 }],
     chests: [{ x: 6, tier: 4, rarity: 'rare' }],
     breakables: [{ x: 10 }, { x: 26 }],
-    props: [{ t: 'organ', x: 4 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 18, face: 1 }, { t: 'pews', x: 24, face: 1 }, { t: 'altar', x: 35.5, steps: 1 }, { t: 'candles', x: 33 }, { t: 'candles', x: 38 },
-      { t: 'waterfall', x: 9, y: 7 }, { t: 'waterfall', x: 31, y: 7 }, { t: 'chandelier', x: 20, y: 6.4 }, { t: 'web', x: 39, y: 6 }],
+    props: [{ t: 'organ', x: 4 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 18, face: 1 }, { t: 'pews', x: 24, face: 1 }, { t: 'altar', x: 35.5, steps: 1, style: 'drowned' },
+      { t: 'waterfall', x: 9 }, { t: 'waterfall', x: 31 }, { t: 'chandelier', x: 20, y: 6.4 }, { t: 'web', x: 39, y: 6 }],
     lore: [{ x: 8, text: 'The hymn-boards still list tonight\'s psalms. The water came up during the third.' }] },
 ];

@@ -115,7 +115,7 @@ export default [
   // hoist over the second; giants hammer on the stones, whelps and trappers hold the gantries above.
   { id: 'foundry', name: 'The Emberworks', area: '25', col: 47, row: 5, w: 4, h: 2, theme: 'forge',
     doors: [{ side: 'W', row: 6 }, { side: 'N', col: 50 }, { side: 'S', col: 48 }, { side: 'E', row: 5 }],
-    cracks: [{ x: 52.33, y: 8.0, w: 1.0, h: 3.8, hp: 3, glow: 0x9fe4ff }], // frost on a wall in the hottest room of the castle
+    cracks: [{ x: 52.33, y: 8.0, w: 1.0, h: 3.8, hp: 3, glow: 0x9fe4ff, need: 'fire' }], // frost on a wall in the hottest room of the castle: only fire cracks it
     blocks: [{ x: 8, y: 0.5, w: 9, h: 1.5 }, { x: 23, y: 0.5, w: 7, h: 1.5 }, { x: 38, y: 0.5, w: 6, h: 1.5 }, { x: 49.5, y: 0.5, w: 3.33, h: 3 }],
     lava: [{ x: 30, y: 0.5, w: 8, h: 1.2 }, { x: 44, y: 0.5, w: 5.5, h: 1.2 }],
     movers: [{ x: 30.5, y: 2.3, w: 2.6, dx: 4.6, period: 6 },           // conveyor over the first channel
@@ -248,12 +248,12 @@ export default [
       { x: 28.5, text: 'The east wall shows a saint holding up the sun. The bell that could unmake the picture is not rung yet.' }] },
 
   // Secret: the smiths of the Emberworks kept one thing cold. A shaft of frosted stone off the forge, the star-staff at its crown.
-  { id: 'frost_reliquary', name: 'The Frost Reliquary', area: '25', col: 51, row: 4, w: 1, h: 2, theme: 'sanctum', secret: true,
+  { id: 'frost_reliquary', name: 'The Frost Reliquary', area: '25', col: 51, row: 4, w: 1, h: 2, theme: 'frost', secret: true,
     doors: [{ side: 'W', row: 5 }],
     platforms: zig([[7.5, 2.7, 3.5], [2, 4.9, 3.5], [7.5, 7.1, 3.5], [2.5, 9.3, 4], [6.5, 11.5, 6]]),
     items: [{ x: 10, y: 11.5, unique: 'rimebound', altar: true, glow: 0x9fe4ff }, { x: 3.5, y: 9.3, up: 'mana' }],
     enemies: [{ t: 'dragonling_undead', x: 9, y: 7.1 }],
     breakables: [{ x: 3, y: 4.9 }],
-    props: [{ t: 'crystal', x: 2 }, { t: 'crystal', x: 11.5 }, { t: 'stalactite', x: 5, y: 14 }, { t: 'stalactite', x: 9, y: 14 }, { t: 'candles', x: 8, y: 11.5 }, { t: 'candles', x: 12, y: 11.5 }],
+    props: [{ t: 'crystal', x: 2 }, { t: 'crystal', x: 11.5 }, { t: 'crystal', x: 4.5, y: 4.9 }, { t: 'crystal', x: 8, y: 11.5 }, { t: 'stalactite', x: 5, y: 14 }, { t: 'stalactite', x: 9, y: 14 }, { t: 'stalactite', x: 3, y: 8 }],
     lore: [{ x: 4.5, text: 'Frost on the walls of a room beside a furnace. Whatever is kept here, the fire was never allowed near it.' }] },
 ];

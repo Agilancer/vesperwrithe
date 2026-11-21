@@ -9,7 +9,9 @@ import { BESTIARY } from './catalog.js';
 
 export const TYPES = BESTIARY;
 export const ELEM_COL = { fire: 0xff6a20, ice: 0x7ad8ff, lightning: 0xfff070, poison: 0x8aff5a, shadow: 0xb070ff };
-const rnd = (a, b) => a + Math.random() * (b - a); const _gc = new THREE.Color();
+const rnd = (a, b) => a + Math.random() * (b - a); const _gc = new THREE.Color(), _wc = new THREE.Color();
+// a signature's wind-up glows in its own element, so the answer can be read from the colour (red is everything else)
+const WARN_COL = { hunt: 0x6aff5a, frostnova: 0xa8e8ff, ossuary: 0xf0e0c0, fissure: 0xffa040, stormcall: 0xb8a8ff, grimoire: 0xb080ff, cyclone: 0xd8e8ff, geyser: 0x6ac8ff, miasma: 0x8aff5a, maw: 0x9a7ad8, eclipse: 0xffa020, forgefall: 0xffe0a0, webnet: 0xe8e8ff, meteor: 0xff8a30 };
 const sgn = x => (x < 0 ? -1 : 1);
 const SHOT_SPEED = { bolt: 11, orb: 6.5, skull: 4.2, feather: 13, gust: 10, book: 9 };
 
@@ -53,6 +55,7 @@ export class Enemy {
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });
+    if (this.spec.tint) { const tc = new THREE.Color(this.spec.tint); for (const m of this.mats) { m.color.lerp(tc, 0.65); m.metalness = Math.max(m.metalness || 0, 0.75); m.roughness = Math.min(m.roughness ?? 1, 0.35); } } /* a named knight in pale silver */
     this.rim = { col: RIM_COOL.clone(), k: 0.3 }; for (const m of this.mats) addRim(m, this.rim); this.weaponMats = []; this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
@@ -255,7 +258,7 @@ export class Enemy {
     // with a flare at the hand for the last moment; a hit flashes the rim white. The body itself only takes a light tint.
     const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, w = f ? 0 : Math.min(1, this.warn || 0), key = f * 10 + st;
     this.warn = 0;
-    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
+    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(this.warnCol ? _wc.setHex(this.warnCol) : RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
     if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.25 : st ? 0.45 : m.userData.emI; } }
     const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat) { this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? 0xff3a10 : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
     if (w > 0.78 || this.flare?.visible) { if (!this.flare) { this.flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); this.root.add(this.flare); }
@@ -336,6 +339,7 @@ const BRAIN = {
     if (T.block && c.adx < 3.6 && e.cool <= 0 && Math.random() < 0.012) { e.state = 'guard'; e.t = 0; e.play(T.anim.block, 0.12, { restart: true }); e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + 1.2, 0x8ab0ff); e.g.guardRing?.(e); audio.play('sword_blocked_2', 0.3, 1.3); return; }
     if (c.adx < T.reach + 0.3 && Math.abs(c.dy) < 2 && e.cool <= 0) { const r = Math.random(); return e.attackStart({ anim: r < 0.35 && T.anim.attack2 ? T.anim.attack2 : r < 0.5 && T.anim.attack3 ? T.anim.attack3 : T.anim.attack }); }
     if (T.lunge && c.adx > 2.6 && c.adx < 5.5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.03) return e.attackStart({ anim: T.anim.attack2 || T.anim.attack, lunge: T.lunge, reach: T.reach + 0.4 });
+    if (e.spec.flurry && c.adx > 1.6 && c.adx < 5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.04) { e.ghost(0xe8eef8, 0.3, 0.3); return e.attackStart({ anim: T.anim.attack, hits: [0.32, 0.5, 0.68], dur: 1.25, lunge: 6, reach: T.reach + 0.5, dmg: T.dmg * 0.55 }); } /* her three-thrust lunge: the Needle's rhythm */
     if (c.adx > T.reach * 0.8) e.walk(e.facing, T.speed * c.slow, T.anim.walk, 1.1); else { e.vel.x = 0; e.play(T.anim.idle); }
   },
 
@@ -498,7 +502,7 @@ const BRAIN = {
   boss(e, dt, P, c) {
     const T = e.T, rb = e.room.b;
     if (!e.awake) { if (c.sees && c.adx < 14) { e.awake = true; e.state = 'intro'; e.t = 0; e.introT = 2.4; e.facing = sgn(c.dx); e.playFor(e.clipFor(T.anim.roar) || T.anim.idle, 2.2); audio.play('crowd_gasp', 0.4, 0.6); e.g.bossStart(e); } else e.play(T.anim.idle); return; }
-    if (e.mv) { if (MOVE[e.mv.m.k](e, e.mv, dt, P, c)) { e.mv = null; e.state = 'chase'; e.t = 0; e.cool = (0.7 + Math.random() * 0.5) / (1 + (e.phase - 1) * 0.35); if (!e.air) e.vel.x = 0; } return; }
+    if (e.mv) { if (MOVE[e.mv.m.k](e, e.mv, dt, P, c)) { e.mv = null; e.warnCol = null; e.state = 'chase'; e.t = 0; e.cool = (0.7 + Math.random() * 0.5) / (1 + (e.phase - 1) * 0.35); if (!e.air) e.vel.x = 0; } return; }
     e.state = 'chase'; e.facing = sgn(c.dx);
     if (e.air) { // hover in the upper arena, drifting toward a point off the player's shoulder
       const fy = e.arenaFloor ?? (e.arenaFloor = e.home.y), hy = fy + (T.dragon ? 6.2 : 4.6) + Math.sin(e.g.time * 1.6) * 0.5, wantX = THREE.MathUtils.clamp(P.pos.x - sgn(c.dx) * (T.dragon ? 7 : 5), rb.x0 + 3, rb.x1 - 3);
@@ -513,7 +517,7 @@ const BRAIN = {
     let tot = ok.reduce((s, m) => s + m.w * ((m.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1), 0), r = Math.random() * tot, m = ok[0];
     for (const o of ok) { r -= o.w * ((o.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1); if (r <= 0) { m = o; break; } }
     e.lastMove = m; const dur = (m.dur || T.atkDur) / (e.phase >= 3 ? 1.15 : 1);
-    e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0;
+    e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0; e.warnCol = WARN_COL[m.k] || null; if (e.flare) e.flare.material.color.setHex(e.warnCol || 0xff5020);
     const anim = e.clipFor(m.anim) || e.clipFor(T.anim.attack);
     if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else if (!['hunt', 'frenzy', 'shellspin'].includes(m.k)) e.playFor(anim, dur);
     e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + Math.min(T.h, 3.5) * 0.85, 0xff4040);
@@ -542,7 +546,7 @@ const MOVE = {
     if (mv.t < wind) { e.vel.x = -e.facing * 0.6; e.warn = mv.t / wind; mv.s.x0 = e.pos.x; return false; }
     if (!mv.s.go) { mv.s.go = 1; audio.play('crowd_gasp', 0.3, 0.5); }
     e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) { if (e.boss) e.g.fx.puff(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); else e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); } // a boss's charge throws up soft warm dust
-    if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.07; e.ghost(m.k === 'ram' ? 0xff4020 : 0xffa040, 0.3); e.g.fx.streaks(e, 3); } // and leaves its own silhouette behind
+    if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.07; e.ghost(m.k === 'ram' ? 0xff4020 : 0xffa040, 0.3); e.g.fx.streaks(e, 2, m.k === 'ram' ? 0xff6040 : 0xffa060); } /* and leaves its own silhouette behind */
     const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
     if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); if (e.boss) { e.g.hitStop(0.1); e.g.shake(0.8); const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; for (let i = 0; i < 5; i++) e.g.rainShot(e, THREE.MathUtils.clamp(e.pos.x - e.facing * (1.5 + i * 2.2 + rnd(-0.6, 0.6)), rb.x0 + 1, rb.x1 - 1), fy, 'rock', null, e.T.dmg * 0.6 * e.dmgMul); } } return true; } // the wall shakes loose its masonry: punish him, but mind the ceiling
     return (m.k !== 'ram' && Math.abs(e.pos.x - mv.s.x0) > (m.range || 14)) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
@@ -683,7 +687,7 @@ const MOVE = {
     const s = mv.s, rb = e.room.b, fy = e.arenaFloor ?? e.home.y; mv.t += dt;
     if (!s.ph) { s.ph = 1; s.n = 0; s.t = 0; }
     s.t += dt;
-    if (s.ph === 1) { e.setAlpha(Math.max(0.02, 1 - s.t / 0.5)); e.vel.x = 0; if (s.t > 0.5) { s.ph = 2; s.t = 0; e.hidden = true; s.side = s.n % 2 ? -s.side : (P.pos.x < (e.arenaSpan()[0] + e.arenaSpan()[1]) / 2 ? 1 : -1); const [a0, a1] = e.arenaSpan(); s.a0 = a0; s.a1 = a1; e.pos.set(s.side > 0 ? Math.min(a1 - 0.3, P.pos.x + 11) : Math.max(a0 + 0.3, P.pos.x - 11), fy); e.facing = -s.side; /* close enough that the eyes are on screen */ e.g.huntEyes(e); audio.play('crowd_gasp', 0.3, 0.4); } return false; }
+    if (s.ph === 1) { e.setAlpha(Math.max(0.02, 1 - s.t / 0.5)); e.vel.x = 0; if (Math.random() < 0.8) e.g.fx.spawn(e.pos.x + rnd(-e.T.w * 0.6, e.T.w * 0.6), e.pos.y + rnd(0.2, e.T.h), 0.9, rnd(-0.5, 0.5), rnd(0, 0.6), 0x1a2a14, 1.2, rnd(0.8, 1.5), -0.3, false); if (s.t > 0.5) { /* it sinks into a dark-green fog */ s.ph = 2; s.t = 0; e.hidden = true; s.side = s.n % 2 ? -s.side : (P.pos.x < (e.arenaSpan()[0] + e.arenaSpan()[1]) / 2 ? 1 : -1); const [a0, a1] = e.arenaSpan(); s.a0 = a0; s.a1 = a1; e.pos.set(s.side > 0 ? Math.min(a1 - 0.3, P.pos.x + 11) : Math.max(a0 + 0.3, P.pos.x - 11), fy); e.facing = -s.side; /* close enough that the eyes are on screen */ e.g.huntEyes(e); audio.play('crowd_gasp', 0.3, 0.4); } return false; }
     if (s.ph === 2) { const tell = s.n ? 0.75 : 1.0; e.warn = Math.min(1, s.t / tell); if (s.t > tell) { s.ph = 3; s.t = 0; e.hidden = false; e.setAlpha(1); e.play(e.clipFor(mv.m.anim) || e.T.anim.run || e.T.anim.walk, 0.1, { restart: true, speed: 1.3 }); audio.play('crowd_gasp', 0.4, 0.6); } return false; }
     if (s.ph === 3) { e.vel.x = e.facing * 15; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.05; e.ghost(0x8aff7a, 0.34, 0.4); } const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 2), e.T.dmg * 1.2)) s.hit = 1; if (Math.random() < 0.5) e.g.fx.puff(e.pos.x - e.facing, e.pos.y, 0x3a4a2a);
       if ((e.facing > 0 ? e.pos.x > s.a1 - 0.8 : e.pos.x < s.a0 + 0.8) || e.hitWall || s.t > 2.5) { s.n++; s.hit = 0; e.vel.x = 0; if (s.n >= (mv.m.n || 2)) return true; s.ph = 1; s.t = 0; } return false; }
@@ -703,14 +707,14 @@ const MOVE = {
     if (!s.o) { s.o = 1; s.book = e.g.openBook(e); audio.play('spell_impact_3', 0.6, 0.6); e.air = true; }
     e.vel.set(0, k < 0.9 ? (fy + 2 - e.pos.y) * 4 : -4); // he lifts off the floor to read
     if (k < 0.3) { e.warn = k / 0.3; return false; }
-    s.a = (s.a || 0) + dt * 2.4; s.c = (s.c || 0) - dt;
-    if (k < 0.85 && s.c <= 0) { s.c = 0.1; const sw = Math.sin(s.a) * 0.7; for (const ang of [sw, Math.PI - sw]) e.g.shoot({ x: e.cx + Math.cos(ang) * 0.9, y: e.cy + 0.5 + Math.sin(ang) * 0.9, vx: Math.cos(ang) * 6.5, vy: Math.sin(ang) * 6.5, kind: 'book', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), src: e, life: 2.6 }); audio.play('clothing_1', 0.25, 1.6); } // two sweeping arms: duck or rise through the gaps
+    s.a = (s.a || 0) + dt * (2 * Math.PI / (mv.dur * 0.55)); s.c = (s.c || 0) - dt; // one full sweep across the casting window
+    if (k < 0.85 && s.c <= 0) { s.c = 0.1; const y0 = e.cy + 0.5, aim = Math.atan2(P.pos.y + 0.9 - y0, Math.max(2, Math.abs(P.pos.x - e.cx))), sw = aim + Math.sin(s.a) * 0.35; for (const ang of [sw, Math.PI - sw]) e.g.shoot({ x: e.cx + Math.cos(ang) * 0.9, y: y0 + Math.sin(ang) * 0.9, vx: Math.cos(ang) * 6.5, vy: Math.sin(ang) * 6.5, kind: 'book', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), src: e, life: 2.6 }); audio.play('clothing_1', 0.25, 1.6); } // two arms swing through your height: read the gaps
     if (k >= 1) { e.air = false; s.book?.close(); }
     return k >= 1;
   },
   // Vhalgor calls the storm down: rune-lines kindle across the floor in a march, then lightning strikes each one
   stormcall(e, mv, dt, P) {
-    mv.t += dt; const k = mv.t / mv.dur, rb = e.room.b, fy = e.arenaFloor ?? e.home.y, s = mv.s;
+    mv.t += dt; const k = mv.t / mv.dur, rb = e.room.b, fy = e.arenaFloor ?? e.home.y, s = mv.s; e.vel.set(0, 0); // he holds the air while the storm answers
     const march = (t0, dir, gap) => { const n = mv.m.n || 9, c = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2 + 7.2, rb.x1 - 2 - 7.2); for (let i = 0; i < n; i++) { if (i === gap) continue; const j = dir > 0 ? i : n - 1 - i, x = c + (j - (n - 1) / 2) * 1.8; e.g.erupt({ x, y: fy, delay: t0 + i * 0.11, w: 1.6, h: 14, dmg: e.T.dmg * 0.9 * e.dmgMul, elem: 'lightning', src: e }); } };
     if (!s.f) { s.f = 1; s.dir = P.pos.x < (rb.x0 + rb.x1) / 2 ? 1 : -1; const n = mv.m.n || 9, mid = (n - 1) / 2; s.g1 = Math.round(mid + rnd(-2, 2)); march(0.75, s.dir, s.dir > 0 ? s.g1 : n - 1 - s.g1); audio.play('spell_impact_2', 0.6, 0.6); } // runes 1.8 m apart across your ground; one stays dark
     if (!s.f2 && mv.t > 0.75 + 9 * 0.11 + 0.6) { s.f2 = 1; const n = mv.m.n || 9, mid = (n - 1) / 2; let g2 = Math.round(mid + rnd(-2, 2)); if (g2 === s.g1) g2 += g2 < mid ? 2 : -2; march(0.55, -s.dir, -s.dir > 0 ? g2 : n - 1 - g2); audio.play('spell_impact_2', 0.6, 0.7); } // and back again, the gap moved
@@ -763,8 +767,8 @@ const MOVE = {
   },
   // the bone golem stamps and the ossuary answers: a ring of bone teeth bursts outward on both sides
   ossuary(e, mv, dt, P) {
-    mv.t += dt; const k = mv.t / mv.dur, a = (mv.m.windup || e.T.windup)[0];
-    if (k < a) { e.warn = k / a; return false; }
+    mv.t += dt; const k = mv.t / mv.dur, a = Math.max(0.5, (mv.m.windup || e.T.windup)[0]), fy = e.arenaFloor ?? e.home.y;
+    if (k < a) { e.warn = k / a; e.vel.x = 0; if (Math.random() < 0.6) e.g.fx.spawn(e.pos.x + rnd(-6, 6), fy + 0.05, 0.7, 0, rnd(0.5, 1.4), 0xe8dcc0, 0.4, rnd(0.08, 0.14), 4, false); if (!mv.s.r) { mv.s.r = 1; audio.play('bone_snap', 0.5, 0.5); } return false; } // the floor rattles: bone shards jump out of the cracks all round him
     if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.shake(0.5); e.g.fx.cracks(e.pos.x, fy, 3); audio.play('bone_snap', 0.7, 0.7);
       for (const dir of [1, -1]) { const n = mv.m.n || 6; let last = e.pos.x; for (let i = 0; i < n; i++) { const x = e.pos.x + dir * (1.6 + i * 1.3); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) { last = x; e.g.erupt({ x, y: fy, delay: 0.12 + i * 0.09, w: 1.1, h: i % 2 ? 1.8 : 1.5, dmg: e.T.dmg * 0.8 * e.dmgMul, elem: 'bone', src: e, hold: 2.5, perch: true, line: true }); } } e.g.fx.crackLine(e.pos.x + dir * 1.1, last + dir * 0.5, fy, 0xf0e0c0, 0.12 + n * 0.09, 0.8 + n * 0.09); } } // a palisade of bone: stand on it, or be penned by it
     return k >= 1;
@@ -773,7 +777,7 @@ const MOVE = {
   maw(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
     if (k < 0.7) { e.warn = Math.min(1, k / 0.5); e.facing = sgn(P.pos.x - e.pos.x); const d = P.pos.x - e.pos.x; if (Math.abs(d) < 14 && Math.abs(P.pos.y - e.pos.y) < 5) P.push = (P.push || 0) - sgn(d) * dt * 9;
-      if ((s.st = (s.st || 0) - dt) <= 0) { s.st = 0.035; e.g.fx.streak(e.pos.x + e.facing * rnd(2.5, 8), e.cy + rnd(-1.8, 2.2), -e.facing, rnd(1.6, 3.2), Math.random() < 0.5 ? 0x9a7ad8 : 0xd8c8ff); } // the air itself rushes into the maw
+      if ((s.st = (s.st || 0) - dt) <= 0) { s.st = 0.035; const mx = e.pos.x + e.facing * e.T.w * 0.4, my = e.cy + 0.3, sx = e.pos.x + e.facing * rnd(3, 8), sy = e.cy + rnd(-2.2, 2.6), ang = Math.atan2(my - sy, mx - sx); e.g.fx.streak(sx, sy, 1, Math.min(3.2, Math.hypot(mx - sx, my - sy) * 0.6), Math.random() < 0.5 ? 0x9a7ad8 : 0xd8c8ff, 0.1, 0.8, ang); if (Math.random() < 0.3) e.g.fx.spawn(e.pos.x + e.facing * rnd(3, 8), e.pos.y + 0.2, 0.7, -e.facing * rnd(5, 9), rnd(0.5, 2), 0xe0d4b8, 0.6, rnd(0.08, 0.14), 2, false); } /* the air, the dust and loose bones all converge on the maw */
       if (Math.random() < 0.6) e.g.fx.spawn(e.pos.x + e.facing * rnd(2, 9), e.pos.y + 0.15, 0.7, -e.facing * rnd(4, 8), rnd(0, 0.6), 0x5a5048, 0.5, rnd(0.2, 0.4), 0, false); if (!s.snd) { s.snd = 1; audio.play('wave_attack_1', 0.6, 0.35); } return false; }
     if (!s.f) { s.f = 1; audio.play('squelching_4', 0.7, 0.6); e.g.shake(0.4); e.play(e.T.anim.attack, 0.06, { restart: true, once: true, speed: 1.6 }); if (frontBox(e, P, e.T.reach + 1, false, e.T.dmg * 1.3)) e.g.hitStop(0.08); }
     return k >= 1;
@@ -788,7 +792,7 @@ const MOVE = {
   // the undead wyrm's frost nova: a ring of ice crystals that races outward from it both ways
   frostnova(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur;
-    if (k < 0.35) { e.warn = k / 0.35; return false; }
+    if (k < 0.35) { e.warn = k / 0.35; for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28, r = rnd(2.5, 4); e.g.fx.spawn(e.cx + Math.cos(a) * r, e.cy + Math.sin(a) * r, 0.8, -Math.cos(a) * r * 2, -Math.sin(a) * r * 2, 0xd8f4ff, 0.45, 0.14, 0); } if (!mv.s.ic) { mv.s.ic = 1; audio.play('ice_freeze_2', 0.6, 0.6); } return false; } // frost is drawn in to it from all round: the cold gathering, then the burst
     if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.fx.ring(e.cx, e.cy, 0x9fe4ff, 10); audio.play('ice_barrage_2', 0.7, 0.7); e.g.shake(0.4);
       for (const dir of [1, -1]) for (let i = 0; i < (mv.m.n || 7); i++) { const x = e.pos.x + dir * (2 + i * 1.5); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) { e.g.erupt({ x, y: fy, delay: 0.2 + i * 0.07, w: 1.3, h: 1.9, dmg: e.T.dmg * 0.75 * e.dmgMul, elem: 'ice', src: e }); e.g.erupt({ x, y: fy, delay: 1.25 + i * 0.05, w: 1.5, h: 0.8, dmg: e.T.dmg * 0.5 * e.dmgMul, elem: 'ice', src: e, line: true }); } } } // then the crystals burst into low shards: jump again
     return k >= 1;

@@ -13,7 +13,7 @@ const weapons = JSON.parse(fs.readFileSync(path.join(root, 'assets/game/weapons/
 const swords = JSON.parse(fs.readFileSync(path.join(root, 'assets/game/items/swords.json'), 'utf8')).swords;
 const ARMOR = ['leather_cap', 'iron_helm', 'great_helm', 'crown_helm', 'padded_jerkin', 'pilgrim_mail', 'knight_plate', 'royal_plate', 'wool_cloak', 'night_cloak', 'royal_mantle', 'iron_ring', 'silver_ring', 'gold_ring', 'signet_ring'];
 const LEGACY = ['pilgrim_blade', 'short_sword', 'knight_sword', 'kite_shield', 'dawnstar_kite', 'iron_maul_2h'];
-const UNIQUES = ['gravesong', 'vespertine', 'cinderfall', 'rimeheart', 'stormcall', 'thornkiss', 'kingsgrief', 'moonsickle', 'widowmaker', 'seraphwing', 'homeward', 'lionheart_aegis', 'worldtree', 'dragonspine', 'bonecrown', 'krakenmaw', 'redthirst', 'sunsplitter', 'hollowsun', 'lastlight', 'vespers_needle', 'pale_reaper', 'tidecaller', 'gravelantern', 'rimebound'];
+const UNIQUES = ['gravesong', 'vespertine', 'cinderfall', 'rimeheart', 'stormcall', 'thornkiss', 'kingsgrief', 'moonsickle', 'widowmaker', 'seraphwing', 'homeward', 'lionheart_aegis', 'worldtree', 'dragonspine', 'bonecrown', 'krakenmaw', 'redthirst', 'sunsplitter', 'hollowsun', 'lastlight', 'vespers_needle', 'pale_reaper', 'tidecaller', 'gravelantern', 'rimebound', 'huntsmans_signet'];
 const GEMS = ['ruby', 'sapphire', 'topaz', 'emerald', 'skull', 'onyx', 'diamond', 'amethyst'];
 const baseOk = id => !!weapons[id] || (swords[id] && swords[id].file) || ARMOR.includes(id) || LEGACY.includes(id);
 
@@ -73,7 +73,7 @@ const caps = ab => ({ rise: ab.has('djump') ? 4.2 : 2.4, v: ab.has('djump') ? Ma
 function solidsFor(r, ab, fire) {
   const out = [];
   for (const s of roomSolids(r)) {
-    if (s.kind === 'crack') { if (s.by !== 'dive' || ab.has('dive')) continue; }
+    if (s.kind === 'crack') { if (s.ref?.need === 'fire' ? fire : (s.by !== 'dive' || ab.has('dive'))) continue; }
     if (s.kind === 'gate') { if ((s.gate === 'thorn' && fire) || (s.gate === 'ghost' && ab.has('dash')) || (s.gate === 'veil' && ab.has('echo'))) continue; }
     if (s.kind === 'echo' && !ab.has('echo')) continue;
     if (s.kind === 'mover') { const m = s.ref, per = m.period || 4; for (const f of m.orbit ? [0, 0.25, 0.5, 0.75] : [0, 0.25, 0.5]) { const o = moverOffset({ ...m, phase: 0 }, f * per); out.push({ ...s, x0: s.x0 + o.x, x1: s.x1 + o.x, y0: s.y0 + o.y, y1: s.y1 + o.y }); } continue; }

@@ -3,14 +3,14 @@
 
 // Themes whose rooms are open to the sky (no ceiling slab).
 export const THEMES_OPEN = { outdoor: 1, courtyard: 1, garden: 1, rampart: 1 };
-export const THEME_NAMES = ['outdoor', 'hall', 'shaft', 'shrine', 'gallery', 'crypt', 'chapel', 'throne',
+export const THEME_NAMES = ['frost', 'outdoor', 'hall', 'shaft', 'shrine', 'gallery', 'crypt', 'chapel', 'throne',
   'courtyard', 'vestibule', 'servants', 'aqueduct', 'cistern', 'ossuary', 'prison', 'portrait', 'library', 'garden', 'menagerie',
   'catacomb', 'royalcrypt', 'clock', 'mine', 'forge', 'magma', 'mirror', 'observatory', 'rampart', 'belfry', 'sanctum', 'hollow'];
 
 export const PROP_TYPES = ['torch', 'lamp', 'banner', 'window', 'statue', 'candles', 'chain', 'pews', 'throne', 'gatearch', 'portcullis', 'windlass', 'dial', 'bellframe',
   'bookshelf', 'chandelier', 'sarcophagus', 'bones', 'skullwall', 'cage', 'gear', 'pendulum', 'barrel', 'crate', 'table', 'tapestry',
   'painting', 'mirror', 'tree', 'thornbush', 'fountain', 'grave', 'organ', 'bigbell', 'brazier', 'crystal', 'stalactite', 'pipe', 'web',
-  'telescope', 'orrery', 'anvil', 'furnace', 'rubble', 'altar', 'arch', 'column', 'rug', 'gargoyle', 'coffin', 'ivy', 'waterfall', 'mushroom', 'hook', 'rosewindow'];
+  'telescope', 'orrery', 'anvil', 'furnace', 'rubble', 'altar', 'arch', 'column', 'rug', 'gargoyle', 'coffin', 'ivy', 'waterfall', 'mushroom', 'hook', 'rosewindow', 'trophy', 'spears', 'frame', 'pelt'];
 
 const M = 'assets/monsters/', TR = M + 'tripo/';
 const tr = (...n) => n.map(x => TR + x + '.glb');
@@ -39,7 +39,7 @@ export const BESTIARY = {
     anim: { idle: 'Zombie_Idle_Loop', walk: 'walk_stagger', run: 'run_charge', attack: 'attack_rake', attack2: 'attack_flurry', attack3: 'attack_pounce', hit: 'Hit_Chest', death: 'Death01' }, windup: [0.35, 0.65], atkDur: 1.4, aggro: 16, slam: true },
   werewolf: { name: 'Moonbitten Warden', tier: 1, lvl: 5, ai: 'boss', mini: true, files: [TR + 'werewolf_brown.glb'], h: 2.4, w: 1.0, hp: 240, dmg: 18, touch: 8, speed: 3.4, reach: 2.0, xp: 150,
     anim: A({ attack: 'atk1', attack2: 'atk3', attack3: 'atk5' }), windup: [0.35, 0.6], atkDur: 1.0, aggro: 18,
-    moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.6 }, { k: 'melee', anim: 'atk3', w: 2, range: 2.6, dur: 0.8 }, { k: 'leap', anim: 'jump', w: 3, min: 3, range: 9 }, { k: 'charge', anim: 'run', w: 2, min: 4, range: 12, speed: 10 }, { k: 'frenzy', anim: 'atk1', w: 3, range: 9, dur: 1.4 }] },
+    moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.6 }, { k: 'melee', anim: 'atk3', w: 2, range: 2.6, dur: 0.8 }, { k: 'leap', anim: 'jump', w: 3, min: 3, range: 9 }, { k: 'charge', anim: 'run', w: 2, min: 4, range: 12, speed: 10 }, { k: 'frenzy', anim: 'atk1', w: 3, range: 5.5, dur: 1.4 }] },
   caddoc:   { name: 'Oathbreaker Sir Caddoc', tier: 1, lvl: 6, ai: 'boss', boss: true, files: [TR + 'possessed_knight_1.glb'], h: 3.3, w: 1.3, hp: 450, dmg: 22, touch: 10, speed: 2.0, reach: 2.4, xp: 300,
     anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk3', bash: 'bash', block: 'block' }), windup: [0.4, 0.66], atkDur: 1.3, aggro: 30, bell: 'slide', title: 'OATHBREAKER VANQUISHED', arm: ['spiked_longsword'],
     moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 2.9 }, { k: 'melee', anim: 'atk2', w: 2, range: 2.9 }, { k: 'ram', anim: 'bash', w: 3, min: 5, range: 30, speed: 9 }, { k: 'slam', anim: 'atk3', w: 3, range: 7, phase: 2 }, { k: 'leap', anim: 'jump', w: 2, min: 4, range: 10, phase: 2 }, { k: 'fissure', anim: 'atk3', w: 3, range: 16, n: 8, dur: 1.6, phase: 2 }] },

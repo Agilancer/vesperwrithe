@@ -79,7 +79,7 @@ export default [
     blocks: [{ x: 29, y: 0.5, w: 11, h: 0.7 }], // the sanctuary step
     platforms: zig([[23.5, 2.9, 3], [18.5, 5.1, 3], [23.5, 7.3, 3], [29, 9.5, 3], [33.5, 11.7, 6.5]]), // up to the singers' loft
     items: [{ x: 35, y: 1.2, unique: 'vespers_needle', altar: true, glow: 0xffd8a0 }],
-    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 1.5, name: 'Ser Aubrine, Who Kept Her Oath' }],
+    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 1.5, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }],
     chests: [{ x: 37.5, y: 11.7, tier: 2, rarity: 'rare' }],
     breakables: [{ x: 8.5 }, { x: 26 }, { x: 35, y: 11.7 }],
     props: [{ t: 'window', x: 35, big: true }, { t: 'rosewindow', x: 18, y: 15 }, { t: 'altar', x: 35, y: 1.2, steps: 1 }, { t: 'pews', x: 7, face: 1 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 17, face: 1 },
@@ -95,7 +95,7 @@ export default [
     items: [{ x: 21.2, unique: 'pale_reaper', altar: true, glow: 0x9aff9a, rise: [8.5, 13, 18.5] }, { x: 16.1, y: 4.4, up: 'life' }],
     enemies: [{ t: 'zombie', x: 11, rise: true }, { t: 'zombie', x: 18, rise: true }, { t: 'knight', x: 20 }],
     breakables: [{ x: 5 }, { x: 13.5 }],
-    props: [{ t: 'altar', x: 21.2, steps: 1 }, { t: 'coffin', x: 3.2 }, { t: 'sarcophagus', x: 25.2 }, { t: 'bones', x: 9 }, { t: 'bones', x: 16 },
+    props: [{ t: 'altar', x: 21.2, steps: 1, style: 'bone' }, { t: 'coffin', x: 3.2 }, { t: 'sarcophagus', x: 25.2 }, { t: 'bones', x: 9 }, { t: 'bones', x: 16 },
       { t: 'candles', x: 19.4 }, { t: 'candles', x: 22.9 }, { t: 'torch', x: 1, y: 2.5 }, { t: 'web', x: 25.5, y: 6 }],
     lore: [{ x: 3.6, text: 'The bones are stacked with care, every skull turned outward. Whoever set them wanted the reaper watched.' }] },
 

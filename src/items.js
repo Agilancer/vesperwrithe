@@ -28,7 +28,7 @@ export const STYLES = {
   // scythe: a turn that opens into a long, low reap; the hooked blade drags whatever it catches in toward you
   // two windows: the turn cuts behind you (short, light), then the reap sweeps low in front, hooking what it catches
   reap:    { anim: 'vw_reap', from: 0, to: 36, hit: [7, 23], hits: [[7, 14], [15, 23]], cancel: 26, dur: 0.72, reach: 2.6, height: 2.2, yOff: 0.95,
-             boxes: [{ both: true, reach: 1.6, mul: 0.4 }, { reach: 2.6, yOff: 0.6, height: 1.3, pull: true }] },
+             boxes: [{ back: true, reach: 1.6, mul: 0.4 }, { reach: 2.6, yOff: 0.6, height: 1.3, pull: true }] }, // the turn guards your back; only the reap cuts in front
   // daggers (paired when the off hand is free) and rapiers: three quick drives, each its own hit, stepping in with each
   flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 0.9, yOff: 1.25, lunge: 6, hitMul: 0.5, thrust: true },
   needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 0.7, yOff: 1.3, lunge: 6.5, hitMul: 0.35, thrust: true },
@@ -253,12 +253,13 @@ export const UNIQUES = {
   // relics of the castle's hidden rooms (secret rooms in src/areas): each is the only one of its class
   vespers_needle: U('swept_rapier', 7, 'Vesper\'s Needle', 2, 'twin', [{ dmgPct: 55 }, '+55% damage'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 6 }, '+6 Agility']),
   pale_reaper: U('pale_crescent', 9, 'The Pale Reaper', 3, 'harvest', [{ dmgPct: 60 }, '+60% damage'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ critDmg: 50 }, '+50% critical damage'], [{ str: 6 }, '+6 Strength']),
+  huntsmans_signet: U('gold_ring', 18, 'Huntsman\'s Signet', 1, null, [{ lck: 10 }, '+10 Luck'], [{ gold: 40 }, '+40% gold found'], [{ xpPct: 10 }, '+10% experience'], [{}, 'Hollow walls hum when you are near']),
   gravelantern: U('lichs_lantern', 18, 'Gravelantern', 3, 'bats', [{ dmgPct: 65 }, '+65% damage'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ mp: 50 }, '+50 mana'], [{ int: 10 }, '+10 Intellect']),
   rimebound:   U('winterstar', 22, 'Rimebound', 3, 'nova', [{ dmgPct: 70 }, '+70% damage'], [{ ice: 18 }, '+18 cold damage', 'ice'], [{ res_fire: 30 }, '+30% fire resistance'], [{ int: 10 }, '+10 Intellect']),
   tidecaller:  U('riptide_staff', 11, 'Tidecaller', 3, 'chain', [{ dmgPct: 55 }, '+55% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ mp: 40 }, '+40 mana'], [{ int: 8 }, '+8 Intellect']),
   lastlight:   U('radiant_lance', 30, 'Last Light', 4, 'sunder', [{ dmgPct: 60 }, '+60% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
-for (const id of ['vespers_needle', 'pale_reaper', 'tidecaller', 'gravelantern', 'rimebound']) UNIQUES[id].relic = true; // relics of the hidden rooms grow with their keeper
+for (const id of ['vespers_needle', 'pale_reaper', 'tidecaller', 'huntsmans_signet', 'rimebound']) UNIQUES[id].relic = true; // relics of the hidden rooms grow with their keeper
 export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.relic) it.relic = true; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }
 // A unique is forged at its own level whatever common steel it is modelled on.
 export const itemLevel = it => it.lvl || BASES[it.base]?.lvl || 1;
