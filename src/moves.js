@@ -12,7 +12,7 @@ const MOVESET = {
   slash2h: [['vw_great', 0.74]],
   // a link may carry its own fields: the staff's second link is the cast, which looses a bolt at frame 14 instead of cutting
   whirl: [['vw_whirl', 0.58], ['vw_cast', 0.62, { ranged: 'staff', shotAt: 14, both: false }]],
-  reap: [['vw_reap', 0.72]],
+  reap: [['vw_reap', 0.72, { hits: [[7, 14], [15, 23]] }]],
   flurry: [['vw_flurry', 0.5]],
   needle: [['vw_flurry', 0.44]],
 };

@@ -134,12 +134,13 @@ export default [
 
   // Side vault: three blades over spiked footing, the armourer's masterwork at the end.
   { id: 'arsenal_vault', name: 'Armourer\'s Vault', area: '34', col: 44, row: -6, w: 1, h: 1, theme: 'clock',
-    doors: [{ side: 'W', row: -6 }],
-    blocks: B([[4.6, 0.5, 1.2, 1.1], [7.6, 0.5, 1.2, 1.1], [10.2, 0.5, 2.63, 1.1]]),
+    doors: [{ side: 'W', row: -6 }, { side: 'E', row: -6 }],
+    blocks: B([[4.6, 0.5, 1.2, 1.1], [7.6, 0.5, 1.2, 1.1], [10.2, 0.5, 1.7, 1.1]]),
+    cracks: [{ x: 12.33, y: 0.5, w: 1.0, h: 3.8, hp: 3, glow: 0xb080ff }], // behind the masterwork, the wall rings hollow
     spikes: [{ x: 3.4, y: 0.5, w: 1.2 }, { x: 5.8, y: 0.5, w: 1.8 }, { x: 8.8, y: 0.5, w: 1.4 }],
     blades: [{ x: 3.9, y: 6.6, len: 3.2, period: 3, phase: 0.25 }, { x: 6.7, y: 6.6, len: 3.4, period: 2.4 }, { x: 9.5, y: 6.6, len: 3.4, period: 2.4, phase: 0.5 }],
-    enemies: [{ t: 'mannequin', x: 10.8, y: 1.6 }],
-    chests: [{ x: 11.8, y: 1.6, unique: 'homeward', big: true }],
+    enemies: [{ t: 'mannequin', x: 10.6, y: 1.6 }],
+    chests: [{ x: 11.2, y: 1.6, unique: 'homeward', big: true }],
     breakables: [{ x: 1.8 }, { x: 2.8 }],
     props: [...pr('torch', 1.2, [12.3, 1.6]), ...pr('gear', 5.2, 8.2), ...pr('banner', 11.5), ...pr('crate', 0.9), ...pr('chain', 3.9, 6.7, 9.5), ...pr('anvil', 2.3)],
     lore: [{ x: 2, text: 'The armourer hung his masterwork where only the patient could reach it.' }] },
@@ -266,4 +267,15 @@ export default [
       ...pr('statue', [4, 8], [22.4, 8], [38.9, 8]), ...pr('candles', [17, 8], [34.2, 8]), ...pr('painting', [8, 8]), ...pr('rug', [20, 8]), ...pr('brazier', 0.9), ...pr('crystal', 20.9)],
     lore: [{ x: 24.5, y: 8, text: 'Half the mirrors here are doors, and half the doors are mirrors. The Bell of Echoes would know which.' },
       { x: 1.6, text: 'The palace drains its moat through the floor. Far below, something drinks.' }] },
+
+  // Secret: the Queen's huntsmen kept their trophy hall behind the armourer's wall. The largest frame is empty.
+  { id: 'huntsmans_hall', name: 'The Huntsmen\'s Trophy Hall', area: '34', col: 45, row: -6, w: 2, h: 1, theme: 'portrait', secret: true,
+    doors: [{ side: 'W', row: -6 }],
+    platforms: P([[9, 2.9, 3.5], [14.5, 4.9, 3.5]]),
+    items: [{ x: 22, unique: 'gravelantern', altar: true, glow: 0xb080ff }, { x: 16.2, y: 4.9, up: 'life' }],
+    enemies: [{ t: 'mannequin', x: 8 }, { t: 'mannequin', x: 13 }, { t: 'mannequin', x: 18 }],
+    breakables: [{ x: 4 }, { x: 25 }],
+    props: [{ t: 'painting', x: 5 }, { t: 'painting', x: 11 }, { t: 'painting', x: 20 }, { t: 'statue', x: 2.5 }, { t: 'statue', x: 25.5 }, { t: 'banner', x: 8, house: 'tess' }, { t: 'banner', x: 17, house: 'tess' },
+      { t: 'chandelier', x: 13, y: 6 }, { t: 'rug', x: 13 }, { t: 'table', x: 6.5 }, { t: 'candles', x: 20.5 }, { t: 'candles', x: 23.5 }],
+    lore: [{ x: 3.5, text: 'The Queen\'s huntsmen hung their kills here. The largest frame is empty, and its hooks are bent outward.' }] },
 ];

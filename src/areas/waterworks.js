@@ -66,7 +66,7 @@ export default [
   { id: 'weeping_shaft', name: 'The Weeping Shaft', area: '06', col: 21, row: 1, w: 1, h: 7, theme: 'aqueduct',
     doors: [{ side: 'E', row: 1 }, { side: 'E', row: 4 }, { side: 'W', row: 7 }, { side: 'E', row: 2 }],
     blocks: [{ x: 0, y: 22, w: 4.9, h: 1 }, { x: 8.5, y: 22, w: 4.833, h: 1 }], // floor of the upper shaft
-    cracks: [{ x: 4.9, y: 22, w: 3.6, h: 1, by: 'dive' }, { x: 12.33, y: 38.0, w: 1.0, h: 3.8, hp: 3 }], // a sealed choir-loft door off the upper shaft
+    cracks: [{ x: 4.9, y: 22, w: 3.6, h: 1, by: 'dive' }, { x: 12.33, y: 38.0, w: 1.0, h: 3.8, hp: 3, glow: 0x8ad0ff }], // a sealed choir-loft door off the upper shaft
     platforms: zig([
       // upper shaft: 2 m steps, climbable with one jump
       [5.5, 43.4, 3.2], [1, 41.4, 3.4], [5.2, 39.3, 3], [7.0, 37.3, 3.0], [5, 35.2, 3], [0.8, 33.2, 3.2], [4.8, 31.1, 3], [9.2, 29.1, 3.4], [5.4, 27.0, 3], [1.2, 25.0, 3.2],
@@ -298,7 +298,8 @@ export default [
   { id: 'drowned_choir', name: 'The Drowned Choir', area: '06', col: 22, row: 2, w: 3, h: 1, theme: 'cistern', secret: true,
     doors: [{ side: 'W', row: 2 }],
     platforms: zig([[13, 2.7, 4], [20, 4.6, 5], [28, 2.7, 4]]),
-    items: [{ x: 35.5, pedestal: true, unique: 'tidecaller', altar: true }, { x: 22.5, y: 4.6, up: 'mana' }],
+    shallow: [{ x: 0, w: 40 }],
+    items: [{ x: 35.5, unique: 'tidecaller', altar: true, glow: 0x8ad0ff }, { x: 22.5, y: 4.6, up: 'mana' }],
     enemies: [{ t: 'harpy', x: 16, y: 5 }, { t: 'spider_red', x: 24 }, { t: 'harpy', x: 30, y: 5.5 }],
     chests: [{ x: 6, tier: 4, rarity: 'rare' }],
     breakables: [{ x: 10 }, { x: 26 }],

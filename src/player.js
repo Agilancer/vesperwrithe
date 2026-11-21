@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { loadGLTF, weaponModel, audio, addRim, LOW_MEM } from './assets.js';
 const RIM_K = LOW_MEM ? 0.42 : 0.38; // phones are often viewed dim: a touch more edge
-import { BASES, STYLES, GEMS, itemStats, isRanged } from './items.js';
+import { BASES, STYLES, GEMS, itemStats, isRanged, staffElem } from './items.js';
 import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
 import { loadMoves, strideSpeed, Grip } from './moves.js';
@@ -205,6 +205,7 @@ export class Player {
     // a faint cold edge-light so the blade reads against dark armour and dark rooms (element FX override it)
     if (slot === 'weapon') m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x8fb4c8); o.material.emissiveIntensity = 0.16; } });
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
+    if (slot === 'weapon') { m.userData.q0 = m.quaternion.clone(); this.trailElem = base.kind === 'staff' ? staffElem(base.model) : it.base === 'pale_crescent' ? 'reaper' : null; } // a staff's arc burns its own colour
   }
 
   // Two-handed weapons: the clips are one-handed, so the left hand is pulled onto the shaft each frame (two-bone IK on the
@@ -457,7 +458,7 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1]; A.pastHit = f > st.hit[1];
-    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); const h = this.socketR.getWorldPosition(new THREE.Vector3()); this.g.fx.streak(h.x + this.facing * 0.25, h.y + (1 - wi) * 0.12, this.facing, (A.reach || st.reach) * (wi === 2 ? 1.25 : 1), STREAK[this.fx?.userData.elem] || 0xdfe8ff); } } // a flurry: every drive is its own hit
+    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); A.streak = wi; } } // a flurry: every drive is its own hit
     const pad = st.cancel !== undefined ? 1 : 3; // authored clips: the ribbon belongs to the cut, not the wind-up
     if (f >= st.hit[0] - pad && f <= st.hit[1] + pad - 1) this.trailOn = true;
     if (st.ranged) { if (!A.shot && f >= (st.shotAt ?? st.hit[0])) { A.shot = true; this.g.playerShoot(this, st.ranged); } }
@@ -475,11 +476,24 @@ export class Player {
     if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
   }
 
+  // A thrust drives the point dead ahead: around each drive the blade is turned onto the facing line (the mocap fist
+  // punches true, but the wrist carried the blade up and behind), and the stab flash leaves from the real tip.
+  aimThrust(m) {
+    const A = this.attack, st = A.st, f = st.from + (st.to - st.from) * Math.min(1, A.t / A.dur); let w = 0;
+    for (const [a, b] of st.hits) if (f >= a - 2.5 && f <= b + 2.5) w = Math.max(w, Math.min(1, (f - (a - 2.5)) / 2, (b + 2.5 - f) / 2));
+    if (w <= 0) return;
+    const cur = m.getWorldQuaternion(new THREE.Quaternion()), axis = new THREE.Vector3(0, 1, 0).applyQuaternion(cur), drop = [0.1, -0.02, -0.12][Math.max(0, A.wi ?? 0)] || 0;
+    const tq = new THREE.Quaternion().setFromUnitVectors(axis, new THREE.Vector3(this.facing, drop, 0.05).normalize()).multiply(cur);
+    setWorldQuat(m, cur.slerp(tq, w));
+    if (A.streak !== undefined && A.streakDone !== A.streak && w > 0.6) { A.streakDone = A.streak; const len = m.userData.len / m.scale.x, tip = m.localToWorld(new THREE.Vector3(0, len, 0)), col = STREAK[this.fx?.userData.elem] || 0xdfe8ff;
+      this.g.fx.streak(tip.x - this.facing * 0.15, tip.y, this.facing, (A.reach || st.reach) * (A.streak === 2 ? 1.1 : 0.8), col); this.g.fx.spawn(tip.x, tip.y, 0.9, 0, 0, 0xffffff, 0.12, 0.35, 0); }
+  }
   hitbox() {
     const st = this.attack.st, f = this.facing;
-    const yb = this.pos.y + (this.crouch ? st.yOff * 0.55 : st.yOff);
-    const r = this.attack.reach || st.reach, x0 = st.both ? this.pos.x - r * 0.8 : this.pos.x + f * 0.15, x1 = this.pos.x + f * (0.15 + r); // a turning strike cuts behind as well
-    return { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: yb - st.height / 2, y1: yb + st.height / 2, attack: this.attack, mul: st.hitMul, both: st.both, pull: st.pull };
+    const A = this.attack, bx = st.boxes?.[Math.max(0, A.wi ?? 0)] || {}, both = bx.both ?? st.both, yo = this.pos.y + (this.crouch ? (bx.yOff ?? st.yOff) * 0.55 : (bx.yOff ?? st.yOff)), ht = bx.height ?? st.height;
+    const r = bx.reach ?? (A.reach || st.reach), x0 = both ? this.pos.x - r * 0.8 : this.pos.x + f * 0.15, x1 = this.pos.x + f * (0.15 + r); // a turning strike cuts behind as well
+    const flurry = !!st.hits && !st.boxes, last = !st.hits || (A.wi ?? 0) === st.hits.length - 1;
+    return { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: yo - ht / 2, y1: yo + ht / 2, attack: A, mul: bx.mul ?? st.hitMul, both, pull: bx.pull ?? (st.boxes ? false : st.pull), flurry, last };
   }
 
   rollDamage() {
@@ -618,7 +632,8 @@ export class Player {
     }
     if (this.landT > 0) this.landT -= dt;
     this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
-    this.groundFeet(dt); this.jfGround = this.onGround; this.twoHandIK(); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
+    this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); this.twoHandIK(); if (this.attack?.st.thrust && wm) this.aimThrust(wm);
+    if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
@@ -643,7 +658,7 @@ export class Player {
 }
 
 // Swing ribbon: samples the blade's base and tip each frame of a strike so attacks read clearly from the side view.
-const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a, foe: 0xff4a30 }; // foe: an enemy's cut, so its blows read as clearly as yours
+const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a, shadow: 0xb080ff, foe: 0xff4a30, reaper: 0xd8f0c8 }; // foe: an enemy's cut, so its blows read as clearly as yours
 export class Trail {
   constructor(scene) {
     this.max = 28; this.pts = [];

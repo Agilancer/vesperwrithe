@@ -269,10 +269,12 @@ export class World {
         case 'crack': {
           const w = s.x1 - s.x0, h = s.y1 - s.y0, grp = new THREE.Group();
           grp.add(wbox(s.by === 'dive' ? floorM : blockM, s.x0, s.y0, s.x1, s.y1, ZB, s.by === 'dive' ? ZF : 1.85));
-          const sealed = s.by !== 'dive' && s.ref?.hp > 1; // a walled-up doorway: rougher infill, a hairline crack that widens as it is struck
-          const cr = plane(decal('cracks', s.by === 'dive' ? 0x7ae0f0 : 0x100c10, sealed ? 0.5 : 0.95), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (s.by === 'dive' ? ZF : 1.85) + 0.02); grp.add(cr); s.decal = cr;
-          if (sealed) { const gl = plane(decal('cracks', 0x9ab8e0, 0.2), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, 1.88); gl.material.blending = THREE.AdditiveBlending; gl.material.depthWrite = false; grp.add(gl); s.glow = gl; }
-          if (sealed) for (let i = 0; i < 4; i++) { const sy = s.y0 + 0.5 + i * (h - 0.8) / 3 + (i % 2) * 0.2, sx = (s.x0 + s.x1) / 2 + (i % 2 ? 0.18 : -0.22); grp.add(wbox(blockM, sx - 0.32, sy - 0.18, sx + 0.32, sy + 0.18, 1.6, 1.99)); } // loose infill stones stand proud of the face
+          const sealed = s.by !== 'dive' && s.ref?.hp > 1; // a walled-up doorway: later brick infill, set back in the opening, pale fresh mortar round it, light leaking through its crack
+          if (sealed) { grp.children[0].visible = false; const brick = tm(['castle_stone', P3, 0xffe2c0]).clone(), cx = (s.x0 + s.x1) / 2; brick.emissive?.setHex(0x2c1e10); grp.add(wbox(brick, s.x0, s.y0, s.x1, s.y1, ZB, 1.68)); const mort = std(0xcfc2a8, { roughness: 0.95 }), t = 0.07;
+            for (const [a, b, c, d] of [[s.x0, s.y0, s.x0 + t, s.y1], [s.x1 - t, s.y0, s.x1, s.y1], [s.x0, s.y1 - t, s.x1, s.y1]]) grp.add(wbox(mort, a, b, c, d, 1.6, 1.72));
+            for (let i = 0; i < 4; i++) { const sy = s.y0 + 0.5 + i * (h - 0.8) / 3 + (i % 2) * 0.2, sx = cx + (i % 2 ? 0.18 : -0.22); grp.add(wbox(brick, sx - 0.3, sy - 0.15, sx + 0.3, sy + 0.15, 1.5, 1.8)); } } // a few bricks stand proud: it was built in a hurry
+          const cr = plane(decal('cracks', s.by === 'dive' ? 0x7ae0f0 : 0x100c10, sealed ? 0.6 : 0.95), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (s.by === 'dive' ? ZF : sealed ? 1.7 : 1.85) + 0.02); grp.add(cr); s.decal = cr;
+          if (sealed) { const gl = plane(decal('cracks', s.ref.glow || 0xffc070, 0.4), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, 1.73); gl.material.blending = THREE.AdditiveBlending; gl.material.depthWrite = false; grp.add(gl); s.glow = gl; }
           if (s.by === 'dive') { const top = plane(decal('cracks', 0x7ae0f0, 0.9), w, 3, (s.x0 + s.x1) / 2, s.y1 + 0.012, -0.4); top.rotation.x = -Math.PI / 2; grp.add(top); }
           s.mesh = grp; add(grp); break;
         }
@@ -708,7 +710,7 @@ export class World {
       case 'banner': case 'tapestry': {
         const tall = p.t === 'banner', names = tall ? ['banner_blood', 'banner_blue', 'banner_white', 'banner_green', 'banner_greygold', 'war_banner'] : ['tapestry_war', 'tapestry_hunt', 'pv_tapestry_wall', 'pv_blue_tapestry', 'thorn_brocade', 'dyed_cloth', 'wool_blanket'];
         const nm = names[Math.abs(Math.round(x * 7)) % names.length], w = tall ? 1.7 : 3.4, h = tall ? 3.4 : 2.6, cy = Math.min(top - h / 2 - 0.3, y + (tall ? 4.2 : 3.2));
-        if (tall) { const k = Math.abs(Math.round(x * 7)), file = k % 5 === 4 ? `tess_${'ab'[k % 2]}_${(k >> 1) % 2}` : `vel_${'abcd'[k % 4]}_${(k >> 2) % 2}`; // Velscour's banners, now and then a captured standard
+        if (tall) { const k = Math.abs(Math.round(x * 7)), file = p.house === 'tess' ? `tess_${'ab'[k % 2]}_${(k >> 1) % 2}` : k % 5 === 4 ? `tess_${'ab'[k % 2]}_${(k >> 1) % 2}` : `vel_${'abcd'[k % 4]}_${(k >> 2) % 2}`; // Velscour's banners, now and then a captured standard
           const ban = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 3.62, 1, 6), new THREE.MeshStandardMaterial({ map: texture(GL + file + '.webp'), alphaTest: 0.4, roughness: 0.9, side: THREE.DoubleSide, color: file.startsWith('tess') ? 0xa89880 : new THREE.Color(1.7, 1.55, 1.5), emissive: file.startsWith('tess') ? 0x000000 : 0x1c0606 })); ban.position.set(x, cy, ZB + 0.09); add(ban);
           room.anim.push(t => { ban.rotation.y = Math.sin(t * 0.7 + x) * 0.03; }); break; }
         const geo = new THREE.PlaneGeometry(w, h, 1, 4), ban = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex(nm), roughness: 0.9, side: THREE.DoubleSide }));

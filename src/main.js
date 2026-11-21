@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { World, glowTex, ZB } from './world.js';
+import { World, glowTex, flameTex, ZB } from './world.js';
 import { SW, SH, FLOOR, BELLS, BELL_ORDER, rowFloorY, DOOR_H, HOLE_W } from './rooms.js';
 import { Player } from './player.js';
 import { Enemy, TYPES, ELEM_COL } from './enemies.js';
@@ -97,6 +97,13 @@ class FX {
     m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.position.set(x, fy + 0.03, 0.4); m.scale.set(r, r, 1); this.scene.add(m);
     let t = 0; const tick = () => { t += 1 / 60; m.material.opacity = 0.95 * Math.min(1, Math.max(0, (2.2 - t) / 0.8)); if (t < 2.2) requestAnimationFrame(tick); else { this.scene.remove(m); m.material.dispose(); } }; tick();
   }
+  // a line attack's telegraph: one glowing crack runs along the floor from x0 to x1 in `dur`, then fades as the line erupts
+  crackLine(x0, x1, fy, col, dur = 0.5, life = 1.2) {
+    const len = Math.abs(x1 - x0), dir = Math.sign(x1 - x0) || 1, m = new THREE.Mesh(FX.lineGeo ||= (() => { const p = new THREE.PlaneGeometry(1, 1); p.translate(0.5, 0, 0); return p; })(), new THREE.MeshBasicMaterial({ map: FX.lineTex ||= lineCrackTex(), color: col, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2; m.position.set(x0, fy + 0.04, 0.6); m.scale.set(0.01 * dir, 0.9, 1); this.scene.add(m);
+    let t = 0; const tick = () => { t += 1 / 60; m.scale.x = dir * len * Math.min(1, t / dur); m.material.opacity = 0.95 * Math.min(1, Math.max(0, (life - t) / 0.4)) * (0.8 + Math.sin(t * 30) * 0.2); if (t < life) requestAnimationFrame(tick); else { this.scene.remove(m); m.material.dispose(); } }; tick();
+    for (let i = 0; i < 6; i++) this.spawn(x0 + dir * Math.random() * len, fy + 0.1, 0.6, 0, rnd(0.5, 1.5), col, 0.5, 0.15, 0);
+  }
   // a thrust's flash: a tapered white streak that shoots ahead of the point and is gone in a blink
   streak(x, y, dir, len = 1.4, col = 0xdfe8ff) {
     const m = new THREE.Mesh(FX.streakGeo ||= (() => { const g = new THREE.PlaneGeometry(1, 1); g.translate(0.5, 0, 0); return g; })(), new THREE.MeshBasicMaterial({ map: FX.streakTex ||= streakTex(), color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -109,6 +116,12 @@ class FX {
   }
 }
 
+// a long jagged crack for crackLine: bright core, branching hairlines
+let _lineC; function lineCrackTex() {
+  if (_lineC) return _lineC; const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.strokeStyle = '#fff'; g.lineCap = 'round';
+  let y = 32; g.lineWidth = 4; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 512; x += 12) { y = Math.max(14, Math.min(50, y + (Math.random() - 0.5) * 14)); g.lineTo(x, y); if (Math.random() < 0.3) { g.save(); g.lineWidth = 1.5; g.moveTo(x, y); g.lineTo(x + rnd(8, 20), y + rnd(-14, 14)); g.restore(); g.moveTo(x, y); } } g.stroke();
+  _lineC = new THREE.CanvasTexture(c); _lineC.colorSpace = THREE.SRGBColorSpace; return _lineC;
+}
 // branching cracks radiating from a point, as an alpha map
 let _crackA; function crackAlpha() {
   if (_crackA) return _crackA; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#fff'; g.lineCap = 'round';
@@ -141,10 +154,33 @@ function streakTex() {
   g.fillStyle = h; g.fillRect(0, 0, 128, 32); g.globalCompositeOperation = 'destination-in'; const v = g.createLinearGradient(0, 0, 0, 32); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.5, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(0, 0, 128, 32);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+// streaming wind for the cyclone: soft diagonal streaks that tile
+function windTex() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+  for (let i = 0; i < 22; i++) { const x = Math.random() * 128, y = Math.random() * 128, l = rnd(20, 60), gr = g.createLinearGradient(x, y, x + l, y - l * 0.35); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${rnd(0.3, 0.9)})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = rnd(1, 3); g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y - l * 0.35); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+// a feather: quill and vane, pale with a dark tip
+function featherTex() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 48; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 128, 0); gr.addColorStop(0, '#f4eee0'); gr.addColorStop(0.75, '#d8d0c0'); gr.addColorStop(1, '#4a4440'); g.fillStyle = gr;
+  g.beginPath(); g.moveTo(6, 24); g.quadraticCurveTo(60, 2, 124, 20); g.lineTo(124, 28); g.quadraticCurveTo(60, 46, 6, 24); g.fill();
+  g.strokeStyle = 'rgba(120,110,100,0.6)'; g.lineWidth = 1; for (let x = 20; x < 120; x += 7) { g.beginPath(); g.moveTo(x, 24); g.lineTo(x + 6, 10 + Math.random() * 3); g.moveTo(x, 24); g.lineTo(x + 6, 38 - Math.random() * 3); g.stroke(); }
+  g.strokeStyle = '#fffaf0'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 24); g.lineTo(126, 24); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+// a telegraph sigil: a thin ring, eight ticks and an inner glyph
+function sigilTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.strokeStyle = '#fff'; g.lineCap = 'round';
+  g.lineWidth = 3; g.beginPath(); g.arc(64, 64, 58, 0, 6.283); g.stroke(); g.lineWidth = 1.5; g.beginPath(); g.arc(64, 64, 49, 0, 6.283); g.stroke();
+  g.lineWidth = 3; for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; g.beginPath(); g.moveTo(64 + Math.cos(a) * 49, 64 + Math.sin(a) * 49); g.lineTo(64 + Math.cos(a) * (i % 2 ? 42 : 36), 64 + Math.sin(a) * (i % 2 ? 42 : 36)); g.stroke(); }
+  g.lineWidth = 2; g.beginPath(); for (let i = 0; i <= 3; i++) { const a = i / 3 * 6.283 - 1.571; g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * 24, 64 + Math.sin(a) * 24); } g.stroke(); g.beginPath(); for (let i = 0; i <= 3; i++) { const a = i / 3 * 6.283 + 1.571; g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * 24, 64 + Math.sin(a) * 24); } g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
 // soft ring for FX.ring: a bright thin rim with a faint inner wash
 function ringTex() {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.62, 'rgba(255,255,255,0.06)'); gr.addColorStop(0.86, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.93, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.86, 'rgba(255,255,255,0)'); gr.addColorStop(0.92, 'rgba(255,255,255,1)'); gr.addColorStop(0.97, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); // a thin rim, no soap-bubble wash
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
@@ -227,7 +263,7 @@ class Game {
       }));
       def.chests.forEach((c, i) => room.chests.push(this.makeChest(room, c, i)));
       this.placeItems(room);
-      room.cracks.forEach((s, i) => { s.key = `crack:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
+      room.cracks.forEach((s, i) => { s.key = `crack:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } else if ((s.dmg = this.flags[s.key + ':d'] || 0) && s.decal) { s.decal.material.opacity = Math.min(1, 0.6 + s.dmg * 0.2); s.decal.scale.setScalar(1 + s.dmg * 0.12); } }); // a half-broken seal stays half-broken
       room.gates.forEach((s, i) => { s.key = `gate:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
       for (const ch of room.chests) if (this.flags[ch.key]) ch.open(true);
       if (def.bell && !this.player.has(def.bell.id) && (!def.boss || !room.enemies.some(e => e.T.bell === def.bell.id))) this.spawnBell(room);
@@ -264,7 +300,7 @@ class Game {
     const def = room.def; room.peds ||= new Set();
     def.items.forEach((it, i) => {
       const key = `item:${def.id}:${i}`;
-      if (it.pedestal && !room.peds.has(key)) { room.peds.add(key); this.pedestal(room, room.b.x0 + it.x, room.b.y0 + (it.y ?? FLOOR), it.altar, it.tutorial); }
+      if (it.pedestal && !(it.unique && it.altar) && !room.peds.has(key)) { room.peds.add(key); this.pedestal(room, room.b.x0 + it.x, room.b.y0 + (it.y ?? FLOOR), it.altar, it.tutorial); }
       if (!this.flags[key] && !this.loot.some(L => L.key === key)) this.spawnPlaced(room, it, key);
     });
   }
@@ -272,6 +308,7 @@ class Game {
     const x = room.b.x0 + it.x, y = room.b.y0 + (it.y ?? FLOOR);
     const item = it.gem ? makeGem(it.gem) : it.up ? { up: it.up } : it.potion ? { potion: true } : it.gold ? { gold: it.gold } : it.unique ? makeUnique(it.unique) : it.tier ? tierItem(it.tier, it.rarity) : makeItem(it.tutorial ? startWeapon() : it.base, { rarity: it.rarity, sockets: it.sockets }); // the Attack Viewer can swap the first weapon
     if (it.tutorial) return this.plantBlade(room, x, y + 1.02, item, key);
+    if (it.unique && it.altar) return this.relicStand(room, x, y, item, key, it);
     this.dropLoot(x, it.pedestal ? y + 0.9 : y, item, room, key, true);
   }
   // the first weapon is not loot: it stands upright in the pilgrim's stone, lit by a thin shaft of moonlight
@@ -287,6 +324,40 @@ class Game {
     } catch (e) { console.warn(e); }
     return L;
   }
+  // A relic is not loot: it stands on its altar (or a carved plinth) upright, in a shaft of its room's light, a gleam running up it
+  async relicStand(room, x, y, item, key, it) {
+    const alt = room.def.props.find(p => p.t === 'altar' && Math.abs(p.x - it.x) < 1.6), b = BASES[item.base], col = it.glow || 0xffd8a0, upright = b.kind === 'staff' || b.kind === 'scythe';
+    let top = y, z = -0.6;
+    if (alt) { top = room.b.y0 + (alt.y ?? FLOOR) + 1.03; z = -2.2; }
+    else if (!room.peds.has(key)) { room.peds.add(key); const m = surface('marble', 1, 1, { dir: 'assets/game/interior/' }), g = new THREE.Group(); for (const [w, h, d, yy] of [[1.3, 0.28, 0.95, 0], [0.8, 0.62, 0.62, 0.28], [1.05, 0.16, 0.82, 0.9]]) { const k = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); k.position.y = yy + h / 2; k.castShadow = k.receiveShadow = true; g.add(k); } g.position.set(x, y, -0.6); room.group.add(g); top = y + 1.06; }
+    else top = y + 1.06;
+    const grp = new THREE.Group(); grp.position.set(x, top, z); room.group.add(grp);
+    const L = { item, room, grp, x, y: top, key, bob: 0, placed: true, planted: true, relic: true, hover: upright, rise: it.rise, model: new THREE.Group() }; grp.add(L.model); this.loot.push(L);
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 9), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false })); shaft.position.set(-0.6, 4, -0.6); shaft.rotation.z = -0.15; grp.add(shaft);
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.01; grp.add(pool);
+    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xfff6e8, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); glint.scale.set(0.09, 0.55, 1); L.model.add(glint); L.glint = glint;
+    try { const m = await weaponModel(b.model, b.scale * 1.3); const len = m.userData.len; if (upright) m.position.y = 0.2; else { m.rotation.z = Math.PI; m.position.y = len * 0.8; } L.model.add(m); L.len = len;
+      m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(col); o.material.emissiveIntensity = 0.18; } });
+      L.model.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(m), inv = L.model.matrixWorld.clone().invert(); bb.applyMatrix4(inv); L.blade = bb;
+    } catch (e) { console.warn(e); }
+    return L;
+  }
+  // a relic taken: the moment is marked, and some rooms answer it
+  relicTaken(L) {
+    const P = this.player, it = L.item; this.slowMo(0.6); this.flash(); audio.play('title_bells', 0.45, 1.2); this.fx.burst(L.x, L.y + 0.8, 0xfff0d0, 36, 5); this.fx.ring(L.x, L.y + 0.6, 0xfff0d0, 6, true);
+    this.ui.roomName(`RELIC  ·  ${it.name.toUpperCase()}`, 2800); setTimeout(() => this.ui.toast(wantsTouch() ? 'A relic grows with you: rest at a coffin and it is re-forged to your strength.' : 'A relic grows with you: rest at a coffin and it is re-forged to your strength. Equip it from the pack (I).', 'unique'), 1400);
+    if (L.rise) { audio.play('crowd_gasp', 0.4, 0.5); L.rise.forEach((x, i) => setTimeout(() => this.raise(L.room, x), 500 + i * 350)); } // and the dead it was laid among get up
+  }
+  async raise(room, x) {
+    if (this.room !== room) return; const s = new Enemy(this, { t: 'zombie', x, rise: true }, room); this.fx.burst(room.b.x0 + x, room.b.y0 + FLOOR + 0.5, 0x9aff9a, 14, 3);
+    try { await s.load(); if (this.room === room) { s.awake = true; room.enemies.push(s); } else room.group.remove(s.root); } catch (err) { console.warn(err); }
+  }
+  // a rest re-forges every relic the hero carries to their strength (never below its own level)
+  reforgeRelics() {
+    const P = this.player, want = Math.min(30, P.stats.lvl - 3); let any = 0;
+    for (const it of [...P.bag, ...Object.values(P.equip)]) if (it?.relic && (it.lvl || 0) < want) { it.lvl = want; any++; setTimeout(() => this.ui.toast(`${it.name} remembers its keeper — re-forged to level ${want}`, 'unique'), 600 + any * 900); }
+    if (any) { P.refreshStats(); audio.play('firebuff_1', 0.4, 1.3); }
+  }
   pedestal(room, x, y, altar, tutorial) {
     if (tutorial) { this.world.pilgrimStone(room, x, y); return; }
     const m = surface(altar ? 'marble' : 'ashlar', 1, 1, altar ? { dir: 'assets/game/interior/' } : {});
@@ -298,7 +369,7 @@ class Game {
     const L = { item, room, grp, x, y, key, bob: Math.random() * 6, placed, vy: placed ? 0 : 5 };
     const col = item.up === 'life' ? 0xff4060 : item.up === 'mana' ? 0x5a80ff : item.gold ? 0xffd040 : item.potion ? 0xff3050 : item.gem ? GEMS[item.gem].color : { normal: 0xe0e0e0, magic: 0x6c8cff, rare: 0xffd84a, unique: 0xc88a3a }[item.rarity];
     const strong = item.up || item.rarity === 'unique' || item.rarity === 'rare';
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.16, 2.6, 8, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: strong ? 0.45 : 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.16, 2.6, 8, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: strong ? 0.22 : 0.14, blending: THREE.AdditiveBlending, depthWrite: false })); // a marker, not the brightest thing in the room
     beam.position.y = 1.3; grp.add(beam);
     const pool = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.03; grp.add(pool);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); glow.scale.setScalar(strong ? 1.4 : 0.9); glow.position.y = 0.55; glow.material.opacity = 0.6; grp.add(glow);
@@ -318,7 +389,7 @@ class Game {
     const P = this.player;
     for (const L of this.loot) {
       if (L.room !== this.room) continue;
-      if (L.planted) { L.bob += dt; if (L.glint && L.blade) { const u = (L.bob * 0.45) % 1, B = L.blade; L.glint.position.set((B.min.x + B.max.x) / 2, B.min.y + 0.15 + (B.max.y - B.min.y) * 0.62 * u, B.max.z + 0.02); L.glint.material.opacity = Math.sin(u * Math.PI) * 0.9; } }
+      if (L.planted) { L.bob += dt; if (L.hover) L.model.position.y = Math.sin(L.bob * 1.6) * 0.07; if (L.glint && L.blade) { const u = (L.bob * 0.45) % 1, B = L.blade; L.glint.position.set((B.min.x + B.max.x) / 2, B.min.y + 0.15 + (B.max.y - B.min.y) * 0.62 * u, B.max.z + 0.02); L.glint.material.opacity = Math.sin(u * Math.PI) * 0.9; } }
       else { L.bob += dt * 2.4; L.model.position.y = 0.55 + Math.sin(L.bob) * 0.08; L.model.rotation.y += dt * 1.6; }
       if (!L.placed) { L.vy -= 18 * dt; L.grp.position.y += L.vy * dt; const floor = this.floorBelow(L.grp.position.x, L.grp.position.y + 0.3); if (L.grp.position.y <= floor) { L.grp.position.y = floor; L.vy = 0; L.placed = true; } if (L.grp.position.y < this.room.b.y0 - 2) L.taken = true; }
       const dx = Math.abs(P.pos.x - L.grp.position.x), dy = L.grp.position.y + 0.4 - P.pos.y;
@@ -337,6 +408,7 @@ class Game {
     P.bag.push(it);
     if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap GEM' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
     else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(wantsTouch() ? 'Equip it from the pack, then HOLD the shield button to raise it' : 'Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
+    if (L.relic) this.relicTaken(L);
     if (L.planted && BASES[it.base]?.slot === 'weapon' && !P.equip.weapon) { // drawn from the stone straight into the hand
       this.flags.equipHint = 1; P.equipItem('weapon', it); P.state = 'ring'; P.stateT = 0; P.ringDur = 1.1; P.vel.x = 0; this.slowMo(0.5); this.flash(); audio.play('firebuff_1', 0.5); this.fx.burst(L.x, L.y + 0.8, 0xc8d8ff, 30, 4); this.ui.roomName(it.name.toUpperCase(), 2200);
       this.tutorial = 'strike'; setTimeout(() => { if (this.tutorial === 'strike') this.ui.prompt(wantsTouch() ? 'Tap the sword button to strike — try the candles ahead' : 'J to strike — try the candles ahead'); }, 1300);
@@ -460,10 +532,12 @@ class Game {
     for (const e of room.enemies) {
       if (e.gone || hb.attack.hitIds.has(e.id)) continue;
       const roll = hb.roll ? { ...hb.roll } : P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
-      if (e.hit(hb, roll, P)) { if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop((e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.diveCd = 0.5; } }
+      if (e.hit(hb, roll, P)) { if (hb.pull && !e.T.mini && !e.boss && P.weaponMesh) { const m = P.weaponMesh, tip = m.localToWorld(new THREE.Vector3(0, m.userData.len / m.scale.x, 0)); this.fx.line({ x: tip.x, y: tip.y }, { x: e.cx, y: e.cy }, 0xc8f0c0); e.ghost?.(0x9ad8a0, 0.3, 0.3); }
+        if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop(hb.flurry && !hb.last ? 0.025 : (e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.diveCd = 0.5; } }
     }
     if (!hb.proj) for (const s of this.shots) if (!s.friendly && ['skull', 'bone', 'book', 'lob', 'web', 'net'].includes(s.kind) && s.x > hb.x0 - 0.3 && s.x < hb.x1 + 0.3 && s.y > hb.y0 - 0.3 && s.y < hb.y1 + 0.3) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 12, 4); audio.play('sword_parry_1', 0.4, 1.4); } // steel swats slow missiles from the air
     for (const bk of room.breakables) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
+    if (!hb.proj && !hb.attack.hitIds.has('wall')) { const w = this.activeSolids().find(s => (s.kind === 'wall' || s.kind === 'block') && !s.gone && hb.x0 < s.x1 && hb.x1 > s.x0 && hb.y0 < s.y1 && hb.y1 > s.y0 && !(s.x0 <= P.pos.x && s.x1 >= P.pos.x)); if (w && !room.cracks.some(c => !c.gone && hb.x0 < c.x1 + 0.1 && hb.x1 > c.x0 - 0.1 && hb.y0 < c.y1 && hb.y1 > c.y0)) { hb.attack.hitIds.add('wall'); const wx = P.pos.x < w.x0 ? w.x0 : w.x1, wy = Math.max(w.y0 + 0.2, Math.min(w.y1 - 0.2, (hb.y0 + hb.y1) / 2)); audio.play('rock_wall_1', 0.22, 0.65); for (let i = 0; i < 3; i++) this.fx.spawn(wx, wy, 0.9, (P.pos.x < wx ? -1 : 1) * rnd(1, 3), rnd(-0.5, 2), 0x9a948a, 0.25, 0.08, 9, false); } } // solid stone answers with a dull tock
     for (const s of room.cracks) if (!s.gone && s.by !== 'dive' && !hb.attack.hitIds.has('k' + s.key) && hb.x0 < s.x1 + 0.1 && hb.x1 > s.x0 - 0.1 && hb.y0 < s.y1 && hb.y1 > s.y0) { hb.attack.hitIds.add('k' + s.key); this.breakCrack(s, hb); }
     for (const t of room.gates) if (!t.gone && t.gate === 'thorn' && !hb.attack.hitIds.has(t.key) && hb.x0 < t.x1 && hb.x1 > t.x0 && hb.y0 < t.y1 && hb.y1 > t.y0) {
       hb.attack.hitIds.add(t.key);
@@ -474,20 +548,20 @@ class Game {
   }
   // weapon echoes that answer a landed hit
   onHit(e, roll, hb) {
-    const P = this.player, echo = P.d.echo, dmg = roll.dmg; P.combo++; P.comboT = 2.5; P.hits++;
-    if (e.spec.illusion) return;
+    const P = this.player, echo = P.d.echo, dmg = roll.dmg, part = hb.flurry ? (hb.mul || 1) : 1; P.combo++; P.comboT = 2.5; if (!hb.flurry || hb.last) P.hits++; // a flurry is one blow to the bells
+    if (e.spec.illusion) return; const proc = p => Math.random() < p * part; // its drives share one chance between them
     // the bells ride along in a fight: Echo repeats every fifth blow, Ember sets slides and dives alight
     if (P.has('echo') && P.hits % 5 === 0 && !hb.twin) setTimeout(() => { if (!e.dead) { e.damage(Math.max(1, Math.round(dmg * 0.5)), 'shadow', true); this.fx.ring(e.cx, e.cy, 0xb090ff, 3); } }, 180);
     if (P.has('ember') && (hb.dive || hb.slide)) { e.burn = 3; e.burnDmg = Math.max(3, dmg * 0.2); this.fx.burst(e.cx, e.cy, 0xff6a20, 16, 4); }
     if (!echo) return;
-    if (echo === 'twin' && !hb.twin) setTimeout(() => { if (!e.dead) { e.damage(Math.max(1, Math.round(dmg * 0.35)), 'shadow', true); this.fx.glint(e.cx, e.cy, 0xb090ff); } }, 150);
-    if (echo === 'chain' && Math.random() < 0.25) { let src = e; const seen = new Set([e]); for (let i = 0; i < 3; i++) { const o = this.room.enemies.find(x => !x.dead && !seen.has(x) && Math.abs(x.pos.x - src.pos.x) < 7 && Math.abs(x.pos.y - src.pos.y) < 4); if (!o) break; seen.add(o); this.fx.line({ x: src.cx, y: src.cy }, { x: o.cx, y: o.cy }, 0xffe860); o.damage(Math.round(dmg * 0.6), 'lightning', true); src = o; } audio.play('spell_impact_2', 0.35, 1.4); }
+    if (echo === 'twin' && !hb.twin && proc(1)) setTimeout(() => { if (!e.dead) { e.damage(Math.max(1, Math.round(dmg * 0.35)), 'shadow', true); this.fx.glint(e.cx, e.cy, 0xb090ff); } }, 150);
+    if (echo === 'chain' && proc(0.25)) { let src = e; const seen = new Set([e]); for (let i = 0; i < 3; i++) { const o = this.room.enemies.find(x => !x.dead && !seen.has(x) && Math.abs(x.pos.x - src.pos.x) < 7 && Math.abs(x.pos.y - src.pos.y) < 4); if (!o) break; seen.add(o); this.fx.line({ x: src.cx, y: src.cy }, { x: o.cx, y: o.cy }, 0xffe860); o.damage(Math.round(dmg * 0.6), 'lightning', true); src = o; } audio.play('spell_impact_2', 0.35, 1.4); }
     if (echo === 'ignite') { e.burn = 3; e.burnDmg = Math.max(2, dmg * 0.12); }
     if (echo === 'execute' && !e.boss && !e.dead && e.hp < e.hpMax * 0.18) { this.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.6, 'EXECUTED', 'crit'); e.damage(e.hp + 1, null, true); }
     if (echo === 'bats' && roll.crit) for (let i = 0; i < 3; i++) this.shoot({ x: P.pos.x, y: P.pos.y + 1.4, vx: P.facing * 6, vy: 3 - i * 2.5, kind: 'bat', dmg: Math.round(dmg * 0.4), friendly: true, homing: 6, life: 2.5 });
     if (echo === 'toll' && P.hits % 8 === 0) { audio.play('title_bells', 0.6, 1.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffe090, 12); this.shake(0.3); for (const o of this.room.enemies) if (!o.dead && !o.hidden && Math.abs(o.pos.x - P.pos.x) < 14) { o.stun = o.boss ? 0.8 : 1.6; o.stunStars = true; o.damage(Math.round(dmg * 0.5), null, true); } }
-    if (echo === 'briar' && Math.random() < 0.3) this.erupt({ x: e.pos.x, y: e.pos.y, delay: 0.2, w: 1.4, h: 2.8, dmg: Math.round(dmg * 0.7), elem: 'poison', col: 0x2a5a1a, friendly: true });
-    if (echo === 'star' && Math.random() < 0.15) { this.shoot({ x: e.pos.x + rnd(-1, 1), y: e.pos.y + 12, vx: 0, vy: -20, kind: 'star', dmg: Math.round(dmg * 1.5), friendly: true, life: 1.5, blast: 2 }); audio.play('rock_meteor_throw_1', 0.4); }
+    if (echo === 'briar' && proc(0.3)) this.erupt({ x: e.pos.x, y: e.pos.y, delay: 0.2, w: 1.4, h: 2.8, dmg: Math.round(dmg * 0.7), elem: 'poison', col: 0x2a5a1a, friendly: true });
+    if (echo === 'star' && proc(0.15)) { this.shoot({ x: e.pos.x + rnd(-1, 1), y: e.pos.y + 12, vx: 0, vy: -20, kind: 'star', dmg: Math.round(dmg * 1.5), friendly: true, life: 1.5, blast: 2 }); audio.play('rock_meteor_throw_1', 0.4); }
   }
   onSwing(P, A) {
     if (this.tutorial === 'strike') { this.tutorial = null; this.ui.prompt(''); this._pt = null; setTimeout(() => this.ui.toast(wantsTouch() ? 'Strikes chain — keep tapping. Jump and swing in the air too.' : 'Strikes chain — keep pressing J. Swing while jumping or crouching too.', 'magic'), 900); }
@@ -515,20 +589,20 @@ class Game {
   // A staff's cast (its second chain link): no mana, three-quarter strength, and a voice of its own per element
   staffBolt(P) {
     const base = BASES[P.equip.weapon.base], el = staffElem(base.model), r = P.rollDamage(), f = P.facing, x = P.pos.x + f * 1.1, y = P.pos.y + (P.crouch ? 0.8 : 1.4), col = el ? ELEM_COL[el] : 0x9ab0ff;
-    r.dmg = Math.max(1, Math.round(r.dmg * 0.75)); const add = k => ({ ...r, elem: [...r.elem, { elem: el, dmg: Math.max(1, Math.round(r.dmg * k)) }] });
-    this.fx.burst(x, y, col, 16, 3.5); this.fx.glint(x, y, col); this.fx.ring(x, y, col, 1.6);
-    if (el === 'fire') { this.shoot({ x, y, vx: f * 12, vy: 0, kind: 'fireball', roll: add(0.25), friendly: true, life: 1.1, blast: 1.7 }); audio.play('fireball_2', 0.45, 1.1); }
-    else if (el === 'ice') { for (const a of [-0.14, 0, 0.14]) this.shoot({ x, y, vx: f * 18 * Math.cos(a), vy: 18 * Math.sin(a), kind: 'shard', roll: { ...add(0.15), dmg: Math.max(1, Math.round(r.dmg * 0.45)) }, friendly: true, life: 0.65 }); audio.play('ice_barrage_1', 0.45, 1.3); }
+    const dry = P.stats.mp < 2; if (!dry) P.stats.mp -= 2; r.dmg = Math.max(1, Math.round(r.dmg * (dry ? 0.4 : 0.75))); const add = k => ({ ...r, elem: [...r.elem, { elem: el, dmg: Math.max(1, Math.round(r.dmg * k)) }] });
+    this.fx.burst(x, y, col, 16, 3.5); this.fx.glint(x, y, col); this.fx.ring(x, y, col, 1.0);
+    if (el === 'fire') { this.shoot({ x, y, vx: f * 12, vy: 0, kind: 'fireball', roll: add(0.25), friendly: true, life: 0.62, blast: 1.7 }); audio.play('fireball_2', 0.45, 1.1); }
+    else if (el === 'ice') { for (const a of [-0.14, 0, 0.14]) this.shoot({ x, y, vx: f * 18 * Math.cos(a), vy: 18 * Math.sin(a), kind: 'shard', roll: { ...add(0.15), dmg: Math.max(1, Math.round(r.dmg * 0.45)) }, friendly: true, life: 0.42 }); audio.play('ice_barrage_1', 0.45, 1.3); }
     else if (el === 'lightning') { // a fork to the nearest foe ahead, then on to the next
-      const foes = this.room.enemies.filter(e => !e.dead && !e.hidden && (e.pos.x - P.pos.x) * f > -0.5 && Math.abs(e.pos.x - P.pos.x) < 8.5 && Math.abs(e.cy - y) < 3.5).sort((a, b) => Math.abs(a.pos.x - P.pos.x) - Math.abs(b.pos.x - P.pos.x));
+      const foes = this.room.enemies.filter(e => !e.dead && !e.hidden && (e.pos.x - P.pos.x) * f > -0.5 && Math.abs(e.pos.x - P.pos.x) < 7.5 && Math.abs(e.cy - y) < 3.5).sort((a, b) => Math.abs(a.pos.x - P.pos.x) - Math.abs(b.pos.x - P.pos.x));
       let from = { x, y }; const atk = { hitIds: new Set() };
       for (const e of foes.slice(0, 2)) { this.fx.line(from, { x: e.cx, y: e.cy }, 0xfff070); this.fx.line(from, { x: e.cx, y: e.cy }, 0xffffff); this.playerHits({ x0: e.aabb.x0, x1: e.aabb.x1, y0: e.aabb.y0, y1: e.aabb.y1, attack: atk, roll: add(0.2), proj: true, mul: from.x === x ? 1 : 0.6 }); from = { x: e.cx, y: e.cy }; }
       if (!foes.length) { this.fx.line({ x, y }, { x: x + f * 6, y: y + rnd(-1, 1) }, 0xfff070); this.fx.burst(x + f * 6, y, 0xfff070, 10, 3); }
       audio.play('spell_impact_2', 0.5, 1.2);
     }
-    else if (el === 'shadow') { for (const vy of [2.2, -0.6]) this.shoot({ x, y, vx: f * 6, vy, kind: 'wisp', roll: { ...add(0.2), dmg: Math.max(1, Math.round(r.dmg * 0.6)) }, friendly: true, homing: 4.5, life: 2.4 }); audio.play('wave_attack_2', 0.45, 0.7); }
+    else if (el === 'shadow') { for (const vy of [2.2, -0.6]) this.shoot({ x, y, vx: f * 6, vy, kind: 'wisp', roll: { ...add(0.2), dmg: Math.max(1, Math.round(r.dmg * 0.6)) }, friendly: true, homing: 4.5, life: 1.5 }); audio.play('wave_attack_2', 0.45, 0.7); }
     else if (el === 'poison') { for (let i = 1; i <= 3; i++) { const bx = P.pos.x + f * (0.8 + i * 1.5); this.erupt({ x: bx, y: this.floorBelow(bx, P.pos.y + 0.6), delay: 0.07 * i, w: 1.3, h: 2.6, dmg: Math.round(r.dmg * 0.7), elem: 'poison', col: 0x3a7a2a, friendly: true }); } audio.play('squelching_4', 0.4, 1.2); }
-    else { this.shoot({ x, y, vx: f * 15, vy: 0, kind: 'orb', roll: r, friendly: true, pierce: true, life: 1.0 }); audio.play('spell_impact_3', 0.4, 1.4); }
+    else { this.shoot({ x, y, vx: f * 15, vy: 0, kind: 'orb', roll: r, friendly: true, pierce: true, life: 0.5 }); audio.play('spell_impact_3', 0.4, 1.4); }
   }
   playerShoot(P, kind) {
     if (kind === 'staff') return this.staffBolt(P);
@@ -553,7 +627,7 @@ class Game {
       audio.play('rock_wall_1', 0.55, 1.45); audio.play('wood_land', 0.5, 0.55); this.shake(0.15); this.hitStop(0.05);
       const y = hb ? Math.max(s.y0 + 0.3, Math.min(s.y1 - 0.3, (hb.y0 + hb.y1) / 2)) : (s.y0 + s.y1) / 2, fx = P.pos.x < cx ? s.x0 : s.x1;
       for (let i = 0; i < 12; i++) this.fx.spawn(fx, y + rnd(-0.4, 0.4), 0.9, (P.pos.x < cx ? -1 : 1) * rnd(1, 4), rnd(0, 3), i % 3 ? 0x8a8478 : 0xc8bca8, 0.6, rnd(0.08, 0.2), 9, false);
-      this.fx.dust(fx, s.y0 + 0.1, 0x7a7268); if (s.decal) { s.decal.material.opacity = Math.min(1, 0.5 + s.dmg * 0.25); s.decal.scale.setScalar(1 + s.dmg * 0.12); }
+      this.fx.dust(fx, s.y0 + 0.1, 0x7a7268); this.flags[s.key + ':d'] = s.dmg; if (s.decal) { s.decal.material.opacity = Math.min(1, 0.6 + s.dmg * 0.2); s.decal.scale.setScalar(1 + s.dmg * 0.12); }
       if (!this.flags.hollowHint) { this.flags.hollowHint = 1; this.ui.toast('The wall rings hollow…', 'magic'); }
       return;
     }
@@ -565,11 +639,23 @@ class Game {
       let t = 0; const tick = () => { t += 1 / 60; for (const c of chunks) { c.vy -= 22 / 60; c.k.position.x += c.vx / 60; c.k.position.y += c.vy / 60; c.k.rotation.z += c.r / 60; if (c.k.position.y < c.fy + 0.12) { c.k.position.y = c.fy + 0.12; c.vy *= -0.3; c.vx *= 0.6; c.r *= 0.5; } if (t > 1.6) c.k.scale.multiplyScalar(0.9); }
         if (t < 2.2) requestAnimationFrame(tick); else chunks.forEach(c => c.k.parent?.remove(c.k)); }; tick();
       for (let i = 0; i < 18; i++) this.fx.spawn(cx + dir * rnd(0, 1.5), rnd(s.y0, s.y1), 0.7, -dir * rnd(0.5, 2), rnd(-0.3, 0.6), 0x9a9488, 1.6, rnd(0.5, 0.9), -0.2, false);
+      // the hidden room's light spills out through the breach across the ledge, and a bell answers
+      const col = s.ref.glow || 0xffc070, door = new THREE.Mesh(new THREE.PlaneGeometry(1.4, s.y1 - s.y0), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); door.position.set(cx, (s.y0 + s.y1) / 2, 1.2);
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); spill.rotation.x = -Math.PI / 2; spill.position.set(cx - dir * 1.6, s.y0 + 0.04, 0.6);
+      this.room.group.add(door, spill); let lt = 0; const fade = () => { lt += 1 / 60; const o = Math.max(0, 1 - lt / 3); door.material.opacity = o * 0.8; spill.material.opacity = o * 0.7; if (lt < 3) requestAnimationFrame(fade); else { this.room.group.remove(door, spill); door.material.dispose(); spill.material.dispose(); } }; fade();
+      setTimeout(() => audio.play('title_bells', 0.35, 1.6), 250);
     }
     if (!this.flags.crackHint) { this.flags.crackHint = 1; this.ui.toast('The stone gives way!', 'magic'); }
   }
   // mortar weeps dust from a walled-up doorway: the tell that a wall is hollow
-  crackTells(dt) { for (const s of this.room.cracks) if (!s.gone && s.ref?.hp > 1) { if (Math.random() < dt * 1.6) this.fx.spawn(rnd(s.x0 + 0.1, s.x1 - 0.1), s.y1 - rnd(0.1, 1.4), 1.95, rnd(-0.05, 0.05), -0.2, 0x9a9080, 1.4, rnd(0.05, 0.11), 1.2, false); if (s.glow) s.glow.material.opacity = (0.16 + 0.1 * Math.sin(this.time * 1.7 + s.x0)) * (1 + (s.dmg || 0) * 0.6); } } // and a cold draught of light seeps through the cracks
+  crackTells(dt) {
+    const P = this.player;
+    for (const s of this.room.cracks) if (!s.gone && s.ref?.hp > 1) {
+      s.dustT = (s.dustT ?? rnd(0, 2)) - dt; if (s.dustT <= 0) { s.dustT = rnd(2, 3); for (let i = 0; i < 7; i++) this.fx.spawn(rnd(s.x0, s.x1), s.y1 - rnd(0.05, 0.6), 1.75, rnd(-0.15, 0.15), rnd(-0.6, -0.1), i % 2 ? 0xb0a490 : 0x8a8070, 1.6, rnd(0.12, 0.2), 2.2, false); } // mortar sifts down in bursts
+      const near = Math.abs(P.pos.x - (s.x0 + s.x1) / 2) < 4 && Math.abs(P.pos.y - s.y0) < 3, k = (near ? 1.5 : 1) * (P.has('echo') ? 1.4 : 1) * (1 + (s.dmg || 0) * 0.4); // the Echo bell makes hollow stone sing
+      if (s.glow) s.glow.material.opacity = Math.min(1, (0.42 + 0.16 * Math.sin(this.time * 1.7 + s.x0)) * k);
+    }
+  } // the hidden room's own light leaks through the crack: warm for a chapel, sick green for an ossuary, cold blue for a flooded choir
   breakCandle(bk) {
     bk.broken = true; bk.grp.visible = false; audio.play('glass_ping_small', 0.5, 0.8); this.fx.burst(bk.x, bk.y + 1.4, 0xffb050, 14, 3);
     const lvl = this.player.stats.lvl, r = Math.random(), drop = r < 0.62 ? { gold: 3 + (Math.random() * 6 * lvl | 0) } : r < 0.66 ? { potion: true } : r < 0.67 ? makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0]) : null;
@@ -590,11 +676,13 @@ class Game {
     let m;
     if (o.kind === 'arrow') { m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.035, 0.035), new THREE.MeshBasicMaterial({ color: 0xfff0c0 })); }
     else if (o.kind === 'rock') { m = new THREE.Mesh(FX.rockGeo ||= new THREE.DodecahedronGeometry(0.34, 0), FX.rockMat ||= new THREE.MeshStandardMaterial({ color: 0x7a7066, roughness: 0.9, flatShading: true })); m.scale.set(1, 0.8, 0.9); }
-    else if (o.kind === 'slag') { m = new THREE.Mesh(FX.slagGeo ||= new THREE.IcosahedronGeometry(0.26, 1), FX.slagMat ||= new THREE.MeshBasicMaterial({ color: 0xffa040 })); const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5a10, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); h.scale.setScalar(1.3); m.add(h); }
+    else if (o.kind === 'slag') { m = new THREE.Mesh(FX.slagGeo ||= new THREE.IcosahedronGeometry(0.26, 0), FX.slagMat ||= new THREE.MeshStandardMaterial({ color: 0x2a1008, emissive: 0x6a1c04, roughness: 0.9, flatShading: true })); const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5a10, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); h.scale.setScalar(1.4); h.position.z = -0.15; m.add(h); const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xffd080, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); core.scale.setScalar(0.35); core.position.z = 0.2; m.add(core); m.scale.setScalar(rnd(0.6, 1.4)); } // a crusted clot of slag, white-hot where it is split
+    else if (o.kind === 'feather') { m = new THREE.Mesh(FX.featherGeo ||= new THREE.PlaneGeometry(0.55, 0.2), FX.featherMat ||= new THREE.MeshBasicMaterial({ map: FX.featherTex ||= featherTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide })); m.scale.setScalar(1.3); }
     else if (o.kind === 'net') { m = new THREE.Mesh(FX.netGeo ||= new THREE.CircleGeometry(0.7, 10), new THREE.MeshBasicMaterial({ map: FX.netTex ||= netTex(), transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); m.scale.setScalar(0.4); }
     else if (o.kind === 'shard') { m = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), new THREE.MeshStandardMaterial({ color: 0xd8f4ff, emissive: 0x3a8ab0, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92 })); m.scale.set(3.2, 0.7, 0.7); }
-    else if (o.kind === 'bone' || o.kind === 'book') { m = new THREE.Mesh(o.kind === 'bone' ? new THREE.CylinderGeometry(0.05, 0.05, 0.6, 5) : new THREE.BoxGeometry(0.45, 0.6, 0.14), new THREE.MeshStandardMaterial({ color: o.kind === 'bone' ? 0xe8e0c8 : 0x6a2a1a, emissive: o.kind === 'book' ? 0x4a2a08 : 0x201008 }));
-      if (o.kind === 'book') { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xd09040, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.7 })); h.scale.setScalar(1.2); h.position.z = -0.1; m.add(h); } } // a spell-lit book: its glow carries the spiral's shape
+    else if (o.kind === 'bone') m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 5), new THREE.MeshStandardMaterial({ color: 0xe8e0c8, emissive: 0x201008 }));
+    else if (o.kind === 'book') { const cov = new THREE.MeshStandardMaterial({ color: 0x5a1a2a, emissive: 0x2a0a20 }), pg = new THREE.MeshBasicMaterial({ color: 0xf0e4c8 }); m = new THREE.Mesh(FX.bookGeo ||= new THREE.BoxGeometry(0.45, 0.6, 0.14), [pg, pg, pg, pg, cov, cov]); // pale page edges round a dark cover
+      const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xa070ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.8 })); h.scale.setScalar(1.3); h.position.z = -0.1; m.add(h); } // a spell-lit book: its violet glow carries the spiral's shape against the shelves
     else if (o.kind === 'crescent' || o.kind === 'pcrescent') { m = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 6, 16, Math.PI * 0.9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.z = -Math.PI * 0.45 + (o.vx < 0 ? Math.PI : 0); }
     else if (o.kind === 'boomerang' || o.kind === 'orbit') { m = new THREE.Group(); const tor = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 5, 12, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd0a050, metalness: 0.8, roughness: 0.3, emissive: 0x402000 })); m.add(tor); if (o.model) weaponModel(o.model, 1).then(w => { m.remove(tor); m.add(w); }).catch(() => {}); }
     else m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: c, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
@@ -613,9 +701,9 @@ class Game {
         s.vy -= s.grav * dt; s.x += s.vx * dt; s.y += s.vy * dt;
       }
       s.m.position.set(s.x, s.y, 0.4);
-      if (s.kind === 'arrow' || s.kind === 'shard') s.m.rotation.z = Math.atan2(s.vy, s.vx); if (s.kind === 'net') { s.m.scale.setScalar(Math.min(1.6, 0.4 + s.t * 2.2)); s.m.rotation.z += dt * 2; } else if (['bone', 'book', 'boomerang', 'orbit', 'rock'].includes(s.kind)) s.m.rotation.z += dt * (s.kind === 'rock' ? 6 : 14);
-      if (s.kind === 'slag' && Math.random() < 0.7) this.fx.spawn(s.x, s.y, 0.35, rnd(-0.4, 0.4), rnd(-0.2, 0.6), Math.random() < 0.5 ? 0xff8a20 : 0xffd060, 0.35, 0.28, 2);
-      if (s.m.isSprite && Math.random() < 0.6) this.fx.spawn(s.x, s.y, 0.35, rnd(-0.5, 0.5), rnd(-0.5, 0.5), s.col, 0.3, s.size * 0.6, 0);
+      if (s.kind === 'arrow' || s.kind === 'shard' || s.kind === 'feather') s.m.rotation.z = Math.atan2(s.vy, s.vx); if (s.kind === 'net') { s.m.scale.setScalar(Math.min(1.6, 0.4 + s.t * 2.2)); s.m.rotation.z += dt * 2; } else if (['bone', 'book', 'boomerang', 'orbit', 'rock'].includes(s.kind)) s.m.rotation.z += dt * (s.kind === 'rock' ? 6 : 14);
+      if (s.kind === 'slag') { s.m.rotation.z += dt * 5; if (Math.random() < 0.7) this.fx.spawn(s.x, s.y, 0.35, rnd(-0.4, 0.4), rnd(-0.5, 0.3), Math.random() < 0.5 ? 0xff8a20 : 0xffd060, 0.5, 0.16, 7); } // embers drip from it as it flies
+      if ((s.m.isSprite || s.kind === 'feather') && Math.random() < 0.6) this.fx.spawn(s.x, s.y, 0.35, rnd(-0.5, 0.5), rnd(-0.5, 0.5), s.col, 0.3, s.size * 0.6, 0);
       const r = s.kind === 'crescent' || s.kind === 'pcrescent' ? 1.1 : 0.3 + s.size * 0.25;
       if (s.friendly) {
         const hb = { x0: s.x - r, x1: s.x + r, y0: s.y - r, y1: s.y + r, attack: { hitIds: s.hitIds }, roll: s.roll ? { ...s.roll, elem: s.roll.elem } : { dmg: s.dmg, crit: false, elem: [] }, mul: s.mul, proj: true };
@@ -625,6 +713,7 @@ class Game {
       }
       if (!s.pierce || s.kind === 'arrow') for (const w of this.activeSolids()) if (!w.oneway && !w.gone && s.x > w.x0 && s.x < w.x1 && s.y > w.y0 && s.y < w.y1 && s.t > 0.06) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 8, 2.5); if (s.kind === 'acid' || s.kind === 'ember') this.fx.dust(s.x, s.y, s.col); break; }
       if (s.life <= 0 && s.splash === 'miasma' && !s.splashed) { s.splashed = true; const fy = this.floorBelow(s.x, s.y + 1); this.cloud(s.x, fy, 2.6, 5, 'poison', s.cloudDmg, s.src); this.fx.burst(s.x, fy + 0.4, 0x8aff5a, 16, 3); }
+      if (s.life <= 0 && s.splash === 'fire' && s.kind === 'slag' && !s.splashed) { const fy = this.floorBelow(s.x, s.y + 0.6); if (s.y - fy < 2.5) this.cloud(s.x, fy, 1.5, 2.6, 'fire', Math.round(s.dmg * 0.35), s.src); } // slag pools burn on: ground denied for a while
       if (s.life <= 0 && s.splash && s.splash !== 'miasma' && !s.friendly && !s.splashed) { s.splashed = true; const fy = this.floorBelow(s.x, s.y + 0.6); if (s.y - fy < 2.5) this.erupt({ x: s.x, y: fy, delay: 0.04, w: 1.3, h: 1.5, dmg: Math.round(s.dmg * 0.7), elem: s.splash, src: s.src, quiet: true }); } // molten slag catches where it lands
       if (s.life <= 0 && s.kind === 'rock') { this.fx.dust(s.x, s.y - 0.3, 0x8a8070); audio.play('rock_wall_1', 0.35, 1.3); }
       if (s.life <= 0 && s.blast) { this.fx.ring(s.x, s.y, s.col, s.blast * 2.6); this.fx.burst(s.x, s.y, s.col, 26, 5); this.fx.burst(s.x, s.y, 0xfff0c0, 8, 2.5); this.shake(0.3); audio.play('rock_meteor_swarm_1', 0.4); this.playerHits({ x0: s.x - s.blast, x1: s.x + s.blast, y0: s.y - 1, y1: s.y + s.blast, attack: { hitIds: new Set() }, roll: { dmg: s.dmg, crit: false, elem: [] }, proj: true }); }
@@ -651,31 +740,41 @@ class Game {
   // a telegraphed eruption from the floor: a warning disc, then a column
   erupt(o) {
     const col = o.col || (o.elem ? EXTRA_COL[o.elem] || ELEM_COL[o.elem] : 0xff5030);
-    const m = new THREE.Mesh(new THREE.CircleGeometry(o.w / 2 + 0.15, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.set(o.x, o.y + 0.05, 0.2); m.scale.set(1, 2.4, 1); this.scene.add(m);
-    if (o.h > 1 || o.dmg) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.ringTex ||= ringTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.1; m.add(r); m.userData.rune = r; } // a crisp rim marks exactly where it will strike
+    const m = new THREE.Mesh(new THREE.CircleGeometry(o.w / 2 + 0.15, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(o.x, o.y + 0.05, 0.6); m.scale.set(1, 0.8, 1); this.scene.add(m); if (o.line) m.visible = false; // a line attack draws one running crack instead
+    if ((o.h > 1 || o.dmg) && !o.line) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.sigilTex ||= sigilTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.1; m.add(r); m.userData.rune = r; } // a sigil marks exactly where it will strike, turning as it tightens
     this.erupts.push({ ...o, col, m, t: 0, hitIds: new Set() });
   }
   // the thing that comes out of the floor: flame, water, stone teeth, ice, thorns or a lightning stroke
   column(e) {
     const g = new THREE.Group(), el = e.elem, x = e.x, y = e.y, w = e.w, h = Math.min(e.h, 9); g.position.set(x, y, 0.3); this.scene.add(g);
-    const spikes = { stone: [0x6a625a, 0x000000, 1], bone: [0xd8ccb0, 0x1a1610, 1], ice: [0xd8f2ff, 0x2a6a90, 0.9], poison: [0x2e3a1c, 0x0a1404, 1] }[el];
-    if (spikes) { const n = Math.max(2, Math.round(w * 2.2)); for (let i = 0; i < n; i++) { const hh = h * (0.55 + Math.random() * 0.45) * (i % 2 ? 0.8 : 1), k = new THREE.Mesh(FX.coneGeo ||= (() => { const c = new THREE.ConeGeometry(1, 1, 5); c.translate(0, 0.5, 0); return c; })(), new THREE.MeshStandardMaterial({ color: spikes[0], emissive: spikes[1], roughness: el === 'ice' ? 0.2 : 0.85, metalness: el === 'ice' ? 0.1 : 0, flatShading: true, transparent: el === 'ice', opacity: spikes[2] }));
+    const spikes = { stone: [0x8a8278, 0x000000, 1], bone: [0xe8dcc0, 0x1a1610, 1], ice: [0xd8f2ff, 0x2a6a90, 0.9], poison: [0x3e4a24, 0x0a1404, 1] }[el];
+    if (spikes) { const n = Math.max(2, Math.round(w * 2.2)), top = Math.floor(n / 2); for (let i = 0; i < n; i++) { const hh = i === top ? h : h * (0.6 + Math.random() * 0.3), k = new THREE.Mesh(FX.coneGeo ||= (() => { const c = new THREE.ConeGeometry(1, 1, 7); c.translate(0, 0.5, 0); const p = c.attributes.position, col = []; for (let j = 0; j < p.count; j++) { const v = 0.28 + 0.72 * p.getY(j); col.push(v, v, v); } c.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return c; })(), new THREE.MeshStandardMaterial({ color: spikes[0], emissive: spikes[1], vertexColors: true, roughness: el === 'ice' ? 0.2 : 0.85, metalness: el === 'ice' ? 0.1 : 0, flatShading: true, transparent: el === 'ice', opacity: spikes[2] })); // dark at the root, catching light at the tip
       k.scale.set((el === 'poison' ? 0.13 : 0.24) * (0.8 + Math.random() * 0.5), 0.01, (el === 'poison' ? 0.13 : 0.24)); k.position.set((i / (n - 1) - 0.5) * w * 0.9, 0, (Math.random() - 0.5) * 0.6); k.rotation.z = (Math.random() - 0.5) * (el === 'poison' ? 0.7 : 0.35); k.userData.h = hh; g.add(k); } }
     else { const m = new THREE.Mesh(FX.colGeo ||= (() => { const p = new THREE.PlaneGeometry(1, 1); p.translate(0, 0.5, 0); return p; })(), new THREE.MeshBasicMaterial({ map: FX.colTex ||= colTex(), color: el === 'lightning' ? 0xfff6c0 : e.col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.scale.set(w * (el === 'lightning' ? 0.7 : 1.15), 0.01, 1); m.userData.h = h; g.add(m);
       const core = m.clone(); core.material = m.material.clone(); core.material.color.setHex(0xffffff); core.material.opacity = 0.7; core.scale.x *= 0.4; core.userData.h = h * 0.95; g.add(core);
-      if (el === 'lightning') { this.fx.line({ x: x + rnd(-0.5, 0.5), y: y + h }, { x, y: y + 0.2 }, 0xfff070); this.fx.line({ x: x + rnd(-0.8, 0.8), y: y + h * 0.8 }, { x: x + rnd(-0.3, 0.3), y: y + 0.2 }, 0xc0d0ff); this.fx.ring(x, y + 0.1, 0xfff070, 3.5, true); } }
-    let t = 0; const tick = () => { t += 1 / 60; const up = Math.min(1, t / 0.08), down = t > 0.38 ? Math.max(0, 1 - (t - 0.38) / 0.22) : 1;
+      if (el === 'lightning') { m.visible = core.visible = false; this.fx.line({ x: x + rnd(-0.5, 0.5), y: y + h }, { x, y: y + 0.2 }, 0xb0c0ff); this.fx.line({ x: x + rnd(-0.8, 0.8), y: y + h * 0.8 }, { x: x + rnd(-0.3, 0.3), y: y + 0.2 }, 0x9ab0ff); this.fx.ring(x, y + 0.1, 0x9ab0ff, 3, true); this.fx.cracks(x, y, 1.4, 0x0a0a10); this.fx.spawn(x, y + 1.2, 0.8, 0, 0, 0xc8d4ff, 0.08, 3.5, 0); } // the stroke itself, a blink of light and a scorch
+      if (el === 'water') for (let i = 0; i < 14; i++) this.fx.spawn(x + rnd(-w / 2, w / 2), y + h * rnd(0.8, 1), 0.7, rnd(-2.5, 2.5), rnd(1, 4), Math.random() < 0.6 ? 0xf0faff : 0x9ad4f0, rnd(0.6, 0.9), rnd(0.25, 0.5), 9, false); // a crown of foam bursts and falls
+      if (el === 'water') this.fx.ring(x, y + 0.08, 0xc8ecff, 3.5, true); }
+    const hold = e.hold || 0; if (e.perch) { const sol = { x0: x - w * 0.42, x1: x + w * 0.42, y0: y + h * 0.82 - 0.35, y1: y + h * 0.82, kind: 'plat', oneway: true, room: this.room.def.id, temp: true }; this.world.solids.push(sol); setTimeout(() => { const i = this.world.solids.indexOf(sol); if (i >= 0) this.world.solids.splice(i, 1); }, (0.4 + hold) * 1000); } // a palisade you can stand on
+    let t = 0; const tick = () => { t += 1 / 60; const up = Math.min(1, t / 0.08), down = t > 0.38 + hold ? Math.max(0, 1 - (t - 0.38 - hold) / 0.22) : 1;
       for (const c of g.children) { c.scale.y = c.userData.h * up * (spikes ? 1 : (0.85 + Math.random() * 0.15)) * (spikes ? Math.sqrt(down) : 1); if (!spikes) c.material.opacity = (c.material.color.getHex() === 0xffffff ? 0.7 : 1) * down; }
-      if (t < 0.6) requestAnimationFrame(tick); else { this.scene.remove(g); g.children.forEach(c => c.material.dispose()); } }; tick();
-    if (spikes) for (let i = 0; i < 8; i++) this.fx.spawn(x + rnd(-w / 2, w / 2), y + 0.2, 0.6, rnd(-2, 2), rnd(1, 4), el === 'ice' ? 0xd8f2ff : 0x8a8070, 0.5, 0.22, 9, false);
+      if (t < 0.6 + hold) requestAnimationFrame(tick); else { this.scene.remove(g); g.children.forEach(c => c.material.dispose()); } }; tick();
+    if (spikes) { for (let i = 0; i < 8; i++) this.fx.spawn(x + rnd(-w / 2, w / 2), y + 0.2, 0.6, rnd(-2, 2), rnd(1, 4), el === 'ice' ? 0xd8f2ff : 0x8a8070, 0.5, 0.22, 9, false); if (el === 'stone' || el === 'bone') { this.debris(x, y + 0.4, 5, el === 'bone' ? 0xe0d4b8 : 0x6a625a, w); this.fx.cracks(x, y, w * 0.9, 0xff6a20); } }
+  }
+  // chips of stone or bone thrown up by an eruption, tumbling under gravity and settling on the floor
+  debris(x, y, n, col, spread = 1) {
+    const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.9, flatShading: true }), fy = this.floorBelow(x, y + 0.5), ch = [];
+    for (let i = 0; i < n; i++) { const k = new THREE.Mesh(FX.rockGeo ||= new THREE.DodecahedronGeometry(0.34, 0), mat); k.scale.setScalar(rnd(0.18, 0.4)); k.position.set(x + rnd(-spread / 2, spread / 2), y, rnd(0.2, 1)); this.scene.add(k); ch.push({ k, vx: rnd(-3, 3), vy: rnd(3, 7), r: rnd(-10, 10) }); }
+    let t = 0; const tick = () => { t += 1 / 60; for (const c of ch) { c.vy -= 22 / 60; c.k.position.x += c.vx / 60; c.k.position.y += c.vy / 60; c.k.rotation.z += c.r / 60; if (c.k.position.y < fy + 0.08) { c.k.position.y = fy + 0.08; c.vy *= -0.25; c.vx *= 0.5; c.r *= 0.5; } if (t > 1.2) c.k.scale.multiplyScalar(0.92); }
+      if (t < 1.6) requestAnimationFrame(tick); else { ch.forEach(c => this.scene.remove(c.k)); mat.dispose(); } }; tick();
   }
   updateErupts(dt) {
     const P = this.player;
     for (const e of this.erupts) {
       e.t += dt; const k = e.t / e.delay;
-      if (k < 1) { e.m.material.opacity = 0.1 + k * 0.32 + Math.sin(e.t * 40) * 0.06; const r = e.m.userData.rune; if (r) { r.material.opacity = 0.22 + k * 0.5; const sc = r.userData.R * (1.3 - k * 0.3); r.scale.set(sc, sc, 1); } continue; }
-      if (!e.fired) { e.fired = true; if (e.m.userData.rune) e.m.userData.rune.visible = false; if (!e.quiet || e.dmg) audio.play(e.elem === 'ice' ? 'ice_wall_1' : e.elem === 'poison' ? 'squelching_4' : e.elem === 'stone' ? 'rock_wall_1' : e.elem === 'bone' ? 'bone_snap' : e.elem === 'water' ? 'waterspray_1' : e.elem === 'lightning' ? 'spell_impact_2' : 'fireball_2', 0.35); if (e.h > 1) this.column(e); for (let i = 0; i < (e.h > 1 ? 14 : 4); i++) this.fx.spawn(e.x + rnd(-e.w / 2, e.w / 2), e.y + Math.random() * 0.5, 0.4, rnd(-0.6, 0.6), rnd(4, 4 + e.h * 2.2), e.col, 0.55, 0.5, 4); }
+      if (k < 1) { e.m.material.opacity = 0.03 + k * 0.06; const r = e.m.userData.rune; if (r) { r.material.opacity = 0.3 + k * 0.6 + Math.sin(e.t * 30) * 0.08 * k; const sc = r.userData.R * (1.35 - k * 0.35); r.scale.set(sc, sc, 1); r.rotation.z += dt * (1 + k * 4); } continue; }
+      if (!e.fired) { e.fired = true; if (e.m.userData.rune) e.m.userData.rune.visible = false; if (!e.quiet || e.dmg) audio.play(e.elem === 'ice' ? 'ice_wall_1' : e.elem === 'poison' ? 'squelching_4' : e.elem === 'stone' ? 'rock_wall_1' : e.elem === 'bone' ? 'bone_snap' : e.elem === 'water' ? 'waterspray_1' : e.elem === 'lightning' ? 'spell_impact_2' : 'fireball_2', 0.35); if (e.h > 1) this.column(e); const solid = ['stone', 'bone'].includes(e.elem); for (let i = 0; i < (e.h > 1 ? 14 : 4); i++) this.fx.spawn(e.x + rnd(-e.w / 2, e.w / 2), e.y + Math.random() * 0.5, 0.4, rnd(-0.6, 0.6), rnd(solid ? 1 : 4, (solid ? 2 : 4) + e.h * (solid ? 0.6 : 2.2)), solid ? 0x6a6258 : e.col, 0.55, 0.5, solid ? 6 : 4, !solid); }
       if (e.t < e.delay + 0.3 && e.dmg) {
         if (e.friendly) this.playerHits({ x0: e.x - e.w / 2, x1: e.x + e.w / 2, y0: e.y, y1: e.y + e.h, attack: { hitIds: e.hitIds }, roll: { dmg: e.dmg, crit: false, elem: [] }, proj: true });
         else if (!e.hit && Math.abs(P.pos.x - e.x) < e.w / 2 + 0.25 && P.pos.y < e.y + e.h && P.pos.y + 1.6 > e.y) { if (P.takeHit(Math.round(e.dmg), e.x, ELEM_COL[e.elem] ? e.elem : null, e.src)) e.hit = true; }
@@ -720,33 +819,43 @@ class Game {
       if (s.t > 9 || s.e.dead) { s.done = true; this.scene.remove(s.m); this.fx.burst(x, y, 0xffb030, 20, 4); } }
     this.suns = this.suns.filter(s => !s.done);
   }
+  // Malgrave's grimoire: a book that floats open over his hand, pages lit from within, until the reading is done
+  openBook(e) {
+    const g = new THREE.Group(), cover = new THREE.MeshStandardMaterial({ color: 0x4a1a14, emissive: 0x1a0608, roughness: 0.6 }), page = new THREE.MeshBasicMaterial({ color: 0xfff2d0 });
+    for (const sd of [-1, 1]) { const half = new THREE.Group(); half.rotation.y = sd * 0.5; const c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.03), cover); c.position.x = sd * 0.25; const p = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.6), page); p.position.set(sd * 0.25, 0, 0.02); half.add(c, p); g.add(half); }
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xb080ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); glow.scale.setScalar(1.8); g.add(glow);
+    this.scene.add(g); let live = true, t = 0; const tick = () => { if (!live || e.dead) { this.scene.remove(g); cover.dispose(); page.dispose(); return; } t += 1 / 60; const h = (e.hand || e.root).getWorldPosition(new THREE.Vector3()); g.position.set(h.x + e.facing * 0.3, h.y + 0.9 + Math.sin(t * 3) * 0.08, 0.9); g.rotation.z = Math.sin(t * 2) * 0.1; glow.material.opacity = 0.6 + Math.sin(t * 9) * 0.2; if (Math.random() < 0.5) this.fx.spawn(g.position.x + rnd(-0.3, 0.3), g.position.y + 0.2, 1, rnd(-0.4, 0.4), rnd(0.5, 1.5), 0xd8b0ff, 0.6, 0.12, 0); requestAnimationFrame(tick); }; tick();
+    return { close: () => { live = false; this.fx.burst(g.position.x, g.position.y, 0xb080ff, 16, 3); } };
+  }
   // Sirelle's feather cyclone: a funnel of spinning air that wanders the floor, drags you toward it and spits quills
   cyclone(e, x, fy, dir, dur) {
-    const g = new THREE.Group(); for (let i = 0; i < 7; i++) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.ringTex ||= ringTex(), color: i % 2 ? 0xd8e6ff : 0xf4efe4, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-      r.rotation.x = -Math.PI / 2 + 0.3; r.position.y = 0.25 + i * 0.62; const rr = 0.4 + i * 0.3; r.scale.set(rr, rr, 1); g.add(r); }
+    const g = new THREE.Group(); for (let i = 0; i < 2; i++) { const tex = (FX.windTex ||= windTex()).clone(); tex.needsUpdate = true; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(i ? 3 : 2, 1); const r = new THREE.Mesh(new THREE.CylinderGeometry(i ? 1.5 : 2.3, i ? 0.2 : 0.35, 4.6, 24, 1, true), new THREE.MeshBasicMaterial({ map: tex, color: i ? 0xf4efe4 : 0xc8d8f0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      r.position.y = 2.3; r.userData.tex = tex; g.add(r); } // a funnel: wider at the crown, streaming as it turns
+    const fm = new THREE.MeshBasicMaterial({ map: FX.featherTex ||= featherTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide }); for (let i = 0; i < 10; i++) { const f = new THREE.Mesh(FX.featherGeo ||= new THREE.PlaneGeometry(0.55, 0.2), fm); f.userData.orb = { a: Math.random() * 6.28, h: rnd(0.3, 4.2), sp: rnd(3, 6) }; g.add(f); }
     g.position.set(x, fy, 0.2); this.room.group.add(g); this.cyclones.push({ g, e, x, fy, dir, t: 0, dur, c: 0.3, hitT: 0, room: this.room });
   }
   updateCyclones(dt) {
     const P = this.player;
     for (const c of this.cyclones) {
       c.t += dt; const rb = c.room.b; c.x += c.dir * 3.2 * dt; if (c.x < rb.x0 + 1.5 || c.x > rb.x1 - 1.5) c.dir *= -1; c.g.position.x = c.x;
-      const fade = Math.max(0, Math.min(1, c.t * 3, (c.dur - c.t) * 2)); c.g.children.forEach((r, i) => { r.rotation.z += dt * (9 - i * 0.7); r.position.x = Math.sin(c.t * 5 + i * 0.9) * 0.1 * i; r.material.opacity = (0.32 + 0.1 * (i % 2)) * fade; });
-      if (Math.random() < 0.8) { const a = Math.random() * 6.28, hh = rnd(0.2, 4.2); this.fx.spawn(c.x + Math.cos(a) * (0.4 + hh * 0.3), c.fy + hh, 0.5, -Math.sin(a) * 3, rnd(0.5, 2), 0xf0ece0, 0.35, rnd(0.1, 0.2), 0, false); }
+      const fade = Math.max(0, Math.min(1, c.t * 3, (c.dur - c.t) * 2)); c.g.children.forEach((r, i) => { const o = r.userData.orb; if (o) { o.a += dt * o.sp; const rad = 0.35 + o.h * 0.42; r.position.set(Math.cos(o.a) * rad, o.h + Math.sin(c.t * 2 + o.a) * 0.2, Math.sin(o.a) * rad * 0.6); r.rotation.z = o.a * 2; r.material.opacity = fade; return; }
+        r.rotation.y += dt * (i ? 7 : 4.5); r.userData.tex.offset.y -= dt * (i ? 1.6 : 1.1); r.position.x = Math.sin(c.t * 4 + i) * 0.12; r.material.opacity = (i ? 0.3 : 0.38) * fade; });
+      if (Math.random() < 0.6) this.fx.spawn(c.x + rnd(-1.6, 1.6), c.fy + 0.1, 0.5, rnd(-1, 1), rnd(0.2, 1), 0x8a8070, 0.5, rnd(0.3, 0.5), -0.5, false); // it drags dust off the floor
       const dx = c.x - P.pos.x; if (Math.abs(dx) < 10 && Math.abs(P.pos.y - c.fy) < 6) P.push = (P.push || 0) + Math.sign(dx) * dt * 5;
       c.hitT -= dt; if (c.hitT <= 0 && Math.abs(dx) < 1.1 && P.pos.y < c.fy + 4.2 && P.pos.y > c.fy - 1) { if (P.takeHit(Math.round(c.e.T.dmg * 0.7 * c.e.dmgMul), c.x, null, c.e)) c.hitT = 0.8; }
-      c.c -= dt; if (c.c <= 0 && fade > 0.5) { c.c = 0.45; for (const sd of [-1, 1]) this.shoot({ x: c.x + sd * 0.8, y: c.fy + rnd(1, 3.6), vx: sd * 9, vy: rnd(-1, 1.5), kind: 'feather', dmg: Math.round(c.e.T.dmg * 0.5 * c.e.dmgMul), src: c.e, life: 1.6 }); audio.play('wave_attack_1', 0.2, 1.6); }
-      if (c.t > c.dur || c.e.dead || this.room !== c.room) { c.done = true; c.room.group.remove(c.g); c.g.children.forEach(r => r.material.dispose()); }
+      c.c -= dt; if (c.c <= 0 && fade > 0.5) { c.c = 0.45; c.lane = !c.lane; for (const sd of [-1, 1]) this.shoot({ x: c.x + sd * 0.8, y: c.fy + (c.lane ? 0.9 : 2.7), vx: sd * 9, vy: 0, kind: 'feather', dmg: Math.round(c.e.T.dmg * 0.5 * c.e.dmgMul), src: c.e, life: 1.6 }); audio.play('wave_attack_1', 0.2, 1.6); }
+      if (c.t > c.dur || c.e.dead || this.room !== c.room) { c.done = true; c.room.group.remove(c.g); c.g.children.forEach(r => { if (!r.userData.orb) { r.material.dispose(); r.geometry.dispose(); r.userData.tex.dispose(); } }); }
     }
     this.cyclones = this.cyclones.filter(c => !c.done);
   }
   // a pool of miasma (or any lingering element) over the floor: it ticks while you stand in it
   cloud(x, fy, w, dur, elem, dmg, src) {
-    const col = ELEM_COL[elem] || 0x8aff5a, g = new THREE.Group(); for (let i = 0; i < 7; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: i % 2 ? col : 0x2a4a1a, transparent: true, opacity: 0, depthWrite: false, blending: i % 2 ? THREE.AdditiveBlending : THREE.NormalBlending })); sp.position.set(rnd(-w / 2, w / 2), rnd(0.3, 1.4), rnd(-0.3, 0.6)); sp.scale.setScalar(rnd(1.4, 2.4)); sp.userData.ph = Math.random() * 6; g.add(sp); }
+    const col = ELEM_COL[elem] || 0x8aff5a, dark = elem === 'fire' ? 0x4a1404 : 0x2a4a1a, g = new THREE.Group(); for (let i = 0; i < 7; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: elem === 'fire' && i % 2 ? flameTex() : glowTex(), color: i % 2 ? col : dark, transparent: true, opacity: 0, depthWrite: false, blending: i % 2 ? THREE.AdditiveBlending : THREE.NormalBlending })); sp.position.set(rnd(-w / 2, w / 2), rnd(0.3, 1.4), rnd(-0.3, 0.6)); sp.scale.setScalar(rnd(1.4, 2.4)); sp.userData.ph = Math.random() * 6; g.add(sp); }
     g.position.set(x, fy, 0.3); this.scene.add(g); this.clouds.push({ g, x, fy, w, dur, elem, dmg, src, t: 0, tick: 0, room: this.room });
   }
   updateClouds(dt) {
     const P = this.player;
-    for (const c of this.clouds) { c.t += dt; const fade = Math.max(0, Math.min(1, c.t * 2, (c.dur - c.t) * 1.5)); c.g.children.forEach((sp, i) => { sp.material.opacity = (i % 2 ? 0.28 : 0.45) * fade; sp.position.y += Math.sin(c.t * 1.3 + sp.userData.ph) * dt * 0.2; sp.material.rotation += dt * 0.3; });
+    for (const c of this.clouds) { c.t += dt; if (c.elem === 'fire' && Math.random() < 0.5) this.fx.spawn(c.x + rnd(-c.w / 2, c.w / 2), c.fy + 0.2, 0.5, rnd(-0.3, 0.3), rnd(1, 2.5), Math.random() < 0.4 ? 0xffd060 : 0xff6a14, 0.4, 0.22, -0.5); const fade = Math.max(0, Math.min(1, c.t * 2, (c.dur - c.t) * 1.5)); c.g.children.forEach((sp, i) => { sp.material.opacity = (i % 2 ? 0.28 : 0.45) * fade; sp.position.y += Math.sin(c.t * 1.3 + sp.userData.ph) * dt * 0.2; sp.material.rotation += dt * 0.3; });
       c.tick -= dt; if (c.tick <= 0 && fade > 0.5 && Math.abs(P.pos.x - c.x) < c.w / 2 + 0.3 && P.pos.y < c.fy + 1.9 && P.pos.y > c.fy - 0.5) { c.tick = 0.5; P.takeHit(c.dmg, c.x, c.elem, c.src, true); }
       if (c.t > c.dur || this.room !== c.room) { c.done = true; this.scene.remove(c.g); c.g.children.forEach(sp => sp.material.dispose()); } }
     this.clouds = this.clouds.filter(c => !c.done);
@@ -760,14 +869,22 @@ class Game {
   }
   // two eyes kindle in the dark at the edge of the court: the hunt is coming from there
   huntEyes(e) { const y = e.pos.y + Math.min(e.T.h, 3) * 0.72; for (const d of [-0.22, 0.22]) { this.fx.spawn(e.pos.x + d, y, 1.2, 0, 0, 0x9aff6a, 0.85, 0.32, 0); this.fx.spawn(e.pos.x + d, y, 1.2, 0, 0, 0x2a8a1a, 0.85, 0.9, 0); } for (let i = 0; i < 6; i++) this.fx.spawn(e.pos.x + rnd(-1, 1), e.pos.y + rnd(0.2, 2), 0.6, rnd(-0.4, 0.4), rnd(0, 0.4), 0x3a4a3a, 1.2, rnd(0.6, 1.1), -0.3, false); }
+  // whenever the hall goes dark the hero carries a small light of their own: you never lose yourself in an eclipse
+  soulLight() {
+    const d = this.darken || 0, P = this.player; if (!this._soul) { if (d < 0.02) return; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xfff0dc, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); s.scale.setScalar(1.3); const pool = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xc8d8ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.scale.set(1, 0.5, 1); this.scene.add(s, pool); this._soul = { s, pool }; }
+    const { s, pool } = this._soul; s.position.set(P.pos.x, P.pos.y + 1.2, 0.7); pool.position.set(P.pos.x, P.pos.y + 0.03, 0.4); s.material.opacity = d * 0.95; pool.material.opacity = d * 0.6; s.visible = pool.visible = d > 0.01;
+  }
   // Velscour's eclipse: a black sun over his head with a burning rim, drinking light and drawing everything in
   blackSun(e, dur) {
     const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff8a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); m.scale.setScalar(0.1);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), new THREE.MeshBasicMaterial({ color: 0x050200 })); m.add(core); core.scale.setScalar(0.42);
-    m.position.set(e.pos.x, e.pos.y + Math.min(e.T.h, 3.5) + 2.6, 0.2); this.scene.add(m); this.blacks.push({ m, core, e, t: 0, dur }); return m;
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), new THREE.MeshBasicMaterial({ color: 0x050200, depthTest: false })); m.add(core); core.scale.setScalar(0.42); core.renderOrder = 6;
+    const rim = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.ringTex ||= ringTex(), color: 0xfff4e0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false })); rim.scale.setScalar(0.25); rim.renderOrder = 7; m.add(rim); // a thin white edge of fire round the dark
+    const tongues = []; for (let i = 0; i < 7; i++) { const t = new THREE.Mesh(FX.colGeo ||= (() => { const p = new THREE.PlaneGeometry(1, 1); p.translate(0, 0.5, 0); return p; })(), new THREE.MeshBasicMaterial({ map: FX.colTex ||= colTex(), color: 0xff8a20, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide })); t.rotation.z = i / 7 * 6.283; t.renderOrder = 5; t.userData.ph = Math.random() * 6; m.add(t); tongues.push(t); } // corona tongues lick out and turn
+    m.material.depthTest = false; m.renderOrder = 5; m.position.set(e.pos.x, e.pos.y + Math.min(e.T.h, 3.5) + 2.6, 1.2); this.scene.add(m); this.blacks.push({ m, core, tongues, e, t: 0, dur }); return m;
   }
   updateBlack(dt) {
     for (const b of this.blacks) { b.t += dt; const k = b.t / b.dur, s = Math.min(1, b.t * 2.5) * (k > 0.9 ? (1 - k) * 10 : 1); b.m.scale.setScalar(4.2 * s * (1 + Math.sin(b.t * 9) * 0.04)); b.m.material.opacity = 0.9;
+      b.tongues.forEach((t, i) => { t.rotation.z += dt * 0.4; const l = 0.22 + 0.16 * Math.sin(b.t * 5 + t.userData.ph) + 0.08 * Math.sin(b.t * 13 + i); t.scale.set(0.09, l, 1); t.position.set(Math.cos(t.rotation.z + Math.PI / 2) * 0.2, Math.sin(t.rotation.z + Math.PI / 2) * 0.2, 0); });
       if (Math.random() < 0.9) { const a = Math.random() * 6.28, r = rnd(2.5, 4.5), x = b.m.position.x, y = b.m.position.y; this.fx.spawn(x + Math.cos(a) * r, y + Math.sin(a) * r, 0.3, -Math.cos(a) * r * 1.6, -Math.sin(a) * r * 1.6, Math.random() < 0.5 ? 0xff7a20 : 0xffd080, 0.6, 0.18, 0); }
       if (k >= 1 || b.e.dead) { b.done = true; this.scene.remove(b.m); this.fx.burst(b.m.position.x, b.m.position.y, 0xff8a20, 30, 6); this.fx.ring(b.m.position.x, b.m.position.y, 0xffb040, 8); } }
     this.blacks = this.blacks.filter(b => !b.done);
@@ -819,7 +936,7 @@ class Game {
   }
   bossStart(e) {
     const r = e.room, b = r.b; this.bossE = e; let fl = -1e9; for (const s of r.solids) if (!s.oneway && !s.gone && s.kind !== 'ceil' && s.kind !== 'gate' && e.home.x > s.x0 && e.home.x < s.x1 && s.y1 <= e.home.y + 0.5 && s.y1 > fl) fl = s.y1; e.arenaFloor = fl > -1e8 ? fl : e.home.y;
-    $('bossBar').classList.remove('hidden'); $('bossName').textContent = e.T.name.toUpperCase(); this.bossUpdate(e);
+    $('bossBar').classList.remove('hidden'); $('bossName').textContent = (e.spec.name || e.T.name).toUpperCase(); this.bossUpdate(e);
     audio.music('action_' + (1 + (e.T.tier + (e.mini ? 2 : 0)) % 5), 0.42);
     if (!r.def.boss || e.mini) return;
     // seal every way out until it dies
@@ -868,7 +985,7 @@ class Game {
   }
   interact() {
     const P = this.player, r = this.room;
-    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8 && Math.abs(P.pos.y - r.saveAt.y) < 1) { P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; P.stats.potions = Math.max(P.stats.potions, Math.min(this.potionCap(), 3)); P.poisoned = 0; this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
+    if (r.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8 && Math.abs(P.pos.y - r.saveAt.y) < 1) { P.state = 'sit'; P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; P.stats.potions = Math.max(P.stats.potions, Math.min(this.potionCap(), 3)); P.poisoned = 0; this.reforgeRelics(); this.save(r); audio.play('firebuff_2', 0.5); this.ui.toast('Your vigor returns. Progress recorded.', 'unique'); return; }
     if (r.warpAt && Math.abs(P.pos.x - r.warpAt.x) < 1.8 && Math.abs(P.pos.y - r.warpAt.y) < 1) { const list = this.world.rooms.filter(o => o.def.warp && this.flags['warp:' + o.def.id] && o !== r); if (!list.length) this.ui.toast('The mirror is dark. Its twins lie deeper in the castle.', 'magic'); else this.ui.openMenu('warp', list); return; }
     if (r.shopAt && Math.abs(P.pos.x - r.shopAt.x) < 2.2 && Math.abs(P.pos.y - r.shopAt.y) < 1) { this.ui.openMenu('shop'); return; }
     for (const c of r.chests) if (!c.opened && Math.abs(P.pos.x - c.x) < 1.4 && Math.abs(P.pos.y - c.y) < 1) { c.open(); return; }
@@ -939,7 +1056,7 @@ class Game {
     this.camFill.position.set(this.camPos.x + 3, this.camPos.y + 4, 14); this.camFill.target.position.set(this.camPos.x, this.camPos.y, 0);
     if (this.room.theme.sky) { this.moon.position.set(this.camPos.x - 10, this.camPos.y + 16, 6); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1); } else { this.moon.position.set(this.camPos.x - 15, this.camPos.y + 4.5, 3); this.moon.target.position.set(this.camPos.x, this.camPos.y, -2.5); } // indoors the moon rakes across the masonry from a window
     this.hemi.intensity = (this.amb || 0.5) * (this.room.lightning > 0 ? 3.5 : 1);
-    this.ui.hud(); this.grade.uniforms.time.value = (this.time || 0) % 100; this.grade.uniforms.dark.value = this.darken || 0; this.darken = Math.max(0, (this.darken || 0) - dt * 0.8);
+    this.ui.hud(); this.grade.uniforms.time.value = (this.time || 0) % 100; this.grade.uniforms.dark.value = this.darken || 0; this.soulLight(); this.darken = Math.max(0, (this.darken || 0) - dt * 0.8);
     if (!window.__norender) this.composer.render();
   }
 

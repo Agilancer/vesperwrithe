@@ -26,10 +26,12 @@ export const STYLES = {
   // the staff's own bolt — fire bursts, ice splinters, storm forks, grave wisps hunt, thorn staves raise briars
   whirl:   { anim: 'vw_whirl', from: 0, to: 30, hit: [7, 20], cancel: 22, dur: 0.58, reach: 1.9, height: 2.0, yOff: 1.0, both: true },
   // scythe: a turn that opens into a long, low reap; the hooked blade drags whatever it catches in toward you
-  reap:    { anim: 'vw_reap', from: 0, to: 36, hit: [8, 24], cancel: 27, dur: 0.72, reach: 2.6, height: 2.2, yOff: 0.95, both: true, pull: true },
+  // two windows: the turn cuts behind you (short, light), then the reap sweeps low in front, hooking what it catches
+  reap:    { anim: 'vw_reap', from: 0, to: 36, hit: [7, 23], hits: [[7, 14], [15, 23]], cancel: 26, dur: 0.72, reach: 2.6, height: 2.2, yOff: 0.95,
+             boxes: [{ both: true, reach: 1.6, mul: 0.4 }, { reach: 2.6, yOff: 0.6, height: 1.3, pull: true }] },
   // daggers (paired when the off hand is free) and rapiers: three quick drives, each its own hit, stepping in with each
-  flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 0.9, yOff: 1.25, lunge: 3.4, hitMul: 0.5 },
-  needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 0.7, yOff: 1.3, lunge: 5.5, hitMul: 0.55 },
+  flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 0.9, yOff: 1.25, lunge: 6, hitMul: 0.5, thrust: true },
+  needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 0.7, yOff: 1.3, lunge: 6.5, hitMul: 0.35, thrust: true },
   // ranged classes: the missile leaves at the hit frame (bows loose arrows, boomerangs come back)
   shoot:   { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [18, 19], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow', upperOnly: true },
   hurl:    { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [17, 18], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang', upperOnly: true },
@@ -251,10 +253,13 @@ export const UNIQUES = {
   // relics of the castle's hidden rooms (secret rooms in src/areas): each is the only one of its class
   vespers_needle: U('swept_rapier', 7, 'Vesper\'s Needle', 2, 'twin', [{ dmgPct: 55 }, '+55% damage'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 6 }, '+6 Agility']),
   pale_reaper: U('pale_crescent', 9, 'The Pale Reaper', 3, 'harvest', [{ dmgPct: 60 }, '+60% damage'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ critDmg: 50 }, '+50% critical damage'], [{ str: 6 }, '+6 Strength']),
+  gravelantern: U('lichs_lantern', 18, 'Gravelantern', 3, 'bats', [{ dmgPct: 65 }, '+65% damage'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ mp: 50 }, '+50 mana'], [{ int: 10 }, '+10 Intellect']),
+  rimebound:   U('winterstar', 22, 'Rimebound', 3, 'nova', [{ dmgPct: 70 }, '+70% damage'], [{ ice: 18 }, '+18 cold damage', 'ice'], [{ res_fire: 30 }, '+30% fire resistance'], [{ int: 10 }, '+10 Intellect']),
   tidecaller:  U('riptide_staff', 11, 'Tidecaller', 3, 'chain', [{ dmgPct: 55 }, '+55% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ mp: 40 }, '+40 mana'], [{ int: 8 }, '+8 Intellect']),
   lastlight:   U('radiant_lance', 30, 'Last Light', 4, 'sunder', [{ dmgPct: 60 }, '+60% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
-export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }
+for (const id of ['vespers_needle', 'pale_reaper', 'tidecaller', 'gravelantern', 'rimebound']) UNIQUES[id].relic = true; // relics of the hidden rooms grow with their keeper
+export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.relic) it.relic = true; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }
 // A unique is forged at its own level whatever common steel it is modelled on.
 export const itemLevel = it => it.lvl || BASES[it.base]?.lvl || 1;
 export const itemReq = it => Math.max(1, itemLevel(it) - 4);
