@@ -347,8 +347,8 @@ export class Player {
       if (!inp.jump && this.vel.y > P.cutV && !this.cut && !this.onGround) { this.vel.y = P.cutV; this.cut = true; }
       // backdash (ground) / shade dash (air, Onyx)
       if (inp.dashP) {
-        if (this.onGround && inp.down && abil.has('slide')) { this.state = 'slide'; this.slideT = 0; this.stateT = 0; this.attack = null; this.slideHit = { hitIds: new Set(), st: STYLES.punch }; audio.play('clothing_1', 0.5, 0.8); }
-        else if (abil.has('dash') && (!this.onGround || dir) && !this.dashUsed && !(this.dashCd > 0)) { if (dir) this.facing = Math.sign(dir); this.state = 'dash'; this.dashT = 0; this.dashUsed = !this.onGround; this.dashCd = 0.62; this.attack = null; this.inv = Math.max(this.inv, 0.3); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); }
+        if (this.onGround && inp.down && abil.has('slide')) { this.state = 'slide'; this.slideT = 0; this.stateT = 0; this.attack = null; this.slideHit = { hitIds: new Set(), st: STYLES.punch }; audio.play('clothing_1', 0.5, 0.8); this.g.feel?.('slide'); }
+        else if (abil.has('dash') && (!this.onGround || dir) && !this.dashUsed && !(this.dashCd > 0)) { if (dir) this.facing = Math.sign(dir); this.state = 'dash'; this.dashT = 0; this.dashUsed = !this.onGround; this.dashCd = 0.62; this.attack = null; this.inv = Math.max(this.inv, 0.3); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); this.g.feel?.('dash'); }
         else if (this.onGround && (!attacking || this.attack.pastHit) && !(abil.has('dash') && dir)) { if (attacking) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); } this.state = 'backdash'; this.backdashT = 0; this.stateT = 0; this.crouch = false; this.inv = Math.max(this.inv, 0.12); audio.play('clothing_1', 0.4); this.g.onBackdash?.(); }
       }
       // attack / dive
@@ -373,7 +373,7 @@ export class Player {
     const wasGround = this.onGround, vyBefore = this.vel.y;
     this.move(dt);
     if (this.onGround && this.state === 'dive') { this.state = 'free'; this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; this.g.diveLand(this); this.landT = LAND_T; }
-    else if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { if (this.airAttacked && this.d.echo === 'quake') this.g.quake(this); this.airAttacked = false; this.landT = LAND_T; this.dip = { t: 0, a: Math.min(1, Math.max(0.25, -vyBefore / 13)) }; audio.play('stone_land', 0.3); this.g.fx.dust(this.pos.x, this.pos.y); } }
+    else if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { if (this.airAttacked && this.d.echo === 'quake') this.g.quake(this); this.airAttacked = false; this.landT = LAND_T; this.dip = { t: 0, a: Math.min(1, Math.max(0.25, -vyBefore / 13)) }; audio.play('stone_land', 0.3); if (-vyBefore > 11.5) this.g.feel?.('land', Math.min(1.2, -vyBefore / 14)); /* only drops deeper than a jump thud in the hands */ this.g.fx.dust(this.pos.x, this.pos.y); } }
     else if (wasGround && this.vel.y <= 0) { /* walked off ledge: keep coyote */ } else if (this.coyote > 0) this.coyote -= dt;
 
     // footsteps
@@ -519,6 +519,7 @@ export class Player {
       this.g.fx.burst(this.pos.x + this.facing * 0.5, this.pos.y + 1.2, 0xffe0a0, 14, 4); audio.play('sword_blocked_' + (1 + (Math.random() * 3 | 0)), 0.6);
       if (this.d.blockBurst) this.g.blockBurst(this.pos.x + this.facing, this.pos.y + 1, this.d.blockBurst);
       if (chip) this.g.ui.dmg(this.pos.x, this.pos.y + 2, chip, 'player');
+      this.g.feel?.('block');
       return 'block';
     }
     const res = elem ? (this.d.res[elem] || 0) : 0;
@@ -526,7 +527,7 @@ export class Player {
     this.stats.hp -= dmg; this.g.ui.dmg(this.pos.x, this.pos.y + 2, dmg, 'player'); this.combo = 0;
     if (this.d.thorns && src && !src.dead) src.damage(this.d.thorns, null, true);
     if (elem === 'poison') this.poisoned = 4;
-    audio.play('crunch_quick', 0.5); this.g.hitStop(0.06); this.g.shake(0.25);
+    audio.play('crunch_quick', 0.5); this.g.hitStop(0.06); this.g.shake(0.25); this.g.feel?.('hurt', Math.min(1.3, 0.75 + dmg / Math.max(1, this.stats.hpMax) * 2));
     if (this.stats.hp <= 0) { this.stats.hp = 0; this.die(); return true; }
     this.state = 'hurt'; this.stateT = 0; this.attack = null; this.inv = 1.1; this.sunk = false;
     const dir = Math.sign(this.pos.x - fromX) || -this.facing; this.vel.set(dir * 4.5, 5.5); this.onGround = false;

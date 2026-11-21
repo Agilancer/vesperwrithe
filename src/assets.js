@@ -140,6 +140,9 @@ export const audio = {
   musicEl: null,
   init() { if (!AC) return; this.master.gain.value = 0.7; this.master.connect(AC.destination); },
   resume() { AC?.resume(); },
+  // a sound start refused for want of a gesture (a pad press isn't one): retry on the next real tap or key
+  asleep() { return (!!AC && AC.state !== 'running') || !!this.musicEl?.paused; },
+  wake() { if (AC && AC.state !== 'running') AC.resume().catch?.(() => {}); if (this.musicEl?.paused) this.musicEl.play().catch(() => {}); },
   async load(name) {
     if (!AC) return null;
     if (!bufs.has(name)) bufs.set(name, fetch(`assets/game/audio/${name}.mp3`).then(r => r.arrayBuffer()).then(b => AC.decodeAudioData(b)).catch(() => null));

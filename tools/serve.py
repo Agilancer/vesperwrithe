@@ -21,6 +21,7 @@ args = [a for a in sys.argv[1:] if not a.startswith('--')]
 lan = '--lan' in sys.argv
 port = int(args[0]) if args else 8410
 socketserver.ThreadingTCPServer.allow_reuse_address = True
+socketserver.ThreadingTCPServer.request_queue_size = 128  # the default backlog of 5 refuses connections when the browser fetches ~60 ES modules at once (Windows)
 with socketserver.ThreadingTCPServer(('0.0.0.0' if lan else '127.0.0.1', port), H) as s:
     print(f'Vesperwrithe on http://localhost:{port}', flush=True)
     if lan:

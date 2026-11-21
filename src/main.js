@@ -13,6 +13,7 @@ import { UI } from './ui.js';
 import { initTouch } from './touch.js';
 import { loadMeta, weaponModel, audio, surface, loadGLTF, LOW_MEM } from './assets.js';
 import { wantsTouch } from './touch.js';
+import { Pads, pick, fmt, device, onDevice, setDevice, family as padFamily } from './gamepad.js';
 import { startWeapon } from './attacks.js';
 import { makeItem, makeGem, makeUnique, rollDrop, tierItem, BASES, GEMS, DROP_GEMS, ECHOES, staffElem } from './items.js';
 
@@ -32,28 +33,30 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const MUSIC = { outdoor: 'intro_cursed_citadel', courtyard: 'ambient_2', garden: 'ambient_4', rampart: 'dark_5', crypt: 'dark_2', catacomb: 'dark_3', royalcrypt: 'ambient_6', aqueduct: 'ambient_5', cistern: 'ambient_7', library: 'light_2', portrait: 'light_4', vestibule: 'light_1', servants: 'ambient_1', ossuary: 'dark_4', prison: 'dark_4', clock: 'fx_2', mine: 'ambient_8', forge: 'fx_1', magma: 'fx_3', mirror: 'light_3', observatory: 'ambient_9', belfry: 'dark_5', sanctum: 'ambient_10', hollow: 'ambient_10', shrine: 'light_5', menagerie: 'ambient_3' };
 
 // ------------------------------------------------------------------------------------- input
+// Keyboard, touch (touch.js feeds the same key sets) and game controllers (gamepad.js) merge here into one intent.
+// Pads: A jump · X attack · B potion · Y use · LB/LT guard · RB/RT dash · Menu pack · View map; stick or d-pad moves.
 class Input {
   constructor() {
-    this.keys = new Set(); this.pressed = new Set(); this.padPrev = [];
+    this.keys = new Set(); this.pressed = new Set(); this.pads = new Pads(); this.menuKeys = [];
     addEventListener('keydown', e => { if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault(); if (!this.keys.has(e.code)) this.pressed.add(e.code); this.keys.add(e.code); });
     addEventListener('keyup', e => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
+    // pads are sampled every display frame (not only when the game steps), so a quick tap inside a hit-stop still lands
+    const tick = () => { this.pads.sample(); requestAnimationFrame(tick); }; requestAnimationFrame(tick);
   }
   poll() {
     const k = this.keys, p = this.pressed, any = (...c) => c.some(x => k.has(x)), hit = (...c) => c.some(x => p.has(x));
-    const gp = navigator.getGamepads?.()[0], b = i => !!gp?.buttons[i]?.pressed, bp = i => b(i) && !this.padPrev[i];
-    const ax = gp ? (Math.abs(gp.axes[0]) > 0.4 ? Math.sign(gp.axes[0]) : 0) : 0, ay = gp ? (gp.axes[1] > 0.55 ? 1 : 0) : 0;
+    const g = this.pads.read(), e = n => g.edges.has(n);
+    const kx = (any('ArrowRight', 'KeyD') ? 1 : 0) - (any('ArrowLeft', 'KeyA') ? 1 : 0);
     const s = {
-      x: (any('ArrowRight', 'KeyD') || b(15) || ax > 0 ? 1 : 0) - (any('ArrowLeft', 'KeyA') || b(14) || ax < 0 ? 1 : 0),
-      down: any('ArrowDown', 'KeyS') || b(13) || !!ay,
-      jump: any('Space', 'KeyK') || b(0), jumpP: hit('Space', 'KeyK') || bp(0),
-      up: any('ArrowUp', 'KeyW') || b(12) || (gp ? gp.axes[1] < -0.55 : false), attackP: hit('KeyJ', 'KeyX') || bp(2), shield: any('KeyL', 'KeyC') || b(4) || b(6),
-      dashP: hit('ShiftLeft', 'ShiftRight') || bp(5) || bp(7), interactP: hit('KeyE', 'ArrowUp', 'KeyW') || bp(3) || bp(12),
-      potionP: hit('KeyQ') || bp(1), invP: hit('KeyI', 'Tab') || bp(9), mapP: hit('KeyM') || bp(8),
+      x: kx || g.x,
+      down: any('ArrowDown', 'KeyS') || g.down,
+      jump: any('Space', 'KeyK') || g.jump || hit('Space', 'KeyK') || e('jump'), jumpP: hit('Space', 'KeyK') || e('jump'), // a tap that began and ended between steps (a hit-stop) still lifts for one frame
+      up: any('ArrowUp', 'KeyW') || g.up, attackP: hit('KeyJ', 'KeyX') || e('attack'), shield: any('KeyL', 'KeyC') || g.guard,
+      dashP: hit('ShiftLeft', 'ShiftRight') || e('dash'), interactP: hit('KeyE', 'ArrowUp', 'KeyW') || e('use') || e('up'),
+      potionP: hit('KeyQ') || e('heal'), invP: hit('KeyI', 'Tab') || e('pack'), mapP: hit('KeyM') || e('map'),
     };
-    if (gp) { const map = { 12: 'ArrowUp', 13: 'ArrowDown', 14: 'ArrowLeft', 15: 'ArrowRight', 0: 'Enter', 1: 'Escape', 2: 'KeyS' }; for (const [i, c] of Object.entries(map)) if (bp(+i)) p.add(c); }
-    this.padPrev = gp ? gp.buttons.map(x => x.pressed) : [];
-    this.menuKeys = [...p]; p.clear();
+    this.menuKeys = [...p, ...g.menu]; p.clear(); // pad menu codes (with auto-repeat) only ever reach menus, never gameplay
     return s;
   }
 }
@@ -421,7 +424,7 @@ class Game {
   // a relic taken: the moment is marked, and some rooms answer it
   relicTaken(L) {
     const P = this.player, it = L.item; this.slowMo(0.6); this.flash(); audio.play('title_bells', 0.45, 1.2); this.fx.burst(L.x, L.y + 0.8, 0xfff0d0, 36, 5); this.fx.ring(L.x, L.y + 0.6, 0xfff0d0, 6, true);
-    this.ui.roomName(`RELIC  ·  ${it.name.toUpperCase()}`, 2800); setTimeout(() => this.ui.toast(wantsTouch() ? 'A relic grows with you: rest at a coffin and it is re-forged to your strength.' : 'A relic grows with you: rest at a coffin and it is re-forged to your strength. Equip it from the pack (I).', 'unique'), 1400);
+    this.ui.roomName(`RELIC  ·  ${it.name.toUpperCase()}`, 2800); setTimeout(() => this.ui.toast('A relic grows with you: rest at a coffin and it is re-forged to your strength.' + pick({ touch: '', kb: ' Equip it from the pack (I).', pad: ' Equip it from the pack ({MENU}).' }), 'unique'), 1400);
     if (L.rise) { audio.play('crowd_gasp', 0.4, 0.5); L.rise.forEach((x, i) => setTimeout(() => this.raise(L.room, x), 500 + i * 350)); } // and the dead it was laid among get up
   }
   async raise(room, x) {
@@ -482,13 +485,13 @@ class Game {
     if (it.potion) { if (P.stats.potions >= this.potionCap()) { P.heal(Math.round(P.stats.hpMax * 0.25)); this.ui.toast('Your flasks are full — you drink it where you stand.', 'magic'); } else { P.stats.potions++; this.ui.toast(`Potion of Vigor (${P.stats.potions}/${this.potionCap()})`, 'magic'); } audio.play('heart_collect', 0.5); return; }
     if (it.up) { if (it.up === 'life') P.stats.lifeUp++; else P.stats.manaUp++; P.refreshStats(); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; audio.play('firebuff_1', 0.6); this.flash(); this.fx.burst(P.pos.x, P.pos.y + 1, it.up === 'life' ? 0xff4060 : 0x5a80ff, 40, 5); this.ui.roomName(it.up === 'life' ? 'LIFE VESSEL — MAX LIFE UP' : 'MANA VESSEL — MAX MANA UP', 2600); return; }
     P.bag.push(it);
-    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap GEM' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
-    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(wantsTouch() ? 'Equip it from the pack, then HOLD the shield button to raise it' : 'Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
+    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${pick({ touch: 'open the pack and tap GEM', kb: 'open the pack (I) and press S', pad: 'open the pack ({MENU}) and press {X}' })} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
+    else { if (it.rarity === 'unique' || it.rarity === 'rare') this.feel('loot', it.rarity === 'unique' ? 1.4 : 1); audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(pick({ touch: 'Equip it from the pack, then HOLD the shield button to raise it', kb: 'Equip it (I), then HOLD L to raise the shield', pad: 'Equip it ({MENU}), then HOLD {LT} to raise the shield' }), 'magic'), 1200); } }
     if (L.relic) this.relicTaken(L);
     if (L.planted && BASES[it.base]?.slot === 'weapon' && !P.equip.weapon) { // drawn from the stone straight into the hand
       this.flags.equipHint = 1; P.equipItem('weapon', it); P.state = 'ring'; P.stateT = 0; P.ringDur = 1.1; P.vel.x = 0; this.slowMo(0.5); this.flash(); audio.play('firebuff_1', 0.5); this.fx.burst(L.x, L.y + 0.8, 0xc8d8ff, 30, 4); this.ui.roomName(it.name.toUpperCase(), 2200);
-      this.tutorial = 'strike'; setTimeout(() => { if (this.tutorial === 'strike') this.ui.prompt(wantsTouch() ? 'Tap the sword button to strike — try the candles ahead' : 'J to strike — try the candles ahead'); }, 1300);
-    } else if (it.base === startWeapon() && !this.flags.equipHint) { this.flags.equipHint = 1; this.ui.prompt(wantsTouch() ? `Open the pack and tap the ${it.name} to equip it` : `Press I to open your pack, then Enter to equip the ${it.name}`); this.tutorial = 'equip'; }
+      this.tutorial = 'strike'; setTimeout(() => { if (this.tutorial === 'strike') this.ui.prompt(() => pick({ touch: 'Tap the sword button to strike — try the candles ahead', kb: 'J to strike — try the candles ahead', pad: '{X} to strike — try the candles ahead' })); }, 1300);
+    } else if (it.base === startWeapon() && !this.flags.equipHint) { this.flags.equipHint = 1; this.ui.prompt(() => pick({ touch: `Open the pack and tap the ${it.name} to equip it`, kb: `Press I to open your pack, then Enter to equip the ${it.name}`, pad: `Press {MENU} to open your pack, then {A} to equip the ${it.name}` })); this.tutorial = 'equip'; }
   }
 
   makeChest(room, c, i) {
@@ -522,7 +525,7 @@ class Game {
   ringBell(room) {
     const o = room.bellObj, P = this.player, B = BELLS[o.id]; room.bellObj = null; room.group.remove(o.grp);
     P.bells.add(o.id); P.state = 'ring'; P.stateT = 0; P.vel.set(0, 0); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax;
-    this.slowMo(1.4); this.flash(); audio.play('title_bells', 0.8); audio.play('firebuff_1', 0.6);
+    this.slowMo(1.4); this.flash(); audio.play('title_bells', 0.8); this.feel('bell'); audio.play('firebuff_1', 0.6);
     for (let i = 0; i < 5; i++) setTimeout(() => { this.fx.ring(P.pos.x, P.pos.y + 1.2, B.color, 8 + i * 2); this.fx.burst(P.pos.x, P.pos.y + 1.2, B.color, 24, 6); }, i * 220);
     this.ui.bellGet(B); this.ui.bells(); this.applyBells(this.room); this.save();
   }
@@ -609,7 +612,7 @@ class Game {
       if (e.gone || hb.attack.hitIds.has(e.id)) continue;
       const roll = hb.roll ? { ...hb.roll } : P.rollDamage(); if (hb.mul) roll.dmg = Math.max(1, Math.round(roll.dmg * hb.mul));
       if (e.hit(hb, roll, P)) { if (hb.pull && !e.T.mini && !e.boss && P.weaponMesh) { const m = P.weaponMesh, tip = m.localToWorld(new THREE.Vector3(0, m.userData.len / m.scale.x, 0)); this.fx.hook({ x: tip.x, y: tip.y }, { x: e.cx, y: e.cy }); e.ghost?.(0x9ad8a0, 0.3, 0.3); }
-        if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.hitStop(hb.flurry && !hb.last ? 0.025 : (e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.diveCd = 0.5; } }
+        if (!hb.proj) { this.touch?.buzz(roll.crit ? 30 : 15); this.feel(roll.crit ? 'crit' : e.boss ? 'boss' : 'hit', hb.flurry && !hb.last ? 0.6 : 1); this.hitStop(hb.flurry && !hb.last ? 0.025 : (e.boss ? 0.09 : e.T.block ? 0.075 : 0.06) + (roll.crit ? 0.05 : 0)); this.shake(roll.crit ? 0.35 : 0.14); } if (roll.crit) this.flash(); this.onHit(e, roll, hb); if (hb.dive && P.state === 'dive') { P.state = 'free'; P.vel.set(0, 9.5); P.jumpsLeft = P.has('djump') ? 1 : 0; P.dashUsed = false; P.diveCd = 0.5; } }
     }
     if (!hb.proj) for (const s of this.shots) if (!s.friendly && ['skull', 'bone', 'book', 'lob', 'web', 'net'].includes(s.kind) && s.x > hb.x0 - 0.3 && s.x < hb.x1 + 0.3 && s.y > hb.y0 - 0.3 && s.y < hb.y1 + 0.3) { s.life = 0; this.fx.burst(s.x, s.y, s.col, 12, 4); audio.play('sword_parry_1', 0.4, 1.4); } // steel swats slow missiles from the air
     for (const bk of room.breakables) if (!bk.broken && Math.abs(bk.x - (hb.x0 + hb.x1) / 2) < (hb.x1 - hb.x0) / 2 + 0.25 && hb.y0 < bk.y + 1.6 && hb.y1 > bk.y) this.breakCandle(bk);
@@ -640,7 +643,7 @@ class Game {
     if (echo === 'star' && proc(0.15)) { this.shoot({ x: e.pos.x + rnd(-1, 1), y: e.pos.y + 12, vx: 0, vy: -20, kind: 'star', dmg: Math.round(dmg * 1.5), friendly: true, life: 1.5, blast: 2 }); audio.play('rock_meteor_throw_1', 0.4); }
   }
   onSwing(P, A) {
-    if (this.tutorial === 'strike') { this.tutorial = null; this.ui.prompt(''); this._pt = null; setTimeout(() => this.ui.toast(wantsTouch() ? 'Strikes chain — keep tapping. Jump and swing in the air too.' : 'Strikes chain — keep pressing J. Swing while jumping or crouching too.', 'magic'), 900); }
+    if (this.tutorial === 'strike') { this.tutorial = null; this.ui.prompt(''); this._pt = null; setTimeout(() => this.ui.toast(pick({ touch: 'Strikes chain — keep tapping. Jump and swing in the air too.', kb: 'Strikes chain — keep pressing J. Swing while jumping or crouching too.', pad: 'Strikes chain — keep pressing {X}. Swing while jumping or crouching too.' }), 'magic'), 900); }
     if (P.d.echo === 'crescent' && A.n % 3 === 0) { const r = P.rollDamage(); this.shoot({ x: P.pos.x + P.facing * 0.8, y: P.pos.y + (P.crouch ? 0.6 : 1.1), vx: P.facing * 13, vy: 0, kind: 'pcrescent', dmg: Math.round(r.dmg * 0.6), friendly: true, pierce: true, life: 0.9 }); audio.play('wave_attack_2', 0.35, 1.4); }
   }
   // Up + Attack: spend mana to loose the weapon's echo at full strength (a crescent of force if it has none)
@@ -997,8 +1000,9 @@ class Game {
     for (const e of this.room.enemies) if (!e.dead && Math.abs(e.pos.x - x) < 2.2 && Math.abs(e.pos.y - y) < 2.5) { e.damage(d, elem, true); if (elem === 'ice') e.chill = 3; }
   }
   hitStop(t) { this.stopT = Math.max(this.stopT, t); }
-  shake(a) { this.shakeT = Math.max(this.shakeT, a); }
-  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast(wantsTouch() ? '3 attribute points to spend — open the pack and tap +' : '3 attribute points to spend — open the pack (I), press 1-4', 'rare'); audio.play('firebuff_1', 0.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
+  shake(a) { this.shakeT = Math.max(this.shakeT, a); this.feel('quake', a); } // every tremor the eye sees, the hands feel
+  feel(name, k) { this.input.pads.rumble(name, k); } // controller rumble (gamepad.js FEEL); silent unless a pad is in play
+  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast(pick({ touch: '3 attribute points to spend — open the pack and tap +', kb: '3 attribute points to spend — open the pack (I), press 1-4', pad: '3 attribute points to spend — open the pack ({MENU}), press {Y}' }), 'rare'); audio.play('firebuff_1', 0.5); this.feel('level'); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
 
   onEnemyDeath(e) {
     const P = this.player, T = e.T, echo = P.d.echo;
@@ -1048,7 +1052,7 @@ class Game {
     setTimeout(() => { this.cine = true; this.ui.ending(`The hollow sun gutters out. Above Castle Velscour, for the first time in an age, seven bells ring.`, [['Level', s.lvl], ['Castle explored', pct + '%'], ['Secrets found', `${this.world.rooms.filter(r => r.def.secret && this.visited.has(r.def.id)).length} / ${this.world.rooms.filter(r => r.def.secret).length}`], ['Foes slain', s.kills], ['Time', `${Math.floor(mins / 60)}h ${mins % 60}m`]]); audio.music('intro_cursed_citadel', 0.5); audio.play('title_bells', 0.8); }, 5200);
   }
   onPlayerDeath() {
-    audio.play('wilhelm_scream', 0.25); this.ui.roomName('YOU HAVE PERISHED');
+    audio.play('wilhelm_scream', 0.25); this.feel('death'); this.ui.roomName('YOU HAVE PERISHED');
     setTimeout(() => { $('fade').style.opacity = 1; }, 1800);
     setTimeout(async () => {
       const P = this.player; P.state = 'free'; P.inv = 1.5; P.vel.set(0, 0); P.layers.lower.cur = P.layers.upper.cur = null; P.sunk = false;
@@ -1082,12 +1086,12 @@ class Game {
   }
   promptFor() {
     const P = this.player, r = this.room;
-    let t = '', ctx = ''; const near = (o, d = 1.8) => o && Math.abs(P.pos.x - o.x) < d && Math.abs(P.pos.y - o.y) < 1, key = document.body.classList.contains('touch') ? '' : 'E — ';
+    let t = '', ctx = ''; const near = (o, d = 1.8) => o && Math.abs(P.pos.x - o.x) < d && Math.abs(P.pos.y - o.y) < 1, key = pick({ touch: '', kb: 'E — ', pad: '{Y} ' });
     if (near(r.saveAt)) { t = key + 'Rest at the coffin (heal & save)'; ctx = 'REST'; }
     else if (near(r.warpAt)) { t = key + 'Step through the mirror'; ctx = 'TOUCH'; }
     else if (near(r.shopAt, 2.2)) { t = key + 'Trade'; ctx = 'TRADE'; }
     else if (r.chests.some(c => !c.opened && near(c, 1.4))) { t = key + 'Open the chest'; ctx = 'OPEN'; }
-    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text.replace('{jump}', wantsTouch() ? 'JUMP' : 'SPACE').replace('{dash}', wantsTouch() ? 'DASH' : 'SHIFT');
+    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text.replace('{jump}', pick({ touch: 'JUMP', kb: 'SPACE', pad: '{A}' })).replace('{dash}', pick({ touch: 'DASH', kb: 'SHIFT', pad: '{RT}' }));
     if (!t && this.tutorial) return; // a standing tutorial line yields to anything the room has to say
     this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
@@ -1106,7 +1110,7 @@ class Game {
     this.time += dt; this.playTime += dt;
     if (this.stopT > 0) { this.stopT -= dt; this.render(0); return; }
     if (inp.interactP && !inp.attackP && P.onGround && P.state === 'free') this.interact(); // Up + Attack is the mana art, not a doorbell
-    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state === 'free' && !(P.drinkT > 0)) { P.stats.potions--; P.heal(Math.round(20 + P.stats.hpMax * 0.25)); P.poisoned = 0; P.drinkT = 0.4; P.attack = null; audio.play('heart_collect', 0.5); }
+    if (inp.potionP && P.stats.potions > 0 && P.stats.hp < P.stats.hpMax && P.state === 'free' && !(P.drinkT > 0)) { P.stats.potions--; P.heal(Math.round(20 + P.stats.hpMax * 0.25)); P.poisoned = 0; P.drinkT = 0.4; P.attack = null; audio.play('heart_collect', 0.5); this.feel('heal'); }
     if (P.drinkT > 0) { P.drinkT -= dt; inp = { ...inp, x: 0, jumpP: false, attackP: false, dashP: false, shield: false }; } // drinking roots you for a breath
     this.world.update(this.time, dt, this.room, this.camPos);
     P.update(dt, inp);
@@ -1185,11 +1189,47 @@ window.soak = async (ids, frames = 240) => { const out = [], keys = ['ArrowLeft'
     } catch (e) { out.push(id + ': ' + e.message); } }
   window.__norender = false; return out; };
 window.boot = () => new Promise(r => { const i = setInterval(() => { if (!$('startBtn').classList.contains('hidden')) { clearInterval(i); $('startBtn').click(); r('started'); } }, 200); });
+// ------------------------------------------------------------------ controllers: arrival, loss, title row, sound
+const pads = game.input.pads, padName = id => { // "Xbox Wireless Controller (STANDARD GAMEPAD …)", "DualSense Wireless Controller Extended Gamepad", Firefox's bare "xinput"
+  const n = (id || '').replace(/\s*\(.*$/, '').replace(/\s+(Extended\s+)?Gamepad$/i, '').trim(), f = padFamily(id);
+  return !n || /^xinput$/i.test(n) ? (f === 'xbox' ? 'Xbox controller' : 'Controller') : n === 'Wireless Controller' && f === 'ps' ? 'DualShock 4' : n;
+};
+const padRow = () => { const c = $('padControls'); if (c) c.innerHTML = [['{STICK}{DPAD}', 'move'], ['{DOWN}', 'crouch'], ['{A}', 'jump'], ['{X}', 'attack'], ['{LT}', 'guard'], ['{RT}', 'dash'], ['{B}', 'potion'], ['{Y}', 'use'], ['{MENU}', 'pack'], ['{VIEW}', 'map']].map(([g, w]) => `<span>${fmt(g)} ${w}</span>`).join(''); };
+onDevice(padRow); padRow();
+pads.onConnect = gp => { if (document.body.classList.contains('playing')) game.ui.toast(`${padName(gp.id)} connected`, 'magic'); };
+pads.onLost = gp => { // the pad went away mid-fight: hold the world still in the pack until the player is back
+  if (device.kind !== 'pad') return;
+  setDevice(wantsTouch() ? 'touch' : 'kb');
+  if (!document.body.classList.contains('playing')) return;
+  if (!game.ui.open && !game.cine && game.room) game.ui.toggle('inv');
+  game.ui.toast(`${padName(gp?.id)} disconnected — the castle waits. Reconnect it, or close the pack to play on.`, 'rare');
+};
+// browsers only let sound start after a tap, click or key; a gamepad press doesn't count, so a pad-only start stays silent
+for (const ev of ['pointerdown', 'keydown', 'touchend', 'click']) addEventListener(ev, () => audio.wake(), true);
+
 game.load(t => $('loadMsg').textContent = t).then(() => {
-  $('loadMsg').textContent = game.readSave() ? 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.' : '';
+  const saved = !!game.readSave(), msg = () => { $('loadMsg').innerHTML = saved ? fmt(pick({ kb: 'A pilgrim\'s rest is recorded. Enter to continue, N for a new journey.', touch: 'A pilgrim\'s rest is recorded.', pad: 'A pilgrim\'s rest is recorded. {A} to continue · {DPAD} for a new journey.' })) : ''; };
+  msg(); onDevice(() => { if (!$('title').classList.contains('hidden')) msg(); });
   $('startBtn').classList.remove('hidden');
-  const begin = async (fresh) => { audio.resume(); removeEventListener('keydown', k); $('title').classList.add('hidden'); document.body.classList.add('playing'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) await game.newGame(true); game.start(); };
-  if (game.readSave()) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem(SAVE_KEY); begin(true); }; }
+  const begin = async (fresh) => {
+    const byPad = device.kind === 'pad';
+    audio.resume(); removeEventListener('keydown', k); $('title').classList.add('hidden'); document.body.classList.add('playing'); $('hud').classList.remove('hidden'); if (!fresh && game.readSave()) await game.newGame(true); game.start();
+    if (byPad) pads.wake(true);
+    if (byPad) setTimeout(() => { if (audio.asleep()) game.ui.toast(pick({ pad: 'The castle is silent until you tap the screen or press a key once — browsers wake sound only for a touch or a key.', kb: 'Press any key to wake the sound.', touch: 'Tap to wake the sound.' }), 'magic'); }, 2600);
+  };
+  if (saved) { $('newBtn').classList.remove('hidden'); $('newBtn').onclick = () => { localStorage.removeItem(SAVE_KEY); begin(true); }; }
   const k = e => { if (e.code === 'Enter') begin(false); if (e.code === 'KeyN') { localStorage.removeItem(SAVE_KEY); begin(true); } };
   $('startBtn').onclick = () => begin(false); addEventListener('keydown', k);
+  // pad on the title: A or Menu presses the lit button, the d-pad/stick moves between Enter and New Journey
+  pads.read(); // presses made while the castle loaded don't count
+  const padTitle = () => {
+    if ($('title').classList.contains('hidden')) return;
+    const g = pads.read(), btns = ['startBtn', 'newBtn'].map($).filter(b => !b.classList.contains('hidden'));
+    let i = Math.max(0, btns.indexOf(document.activeElement));
+    for (const c of g.menu) if (/^Arrow/.test(c) && btns.length > 1) { i = (i + (c === 'ArrowLeft' || c === 'ArrowUp' ? btns.length - 1 : 1)) % btns.length; btns[i].focus({ preventScroll: true }); audio.play('ui_pointer', 0.3); }
+    btns.forEach((b, j) => b.classList.toggle('padfocus', device.kind === 'pad' && j === i));
+    if (g.edges.has('jump') || g.edges.has('pack')) { btns[i]?.classList.remove('padfocus'); btns[i]?.click(); return; }
+    requestAnimationFrame(padTitle);
+  };
+  requestAnimationFrame(padTitle);
 }).catch(e => { console.error(e); $('loadMsg').textContent = 'Failed to load: ' + e.message; });
