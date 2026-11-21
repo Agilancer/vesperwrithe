@@ -11,8 +11,8 @@ export const STYLES = {
   slash1h: { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [16, 24], dur: 0.36, reach: 1.55, height: 1.5, yOff: 1.0 },
   slash2h: { anim: 'great_sword_slash', from: 32, to: 66, hit: [43, 57], dur: 0.62, reach: 2.0, height: 2.0, yOff: 1.0 },
   smash:   { anim: 'standing_melee_attack_downward', from: 36, to: 66, hit: [52, 60], cancel: 63, dur: 0.55, reach: 1.5, height: 1.4, yOff: 0.7 },
-  // maul: same overhead slam, slower with a longer recovery so the weight reads
-  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], cancel: 64, dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
+  // maul: same overhead slam, slower with a longer recovery so the weight reads (cancel 72: at 64 it cycled as fast as a greatsword)
+  smash2h: { anim: 'standing_melee_attack_downward', from: 34, to: 80, hit: [52, 61], cancel: 72, dur: 0.82, reach: 1.7, height: 1.5, yOff: 0.7 },
   // the horizontal axe chop twists the hero's back to the camera in side view; the overhead chop reads cleanly
   chop:    { anim: 'standing_melee_attack_downward', from: 38, to: 64, hit: [52, 59], cancel: 62, dur: 0.46, reach: 1.6, height: 1.4, yOff: 0.75 },
   // 'stabbing' in the rig is an idle with a left-hand poke, not a thrust. Spears/lances: the boxing set's right-wrist drive
@@ -22,37 +22,41 @@ export const STYLES = {
   lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], cancel: 261, dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
   stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], cancel: 26, dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
   punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], cancel: 183, dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
-  // staff: a leaping full turn that strikes on both sides, then (chain link 2, src/moves.js) a two-hand drive that looses
-  // the staff's own bolt — fire bursts, ice splinters, storm forks, grave wisps hunt, thorn staves raise briars
-  whirl:   { anim: 'vw_whirl', from: 0, to: 30, hit: [7, 20], cancel: 22, dur: 0.58, reach: 1.9, height: 2.0, yOff: 1.0, both: true },
+  // staff: a windmill that cuts in front, then round behind low (two windows, one box each, following the head), then
+  // (chain link 2, src/moves.js) a two-hand drive that looses the staff's own bolt — fire bursts, ice splinters, storm forks,
+  // grave wisps hunt, thorn staves raise briars
+  whirl:   { anim: 'vw_whirl', from: 0, to: 30, hit: [7, 16], hits: [[7, 11], [13, 16]], cancel: 22, dur: 0.58, reach: 1.9, height: 2.0, yOff: 1.0,
+             boxes: [{ reach: 1.9 }, { back: true, reach: 1.6, yOff: 0.5, height: 1.1 }] },
   // scythe: a turn that opens into a long, low reap; the hooked blade drags whatever it catches in toward you
   // two windows: the turn cuts behind you (short, light), then the reap sweeps low in front, hooking what it catches
   reap:    { anim: 'vw_reap', from: 0, to: 36, hit: [7, 23], hits: [[7, 14], [15, 23]], cancel: 26, dur: 0.72, reach: 2.6, height: 2.2, yOff: 0.95,
-             boxes: [{ back: true, reach: 1.6, mul: 0.4 }, { reach: 2.6, yOff: 0.6, height: 1.3, pull: true }] }, // the turn guards your back; only the reap cuts in front
+             boxes: [{ reach: 2.3, height: 2.0, mul: 0.4 }, { reach: 2.6, yOff: 0.85, height: 1.3, pull: true }] }, // the hooking arc grazes in front, then the reaping pull drags the foe in
   // daggers (paired when the off hand is free) and rapiers: three quick drives, each its own hit, stepping in with each
-  flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 0.9, yOff: 1.25, lunge: 6, hitMul: 0.5, thrust: true },
-  needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 0.7, yOff: 1.3, lunge: 6.5, hitMul: 0.35, thrust: true },
+  flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 1.1, yOff: 1.05, lunge: 6, hitMul: 0.5, thrust: true },
+  needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 1.0, yOff: 1.1, lunge: 6.5, hitMul: 0.35, thrust: true },
   // ranged classes: the missile leaves at the hit frame (bows loose arrows, boomerangs come back)
   shoot:   { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [18, 19], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow', upperOnly: true },
   hurl:    { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [17, 18], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang', upperOnly: true },
 };
 
-// How each weapon class plays. mult scales the level's base damage; cls is the label shown in the pack.
+// How each weapon class plays. mult scales the level's base damage; cls is the label shown in the pack. w = how often the
+// class is picked when loot rolls a weapon (randomBase picks the class first, then a base inside it).
+// Round 1: greatsword 1.85→1.95 (it trailed the greataxe), lance 2.0→1.75 (3.2 m reach on top of the best DPS), bow 0.95→1.25 (ranged at 78% of a sword)
 const KINDS = {
-  sword:       { slot: 'weapon', hands: 1, style: 'slash1h', mult: 1.0, sockets: 3, scale: 0.85, cls: 'Sword' },
-  great_sword: { slot: 'weapon', hands: 2, style: 'slash2h', mult: 1.85, sockets: 4, scale: 1.0, cls: 'Greatsword' },
+  sword:       { slot: 'weapon', hands: 1, style: 'slash1h', mult: 1.0, sockets: 3, scale: 0.85, cls: 'Sword', w: 1.4 },
+  great_sword: { slot: 'weapon', hands: 2, style: 'slash2h', mult: 1.95, sockets: 4, scale: 1.0, cls: 'Greatsword' },
   axe:         { slot: 'weapon', hands: 1, style: 'chop', mult: 1.15, sockets: 2, scale: 0.9, cls: 'Axe' },
   great_axe:   { slot: 'weapon', hands: 2, style: 'slash2h', mult: 1.95, sockets: 4, scale: 1.0, cls: 'Greataxe' },
   mace:        { slot: 'weapon', hands: 1, style: 'smash', mult: 1.35, sockets: 2, scale: 0.95, cls: 'Mace' },
   great_mace:  { slot: 'weapon', hands: 2, style: 'smash2h', mult: 2.2, sockets: 4, scale: 1.0, cls: 'Maul' },
   spear:       { slot: 'weapon', hands: 2, style: 'thrust', mult: 1.45, sockets: 3, scale: 0.95, cls: 'Spear' },
-  lance:       { slot: 'weapon', hands: 2, style: 'lance', mult: 2.0, sockets: 4, scale: 0.95, cls: 'Lance' },
+  lance:       { slot: 'weapon', hands: 2, style: 'lance', mult: 1.75, sockets: 4, scale: 0.95, cls: 'Lance', w: 0.8 },
   dagger:      { slot: 'weapon', hands: 1, style: 'flurry', mult: 0.8, sockets: 1, scale: 0.85, cls: 'Dagger' },
   staff:       { slot: 'weapon', hands: 2, style: 'whirl', mult: 1.3, sockets: 3, scale: 0.95, cls: 'Staff' },
   scythe:      { slot: 'weapon', hands: 2, style: 'reap', mult: 1.9, sockets: 4, scale: 1.0, cls: 'Scythe', noDrop: true },
   rapier:      { slot: 'weapon', hands: 1, style: 'needle', mult: 1.05, sockets: 3, scale: 0.9, cls: 'Rapier', noDrop: true },
-  bow:         { slot: 'weapon', hands: 2, style: 'shoot', mult: 0.95, sockets: 3, scale: 0.85, cls: 'Bow' },
-  boomerang:   { slot: 'weapon', hands: 1, style: 'hurl', mult: 0.8, sockets: 2, scale: 1.0, cls: 'Boomerang' },
+  bow:         { slot: 'weapon', hands: 2, style: 'shoot', mult: 1.25, sockets: 3, scale: 0.85, cls: 'Bow' },
+  boomerang:   { slot: 'weapon', hands: 1, style: 'hurl', mult: 0.8, sockets: 2, scale: 1.0, cls: 'Boomerang', w: 0.7 },
   kite:        { slot: 'offhand', sockets: 3, scale: 0.85, cls: 'Kite Shield', block: 0.62 },
   tower:       { slot: 'offhand', sockets: 3, scale: 0.8, cls: 'Tower Shield', block: 0.78 },
 };
@@ -86,12 +90,14 @@ export const BASES = {
   signet_ring:   { name: 'Velscour Signet', slot: 'ring', sockets: [1, 2], lvl: 24, ring: true },
 };
 const ALIAS = { short_sword: 'copper_sword', knight_sword: 'crossguard_sword', kite_shield: 'kite_greenwood', dawnstar_kite: 'kite_dawnstar', iron_maul_2h: 'great_studded_mace' };
+// hand-made blades out of catalogue order: the plain grips come first, the King's wheel-hilt is the last greatsword you find
+const EXTRA_TIER = { greengrip_greatsword: 1.5, bluegrip_greatsword: 2, fluked_greatsword: 2.5, wheel_greatsword: 3 };
 
 // Build weapon/shield bases from the Bellmourn catalogues. Called once after the JSON is fetched (or by tools).
 export function initBases(weapons, swords = {}) {
   const groups = {};
   for (const w of Object.values(weapons)) (groups[w.kind] ||= []).push(w);
-  for (const [id, s] of Object.entries(swords)) { if (!s.file) continue; const kind = swordKind(id, s), name = id.split('_').map(t => t[0].toUpperCase() + t.slice(1)).join(' '); (groups[kind] ||= []).push({ id, name: kind === 'staff' && !/staff|crook|rod|spire|lantern|coil|trident/.test(id) ? name + ' Staff' : name, tier: 2, extra: true }); }
+  for (const [id, s] of Object.entries(swords)) { if (!s.file) continue; const kind = swordKind(id, s), name = id.split('_').map(t => t[0].toUpperCase() + t.slice(1)).join(' '); (groups[kind] ||= []).push({ id, name: kind === 'staff' && !/staff|crook|rod|spire|lantern|coil|trident/.test(id) ? name + ' Staff' : name, tier: EXTRA_TIER[id] ?? 2, extra: true }); }
   for (const [kind, list] of Object.entries(groups)) {
     const K = KINDS[kind]; if (!K) continue;
     list.sort((a, b) => (a.tier ?? 1) - (b.tier ?? 1)); // plain iron first, relic steel last
@@ -103,7 +109,8 @@ export function initBases(weapons, swords = {}) {
       BASES[w.id] = b;
     });
   }
-  BASES.pilgrim_blade = { ...BASES.iron_sword, name: 'Pilgrim\'s Blade', dmg: [7, 10], sockets: [1, 1], lvl: 1, noDrop: true };
+  // two sockets: the shaft's Topaz and the chapel's Ruby (which burns the thorn gate) both fit without a choice that traps you
+  BASES.pilgrim_blade = { ...BASES.iron_sword, name: 'Pilgrim\'s Blade', dmg: [7, 10], sockets: [2, 3], lvl: 1, noDrop: true };
   for (const [a, t] of Object.entries(ALIAS)) if (BASES[t]) BASES[a] = { ...BASES[t], noDrop: true };
   return BASES;
 }
@@ -123,7 +130,7 @@ export const GEMS = {
     weapon: { elem: 'poison', elemDmg: [6, 6], text: 'Adds poison damage over 2s' },
     armor: { dex: 3, text: '+3 Agility' }, shield: { res: { poison: 20 }, text: '+20% poison resistance' } },
   skull:    { name: 'Chipped Skull', color: 0xe8e0d0, css: '#e8e0d0',
-    weapon: { leech: 0.06, text: '6% of damage leeched as life' },
+    weapon: { leech: 0.03, text: '3% of damage leeched as life' }, // 0.06: four in a 2H leeched a quarter of every blow
     armor: { regen: 1, text: 'Regenerate life' }, shield: { regen: 1, text: 'Regenerate life' } },
   onyx:     { name: 'Vesper Onyx', color: 0x8a3aff, css: '#b07aff',
     weapon: { crit: 8, flat: 2, text: '+8% critical chance · +2 damage' },
@@ -138,19 +145,20 @@ export const GEMS = {
 export const DROP_GEMS = ['ruby', 'sapphire', 'topaz', 'emerald', 'skull', 'onyx', 'diamond', 'amethyst'];
 
 // Weapon echoes: rolled at random on magic+ weapons. k = who can carry it (m = melee, r = ranged, a = any).
+// art = what the echo's mana art does (Up + Attack, 10 MP, melee weapons only: main.js castArt); echoes without one loose a crescent.
 export const ECHOES = {
-  crescent:  { k: 'm', name: 'Vesper Crescent', text: 'Every third swing looses a crescent of force' },
+  crescent:  { k: 'm', name: 'Vesper Crescent', text: 'Every third swing looses a crescent of force', art: 'three crescents of force, stacked' },
   twin:      { k: 'a', name: 'Twin Knell', text: 'Each hit strikes again as an echo (35%)' },
-  chain:     { k: 'a', name: 'Stormcall', text: '25% chance: lightning leaps between three foes' },
-  nova:      { k: 'a', name: 'Winter\'s Toll', text: 'Slain foes burst in a freezing nova' },
-  ignite:    { k: 'a', name: 'Cinderbrand', text: 'Hits set foes ablaze' },
-  vampire:   { k: 'a', name: 'Red Thirst', text: 'Kills restore 5% of your life' },
+  chain:     { k: 'a', name: 'Stormcall', text: '25% chance: lightning leaps between three foes', art: 'lightning strikes five foes around you' },
+  nova:      { k: 'a', name: 'Winter\'s Toll', text: 'Slain foes burst in a freezing nova', art: 'a frost ring chills and stuns foes nearby' },
+  ignite:    { k: 'a', name: 'Cinderbrand', text: 'Hits set foes ablaze', art: 'a line of fire bursts from the floor ahead' },
+  vampire:   { k: 'a', name: 'Blood Tithe', text: 'Kills restore 5% of your life' }, // was "Red Thirst": the dagger unique has that name
   execute:   { k: 'a', name: 'Headsman', text: 'Slays lesser foes below 18% life outright' },
-  quake:     { k: 'm', name: 'Gravefall', text: 'Air attacks crack the ground where you land' },
-  bats:      { k: 'a', name: 'Belfry Brood', text: 'Critical hits loose three hunting bats' },
-  toll:      { k: 'a', name: 'Bellringer', text: 'Every eighth hit tolls a bell that stuns all foes' },
-  briar:     { k: 'm', name: 'Briarbite', text: '30% chance: thorns erupt beneath the foe' },
-  star:      { k: 'a', name: 'Falling Star', text: '15% chance to call down a star' },
+  quake:     { k: 'm', name: 'Gravefall', text: 'Air attacks crack the ground where you land', art: 'shockwaves run out both ways along the floor' },
+  bats:      { k: 'a', name: 'Belfry Brood', text: 'Critical hits loose three hunting bats', art: 'five hunting bats' },
+  toll:      { k: 'a', name: 'Bellringer', text: 'Every eighth hit tolls a bell that stuns all foes', art: 'a great bell stuns every foe near you' },
+  briar:     { k: 'm', name: 'Briarbite', text: '30% chance: thorns erupt beneath the foe', art: 'a line of thorns erupts ahead' },
+  star:      { k: 'a', name: 'Falling Star', text: '15% chance to call down a star', art: 'three stars fall ahead of you' },
   frenzy:    { k: 'm', name: 'Blood Frenzy', text: '+4% damage per consecutive hit (max +48%)' },
   harvest:   { k: 'a', name: 'Soul Harvest', text: 'Kills restore 4 mana and spill extra gold' },
   shade:     { k: 'm', name: 'Shade-Twin', text: 'Backdashing leaves a shade that repeats your strike' },
@@ -160,6 +168,8 @@ export const ECHOES = {
   pierce:    { k: 'r', name: 'Piercing', text: 'Missiles pass through foes' },
   orbit:     { k: 'r', name: 'Circling', text: 'A spectral twin of the weapon orbits you' },
 };
+export const ART_COST = 10; // player.js: Up + Attack spends 10 MP
+export const echoArt = (echo, base) => STYLES[base?.style]?.ranged ? null : ECHOES[echo]?.art || 'a piercing crescent of force';
 
 const PREFIX = [
   { n: 'Jagged', t: 'weapon', s: { dmgPct: [10, 25] }, f: v => `+${v.dmgPct}% damage` },
@@ -229,18 +239,20 @@ export function makeItem(baseId, opts = {}) {
   return it;
 }
 
+// lvl = forged level (needs lvl-4). Round 1: the act 7-8 uniques were forged at 29-30 but the hero meets the King near 24, so they
+// sat unwieldable: King's Grief 29→25, Rimeheart / Hollow Sun / Last Light 30→28. Seraphwing lies in act 3: 27→13 (it was x4 a magic bow).
 const U = (base, lvl, name, sockets, echo, ...aff) => ({ base, lvl, name, sockets, echo, affixes: aff.map(([v, text, elem]) => ({ n: 'u', v, text, elem })) });
 export const UNIQUES = {
   gravesong:   U('black_pike', 5, 'Gravesong', 2, 'vampire', [{ dmgPct: 35 }, '+35% damage'], [{ fire: 6 }, '+6 fire damage', 'fire'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ str: 4 }, '+4 Strength']),
   vespertine:  U('dusk_sword', 13, 'Vespertine', 3, 'crescent', [{ dmgPct: 70 }, '+70% damage'], [{ crit: 12 }, '+12% critical chance'], [{ ias: 20 }, '+20% attack speed'], [{ mp: 30 }, '+30 mana']),
   cinderfall:  U('inferno_greataxe', 20, 'Cinderfall', 3, 'star', [{ dmgPct: 50 }, '+50% damage'], [{ fire: 28 }, '+28 fire damage', 'fire'], [{ str: 10 }, '+10 Strength'], [{ res_fire: 30 }, '+30% fire resistance']),
-  rimeheart:   U('glacier_maul', 30, 'Rimeheart', 3, 'nova', [{ dmgPct: 45 }, '+45% damage'], [{ ice: 14 }, '+14 cold damage', 'ice'], [{ con: 8 }, '+8 Constitution'], [{ hp: 60 }, '+60 life']),
+  rimeheart:   U('glacier_maul', 28, 'Rimeheart', 3, 'nova', [{ dmgPct: 45 }, '+45% damage'], [{ ice: 14 }, '+14 cold damage', 'ice'], [{ con: 8 }, '+8 Constitution'], [{ hp: 60 }, '+60 life']),
   stormcall:   U('voidbolt_sword', 28, 'Stormcall', 3, 'chain', [{ dmgPct: 85 }, '+85% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 10 }, '+10% critical chance']),
   thornkiss:   U('thornvine_sword', 17, 'Thornkiss', 2, 'briar', [{ dmgPct: 70 }, '+70% damage'], [{ poison: 16 }, '+16 poison damage', 'poison'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ dex: 6 }, '+6 Agility']),
-  kingsgrief:  U('wheel_greatsword', 29, 'King\'s Grief', 4, 'quake', [{ dmgPct: 60 }, '+60% damage'], [{ str: 14 }, '+14 Strength'], [{ critDmg: 60 }, '+60% critical damage'], [{ hp: 80 }, '+80 life']),
+  kingsgrief:  U('wheel_greatsword', 25,'King\'s Grief', 4, 'quake', [{ dmgPct: 60 }, '+60% damage'], [{ str: 14 }, '+14 Strength'], [{ critDmg: 60 }, '+60% critical damage'], [{ hp: 80 }, '+80 life']),
   moonsickle:  U('crescent_dagger', 20, 'Moonsickle', 1, 'twin', [{ dmgPct: 90 }, '+90% damage'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 18 }, '+18% critical chance'], [{ lck: 8 }, '+8 Luck']),
   widowmaker:  U('nightshade_bow', 19, 'Widowmaker', 3, 'pierce', [{ dmgPct: 60 }, '+60% damage'], [{ poison: 14 }, '+14 poison damage', 'poison'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 8 }, '+8 Agility']),
-  seraphwing:  U('seraph_bow', 27, 'Seraphwing', 3, 'multishot', [{ dmgPct: 65 }, '+65% damage'], [{ fire: 16 }, '+16 fire damage', 'fire'], [{ ias: 25 }, '+25% attack speed'], [{ mp: 40 }, '+40 mana']),
+  seraphwing:  U('seraph_bow', 13,'Seraphwing', 3, 'multishot', [{ dmgPct: 65 }, '+65% damage'], [{ fire: 16 }, '+16 fire damage', 'fire'], [{ ias: 25 }, '+25% attack speed'], [{ mp: 40 }, '+40 mana']),
   homeward:    U('gold_lion_boomerang', 20, 'Homeward', 2, 'orbit', [{ dmgPct: 70 }, '+70% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ gold: 60 }, '+60% gold found'], [{ lck: 8 }, '+8 Luck']),
   lionheart_aegis: U('kite_lionheart', 30, 'Lionheart Aegis', 3, null, [{ defPct: 80 }, '+80% defense'], [{ hp: 60 }, '+60 life'], [{ thorns: 20 }, 'Attackers take 20 damage'], [{ str: 6 }, '+6 Strength']),
   worldtree:   U('tower_world_tree', 17, 'Worldtree Bulwark', 3, null, [{ defPct: 100 }, '+100% defense'], [{ regen: 4 }, 'Regenerate 4 life / 2s'], [{ res_fire: 25 }, '+25% fire resistance'], [{ res_ice: 25 }, '+25% cold resistance']),
@@ -249,7 +261,7 @@ export const UNIQUES = {
   krakenmaw:   U('kraken_mace', 14, 'Krakenmaw', 2, 'nova', [{ dmgPct: 55 }, '+55% damage'], [{ ice: 8 }, '+8 cold damage', 'ice'], [{ hp: 40 }, '+40 life'], [{ str: 5 }, '+5 Strength']),
   redthirst:   U('bloodletter', 26, 'The Red Thirst', 1, 'frenzy', [{ dmgPct: 90 }, '+90% damage'], [{ leechPct: 9 }, '9% life stolen per hit'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 10 }, '+10% critical chance']),
   sunsplitter: U('solar_greataxe', 27, 'Sunsplitter', 4, 'star', [{ dmgPct: 55 }, '+55% damage'], [{ fire: 24 }, '+24 fire damage', 'fire'], [{ str: 12 }, '+12 Strength'], [{ crit: 10 }, '+10% critical chance']),
-  hollowsun:   U('sunguard_sword', 30, 'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
+  hollowsun:   U('sunguard_sword', 28,'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
   // relics of the castle's hidden rooms (secret rooms in src/areas): each is the only one of its class
   vespers_needle: U('swept_rapier', 7, 'Vesper\'s Needle', 2, 'twin', [{ dmgPct: 55 }, '+55% damage'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 6 }, '+6 Agility']),
   pale_reaper: U('pale_crescent', 9, 'The Pale Reaper', 3, 'harvest', [{ dmgPct: 60 }, '+60% damage'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ critDmg: 50 }, '+50% critical damage'], [{ str: 6 }, '+6 Strength']),
@@ -257,32 +269,42 @@ export const UNIQUES = {
   gravelantern: U('lichs_lantern', 18, 'Gravelantern', 3, 'bats', [{ dmgPct: 65 }, '+65% damage'], [{ leechPct: 5 }, '5% life stolen per hit'], [{ mp: 50 }, '+50 mana'], [{ int: 10 }, '+10 Intellect']),
   rimebound:   U('winterstar', 22, 'Rimebound', 3, 'nova', [{ dmgPct: 70 }, '+70% damage'], [{ ice: 18 }, '+18 cold damage', 'ice'], [{ res_fire: 30 }, '+30% fire resistance'], [{ int: 10 }, '+10 Intellect']),
   tidecaller:  U('riptide_staff', 11, 'Tidecaller', 3, 'chain', [{ dmgPct: 55 }, '+55% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ mp: 40 }, '+40 mana'], [{ int: 8 }, '+8 Intellect']),
-  lastlight:   U('radiant_lance', 30, 'Last Light', 4, 'sunder', [{ dmgPct: 60 }, '+60% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
+  lastlight:   U('radiant_lance', 28,'Last Light', 4, 'sunder', [{ dmgPct: 60 }, '+60% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
 for (const id of ['vespers_needle', 'pale_reaper', 'tidecaller', 'huntsmans_signet', 'rimebound']) UNIQUES[id].relic = true; // relics of the hidden rooms grow with their keeper
 export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.relic) it.relic = true; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }
 // A unique is forged at its own level whatever common steel it is modelled on.
 export const itemLevel = it => it.lvl || BASES[it.base]?.lvl || 1;
 export const itemReq = it => Math.max(1, itemLevel(it) - 4);
-export function makeGem(gemId) { return { uid: uid++, gem: gemId, name: GEMS[gemId].name, rarity: 'gem' }; }
+// lvl (optional) = the level of the shop that cut it; it only sets the price (else the trader's level does, see itemValue)
+export function makeGem(gemId, lvl) { const g = { uid: uid++, gem: gemId, name: GEMS[gemId].name, rarity: 'gem' }; if (lvl) g.lvl = lvl; return g; }
 
-// A random base suited to an item level (within a band below it), optionally of a slot.
+// A random base suited to an item level (within a band below it), optionally of a slot. Weapons pick the class first and then
+// a base inside it: picking over base ids made staves (94 models) a third of all weapon drops and greatswords (4) about 1%.
+const CLASS_W = { kite: 1.2, tower: 0.8 };
 export function randomBase(level, slot) {
   if (!slot) { const r = Math.random(); slot = r < 0.5 ? 'weapon' : r < 0.65 ? 'offhand' : r < 0.74 ? 'head' : r < 0.84 ? 'body' : r < 0.92 ? 'cloak' : 'ring'; }
   if (slot !== 'weapon' && slot !== 'offhand') { const a = Object.keys(BASES).filter(k => BASES[k].slot === slot && BASES[k].lvl <= level + 1); return a.length ? a[a.length - 1 - (Math.random() < 0.3 && a.length > 1 ? 1 : 0)] : 'iron_ring'; }
-  const ids = Object.keys(BASES).filter(k => { const b = BASES[k]; return !b.noDrop && b.lvl <= level + 1 && b.lvl >= level - 7 && (!slot || b.slot === slot); });
-  return ids.length ? pick(ids) : 'iron_sword';
+  const by = {}; for (const [k, b] of Object.entries(BASES)) if (!b.noDrop && b.slot === slot && b.kind && b.lvl <= level + 1 && b.lvl >= level - 7) (by[b.kind] ||= []).push(k);
+  // a class whose newest base in the band is well below the level is half as likely: its steel is behind the curve
+  const cls = Object.entries(by).map(([kind, ids]) => [ids, (KINDS[kind].w ?? CLASS_W[kind] ?? 1) * (Math.max(...ids.map(k => BASES[k].lvl)) >= level - 3 ? 1 : 0.5)]);
+  let t = Math.random() * cls.reduce((s, c) => s + c[1], 0); for (const [ids, w] of cls) if ((t -= w) <= 0) return pick(ids);
+  return cls.length ? pick(cls[cls.length - 1][0]) : 'iron_sword';
 }
-export function tierItem(tier, rarity) { const lvl = Math.min(MAX_ILVL, Math.max(1, tier * 4 - 1)); return makeItem(randomBase(lvl), { rarity: rarity || (Math.random() < 0.35 ? 'rare' : 'magic'), lvl }); }
+// slot (optional): a chest that must give a weapon (or shield...) names it in its data
+export function tierItem(tier, rarity, slot) { const lvl = Math.min(MAX_ILVL, Math.max(1, tier * 4 - 1)); return makeItem(randomBase(lvl, slot), { rarity: rarity || (Math.random() < 0.35 ? 'rare' : 'magic'), lvl }); }
 
-export function rollDrop(level, mf = 0) {
-  const x = Math.random() * 100;
-  if (x < 42) return null;
-  if (x < 62) return { gold: r(4, 12) * Math.max(1, Math.round(level * 0.8)) };
-  if (x < 71) return { potion: true };
-  if (x < 77) return makeGem(pick(DROP_GEMS));
+// A slain foe's drop. First kill: 50% nothing, 27% gold, 3% potion (was 9: flasks never ran short), 6% gem, 14% item (was 23).
+// Items: plain steel only in act 1 (foes up to lvl 4); after that 70% magic / 30% rare, so a drop is always worth a look.
+// o.respawn: a foe that came back after a rest drops lean, 70% nothing / 21% gold / 1% potion / 3% gem / 5% item, and the item
+// rolls on the same rarity curve (magic find included) as a first kill: backtracking keeps a little of the loot pull without
+// becoming the loop (a first kill is still ~3x as likely to drop gear).
+export function rollDrop(level, mf = 0, o = {}) {
+  const x = Math.random() * 100, gold = () => ({ gold: r(4, 12) * Math.max(1, Math.round(level * 0.8)) });
+  if (o.respawn) { if (x < 70) return null; if (x < 91) return gold(); if (x < 92) return { potion: true }; if (x < 95) return makeGem(pick(DROP_GEMS)); }
+  else { if (x < 50) return null; if (x < 77) return gold(); if (x < 80) return { potion: true }; if (x < 86) return makeGem(pick(DROP_GEMS)); }
   const q = Math.random() * 100 - mf * 0.3;
-  const rarity = q < 7 ? 'rare' : q < 34 ? 'magic' : 'normal';
+  const rarity = level <= 4 ? (q < 12 ? 'rare' : q < 52 ? 'magic' : 'normal') : q < 30 ? 'rare' : 'magic';
   return makeItem(randomBase(Math.min(MAX_ILVL, level)), { rarity, lvl: level });
 }
 
@@ -320,12 +342,62 @@ export function itemStats(it) {
   return o;
 }
 
-// What a shop charges / pays.
-export function itemValue(it) {
-  if (it.gem) return 120;
+// What a shop charges / pays (lvl = the trader's level). A gem costs 60 + 20 a level, so gems stay a real buy late on
+// instead of a flat 120.
+export function itemValue(it, lvl = 1) {
+  if (it.gem) return 60 + 20 * (it.lvl || lvl);
   const b = BASES[it.base], m = { normal: 1, magic: 2.5, rare: 6, unique: 20 }[it.rarity] || 1;
   return Math.round((20 + itemLevel(it) * 14) * m * (1 + it.sockets * 0.15) * (it.echo ? 1.5 : 1));
 }
+
+// ---------------------------------------------------------------- what a weapon is worth in a fight (pack tooltips)
+// cycle() / rollMean() / dps from the balance model, read off the same tables the game plays. STR_K and ELEM_INT mirror
+// player.js rollDamage (+2% hit per STR over 10; elements +5% per INT over 8).
+export const STR_K = 0.02, ELEM_INT = 0.05;
+export const strMul = str => 1 + ((str ?? 10) - 10) * STR_K;
+const chainOf = st => (st.chain && st.anim === st.chain[0].anim ? st.chain : null); // an Attack Viewer override switches the chain off
+// One attack chain in seconds as player.js updateAttack plays it under buffered presses: each link runs to its cancel frame
+// (links after the first start 2 frames in; the last needs cancel+1), a style without a cancel frame plays out whole.
+export function cycle(style, ias = 0) {
+  const st = STYLES[style]; if (!st) return 0.5; const k = 1 + Math.min(120, ias) / 100, L = chainOf(st);
+  if (L) return L.reduce((s, l, i) => s + l.dur / k * ((i === L.length - 1 ? l.cancel + 1 : l.cancel) - (i ? 2 : 0)) / (l.to - l.from), 0);
+  return st.cancel !== undefined ? st.dur / k * (st.cancel - st.from) / (st.to - st.from) : st.dur / k + 1 / 60;
+}
+// The mean of player.js rollDamage for derived stats d: hit (with crits), raw (no crits), crit chance, mean elemental total.
+export function rollMean(d) {
+  const [a, b] = d.dmg || [2, 4], c = Math.min(1, Math.max(0, d.crit || 0) / 100), raw = (a + b) / 2 * strMul(d.str), em = 1 + ((d.int ?? 8) - 8) * ELEM_INT;
+  const elems = (d.elems || []).map(e => ({ elem: e.elem, dmg: (e.dmg[0] + e.dmg[1]) / 2 * em }));
+  return { hit: raw * (1 + c * (0.6 + (d.critDmg || 0) / 100)), raw, crit: c, elems, E: elems.reduce((s, e) => s + e.dmg, 0) };
+}
+// Single-target DPS for derived stats d wielding base: the chain's hits, hit-stop (it freezes the swing too), the staff's bolt,
+// missiles, and the echoes that add damage on one foe. o.boss: the longer boss hit-stop.
+export function weaponDps(d, base, o = {}) {
+  const style = base?.style || 'punch', st = STYLES[style] || STYLES.punch, L = chainOf(st) || [st], r = rollMean(d), E = r.E, echo = d.echo;
+  const hs = (o.boss ? 0.09 : 0.06) + 0.05 * r.crit, el = base?.kind === 'staff' ? staffElem(base.model) : null, n = st.hits && st.hitMul ? st.hits.length : 1;
+  let dmg = 0, time = cycle(style, d.ias), hits = 0;
+  for (const l of L) {
+    if (l.ranged === 'staff') { const R = r.hit * 0.75; dmg += el === 'ice' ? r.hit * 0.45 + E + R * 0.15 : el === 'shadow' ? r.hit * 0.6 + E + R * 0.2 : el === 'poison' ? R * 0.7 : R + E + R * (el === 'fire' ? 0.25 : el === 'lightning' ? 0.2 : 0); continue; } // main.js staffBolt, one shard / wisp / briar landing
+    if (st.ranged) { dmg += (r.hit + E) * (echo === 'multishot' ? 2 : 1) * (st.ranged === 'boomerang' ? 1.5 : 1); hits++; continue; } // a Volley's side shots are half; a boomerang's return pass half
+    for (let i = 0; i < n; i++) { dmg += r.hit * (n > 1 ? st.hitMul : 1) + E; hits++; time += i < n - 1 ? 0.025 : hs; }
+  }
+  const part = n > 1 ? st.hitMul : 1, per = r.hit * part, blows = hits / n, melee = !st.ranged; // a flurry's drives share one proc chance (main.js onHit)
+  const extra = { twin: hits * per * 0.35 * part, star: hits * 0.15 * part * per * 1.5, bats: blows * r.crit * per * 1.2, toll: blows / 8 * per * 0.5,
+    briar: melee ? hits * 0.3 * part * per * 0.7 : 0, crescent: melee ? L.length / 3 * r.raw * 0.6 : 0, frenzy: melee ? (dmg - hits * E) * 0.4 : 0 }[echo] || 0;
+  let v = (dmg + extra) / time;
+  if (echo === 'ignite') v += 0.3 * per;
+  const pz = r.elems.filter(e => e.elem === 'poison').reduce((s, e) => Math.max(s, e.dmg), 0); if (pz) v += Math.max(1.5, pz * 0.3) / 0.5; // a refreshing poison DoT
+  return { dps: v, cycle: time, perHit: hits ? dmg / hits : dmg };
+}
+
+// ---------------------------------------------------------------- the Librarian's services (gold sinks) and the coffin's free prying
+export const maxSockets = it => (it.rarity === 'unique' || it.gem ? it.sockets || 0 : BASES[it.base]?.sockets?.[1] || 0);
+export const pryCost = it => 50 + 15 * itemLevel(it);                  // per item, every gem comes out whole
+export const FREE_PRY_LVL = 5;                                         // plain steel at a coffin: free, so the first gems never trap you
+export const punchCost = it => 300 * (it.sockets + 1) ** 2;             // the n-th socket costs 300·n²
+export const rerollCost = it => 400 + 40 * itemLevel(it);
+export const canReroll = it => !!it.echo && it.rarity !== 'unique' && BASES[it.base]?.slot === 'weapon';
+export function pryGems(it) { const out = it.gems.map(g => makeGem(g)); it.gems = []; return out; }
+export function rerollEcho(it) { const base = BASES[it.base], was = it.echo; let e = was; for (let i = 0; i < 20 && e === was; i++) e = rollEcho(base); it.echo = e; return e; }
 
 export const SLOTS = [
   { id: 'weapon', label: 'RIGHT HAND' }, { id: 'offhand', label: 'LEFT HAND' }, { id: 'head', label: 'HEAD' },

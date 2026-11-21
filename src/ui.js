@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BASES, GEMS, SLOTS, ECHOES, itemStats, itemHost, itemValue, makeItem, makeGem, randomBase, DROP_GEMS, itemLevel, itemReq } from './items.js';
+import { BASES, GEMS, SLOTS, ECHOES, itemStats, itemHost, itemValue, makeItem, makeGem, randomBase, DROP_GEMS, itemLevel, itemReq,
+  weaponDps, strMul, echoArt, ART_COST, maxSockets, pryCost, punchCost, rerollCost, canReroll, pryGems, rerollEcho, FREE_PRY_LVL } from './items.js';
 import { ROOMS, SW, SH, BELLS, BELL_ORDER } from './rooms.js';
 import { audio } from './assets.js';
 import { pick, fmt, glyph, device, onDevice, prefs, savePrefs } from './gamepad.js';
@@ -15,7 +16,7 @@ export class UI {
   constructor(game) {
     this.g = game; this.open = null; this.sel = 0; this.tab = 'all'; this.socketMode = null; this.menu = null; this.statMode = false; this.statSel = 0;
     // picking up a pad (or putting it down) re-letters whatever is on screen
-    onDevice(() => { if (this._promptSrc) this.prompt(this._promptSrc); this._g = null; if (this.open === 'inv') this.renderInv(); else if (this.open === 'map') this.bigmap(); else if (this.open === 'menu') this.renderMenu(); });
+    onDevice(() => { if (this._promptSrc) this.prompt(this._promptSrc); this._g = this._fk = null; if (this.open === 'inv') this.renderInv(); else if (this.open === 'map') this.bigmap(); else if (this.open === 'menu') this.renderMenu(); });
   }
 
   dmg(x, y, n, cls = '') {
@@ -23,6 +24,7 @@ export class UI {
     const el = document.createElement('div'); el.className = 'dmg ' + (cls || ''); el.textContent = n;
     el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - v3.y) / 2 * innerHeight) + 'px';
     document.body.appendChild(el); setTimeout(() => el.remove(), 820);
+    return el; // enemies.js stacks / caps the live numbers
   }
   // toasts and prompts are plain text with optional pad tokens ({A}, {RT}…) that become button badges
   toast(text, cls = '') { const el = document.createElement('div'); el.className = 'toast ' + cls; el.innerHTML = fmt(text); $('toasts').appendChild(el); setTimeout(() => el.remove(), 3800); while ($('toasts').children.length > 5) $('toasts').firstChild.remove(); }
@@ -40,12 +42,18 @@ export class UI {
   ending(text, rows) { const el = $('ending'); el.innerHTML = `<h1>VESPERWRITHE</h1><p>${text}</p><div class="stats">${rows.map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('')}</div><p class="sub">${fmt(pick({ kb: 'Thank you for playing. Press Enter to walk the castle again.', touch: 'Thank you for playing. Tap OK to walk the castle again.', pad: 'Thank you for playing. Press {A} to walk the castle again.' }))}</p>`; el.classList.remove('hidden'); this.open = 'ending'; }
 
   hud() {
-    const s = this.g.player.stats;
+    const s = this.g.player.stats, cap = this.g.potionCap?.() ?? 3;
     const hpw = (100 * s.hp / s.hpMax) + '%'; if (hpw !== this._hpw) { this._hpw = hpw; $('hpFill').style.width = hpw; $('hpTrail').style.width = hpw; $('hpBar').classList.toggle('low', s.hp < s.hpMax * 0.25); } $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
     $('mpFill').style.width = (100 * s.mp / s.mpMax) + '%'; $('mpText').textContent = `${s.mp}`;
+    if (s.mpMax !== this._mpm) { this._mpm = s.mpMax; $('mpBar').style.setProperty('--tick', (100 * ART_COST / s.mpMax) + '%'); } // a tick per mana art (Up + Attack)
     $('xpFill').style.width = Math.min(100, 100 * s.xp / s.next) + '%';
     $('lvl').textContent = s.lvl; $('lvl').classList.toggle('pts', s.pts > 0);
-    const g = `${s.gold} <small>GOLD</small>${device.kind === 'touch' ? '' : ` &nbsp; ${s.potions} <small>${s.potions === 1 ? 'POTION' : 'POTIONS'} ${device.kind === 'pad' ? glyph('B') : '(Q)'}</small>`}`; if (g !== this._g) { this._g = g; $('gold').innerHTML = g; }
+    // flasks sit under the life bar: one 12 px diamond per flask you can carry (potionCap), filled ◆ while it holds a draught and
+    // hollow ◇ once drunk, so the spent ones still show what a shrine will refill
+    const fk = `${s.potions}/${cap}/${device.kind}`; if (fk !== this._fk) { this._fk = fk; $('flasks').innerHTML = Array.from({ length: Math.max(cap, s.potions) }, (_, i) => `<i class="${i < s.potions ? 'on' : 'off'}"></i>`).join('') + (device.kind === 'touch' ? '' : `<small>${device.kind === 'pad' ? glyph('B') : 'Q'}</small>`); $('flasks').title = `${s.potions} / ${cap} potions`; }
+    const g = `${s.gold} <small>GOLD</small>`; if (g !== this._g) { this._g = g; $('gold').innerHTML = g; }
+    // boss bar: notches where the foe turns (60% always; 33% only for a foe with a last phase)
+    const B = this.g.bossE; if (B !== this._nb) { this._nb = B; $('bossN3').style.display = (B?.T?.moves || []).some(m => m.phase === 3 || m.below <= 0.34) ? '' : 'none'; }
     if ((this.g.frame || 0) % 3 === 0) this.minimap();
   }
 
@@ -85,11 +93,11 @@ export class UI {
     if (this.open === name || (this.open === 'menu' && name !== 'menu')) { el[this.open].classList.add('hidden'); const was = this.open; this.open = null; this.menu = null; audio.play(was === 'map' ? 'map_close' : 'book_close', 0.4); if (was !== name) return; return; }
     if (this.open) el[this.open].classList.add('hidden');
     this.open = name; el[name].classList.remove('hidden'); audio.play(name === 'map' ? 'map_open' : 'book_open', 0.4);
-    if (name === 'inv') { this.sel = 0; this.socketMode = null; this.statMode = false; this.renderInv(); } else if (name === 'map') this.bigmap();
+    if (name === 'inv') { this.sel = 0; this.socketMode = null; this.statMode = false; this.pryMode = false; this.renderInv(); } else if (name === 'map') this.bigmap();
   }
   menuKey(code) {
     if (this.open === 'ending') { if (code === 'Enter') location.reload(); return; }
-    if (this.open === 'inv') { if (code === 'Escape' && !this.socketMode && !this.statMode) return this.toggle('inv'); return this.invKey(code); }
+    if (this.open === 'inv') { if (code === 'Escape' && !this.socketMode && !this.statMode && !this.pryMode) return this.toggle('inv'); return this.invKey(code); }
     if (this.open === 'map') { if (code === 'Escape') this.toggle('map'); return; }
     if (this.open === 'menu') return this.listKey(code);
   }
@@ -110,6 +118,15 @@ export class UI {
       else if (code === 'Escape' || code === 'Backspace') { this.socketMode = null; this.sel = 0; }
       return this.renderInv();
     }
+    // S on gear (not a gem) lists everything holding gems: at a coffin plain steel gives them up for free
+    if (this.pryMode) {
+      const targets = this.pryTargets();
+      if (code === 'ArrowDown') this.sel = (this.sel + 1) % Math.max(1, targets.length);
+      else if (code === 'ArrowUp') this.sel = (this.sel - 1 + targets.length) % Math.max(1, targets.length);
+      else if (code === 'Enter' || code === 'KeyS') { const t = targets[this.sel]; if (t) return this.coffinPry(t); }
+      else if (code === 'Escape' || code === 'Backspace') { this.pryMode = false; this.sel = 0; }
+      return this.renderInv();
+    }
     // pad: Y moves the cursor onto the four attributes, A spends a point, B (or Y) steps back to the pack
     if (this.statMode) {
       if (code === 'ArrowDown' || code === 'ArrowUp') { this.statSel = (this.statSel + (code === 'ArrowDown' ? 1 : 3)) % 4; audio.play('ui_pointer', 0.25); }
@@ -125,7 +142,7 @@ export class UI {
     else if (code === 'ArrowUp') this.sel = Math.max(0, this.sel - 1);
     else if (code === 'ArrowRight' || code === 'ArrowLeft') { this.tab = TABS[(TABS.indexOf(this.tab) + (code === 'ArrowRight' ? 1 : 3)) % 4]; this.sel = 0; audio.play('ui_pointer', 0.3); }
     else if (code === 'Enter' || code === 'KeyE') { const it = list[this.sel]; if (it?.base) this.equipFromPack(it); }
-    else if (code === 'KeyS') { const it = list[this.sel]; if (it?.gem) { this.socketMode = it; this.sel = 0; audio.play('ui_popup', 0.4); } }
+    else if (code === 'KeyS') { const it = list[this.sel]; if (it?.gem) { this.socketMode = it; this.sel = 0; audio.play('ui_popup', 0.4); } else if (this.pryTargets().length) { this.pryMode = true; this.sel = 0; audio.play('ui_popup', 0.4); } }
     else if (code === 'KeyU') { const sl = SLOTS[(this._un = ((this._un ?? -1) + 1) % SLOTS.length)]; if (P.equip[sl.id]) P.equipItem(sl.id, null).then(() => this.renderInv()); }
     this.renderInv();
   }
@@ -136,7 +153,24 @@ export class UI {
     await this.g.player.equipItem(slot, it);
     this.toast(`Equipped ${it.name}`, it.rarity); this.g.onEquip?.(it); this.renderInv();
   }
-  socketTargets() { const P = this.g.player, all = [...Object.values(P.equip).filter(Boolean), ...P.bag.filter(i => i.base)]; return all.filter(i => i.sockets > i.gems.length); }
+  gear() { const P = this.g.player; return [...Object.values(P.equip).filter(Boolean), ...P.bag.filter(i => i.base)]; }
+  socketTargets() { return this.gear().filter(i => i.sockets > i.gems.length); }
+  pryTargets() { return this.gear().filter(i => i.gems?.length); }
+  atCoffin() { const P = this.g.player, r = this.g.room; return !!(r?.saveAt && Math.abs(P.pos.x - r.saveAt.x) < 1.8 && Math.abs(P.pos.y - r.saveAt.y) < 1); } // the same reach as main.js interact()
+  async coffinPry(it) {
+    if (!this.atCoffin() || itemLevel(it) > FREE_PRY_LVL) { audio.play('ui_cancel', 0.4); this.toast(itemLevel(it) > FREE_PRY_LVL ? `These settings are too fine for bare hands — the Librarian pries them for ${pryCost(it)}g.` : `Rest at a coffin to pry gems from plain steel (item level ${FREE_PRY_LVL} or less), or pay the Librarian.`, ''); return this.renderInv(); }
+    const n = it.gems.length; await this.pry(it); this.toast(`${n > 1 ? n + ' gems' : 'The gem'} pried from ${it.name}`, 'gem');
+    if (!this.pryTargets().length) this.pryMode = false; this.sel = 0; this.renderInv();
+  }
+  // gems come out whole and back into the pack; anything worn is re-fitted (an elemental gem's glow leaves the blade)
+  async pry(it) { const P = this.g.player; P.bag.push(...pryGems(it)); audio.play('gem_collect', 0.6); await this.refit(it); }
+  async refit(it) { const P = this.g.player; for (const [slot, e] of Object.entries(P.equip)) if (e === it) await P.attachVisual(slot); P.refreshStats(); this.g.onEquip?.(it); }
+  // what this weapon would do in your hands: derived stats with it swapped in (a two-hander drops the shield)
+  dpsOf(it) {
+    const P = this.g.player, eq = P.equip, b = BASES[it.base], was = [eq.weapon, eq.offhand];
+    eq.weapon = it; if (b.hands === 2) eq.offhand = null; let d; try { d = P.derived(); } finally { [eq.weapon, eq.offhand] = was; }
+    return weaponDps(d, b).dps;
+  }
   async insertGem(gem, item) {
     const P = this.g.player; item.gems.push(gem.gem); P.bag = P.bag.filter(i => i !== gem);
     audio.play('gem_collect', 0.6); this.toast(`${GEMS[gem.gem].name} set into ${item.name}`, 'gem');
@@ -155,11 +189,14 @@ export class UI {
     const row = (k, v, key) => { const on = this.statMode && key === this.statSel + 1, c = on ? 'psel' : '';
       return `<span class="k ${c}">${k}${key && pt ? (touch ? ` <button class="plus" data-k="Digit${key}">+</button>` : pad ? (on ? ` ${glyph('A')}` : ' <i class="pplus">+</i>') : ` <kbd>${key}</kbd>`) : ''}</span><span class="${c}">${v}</span>`; };
     const hint = $('inv').querySelector('header .hint'); hint.innerHTML = pad
-      ? fmt(`{B} close · {DPAD} select · {LB}{RB} tabs · {A} equip · {X} socket gem${pt ? ' · {Y} spend points' : ''}${this.g.input.pads.canRumble() ? ` · {RS} rumble ${prefs.rumble ? 'on' : 'off'}` : ''}`)
-      : 'I / Tab close &nbsp;·&nbsp; Arrows select &nbsp;·&nbsp; Enter equip &nbsp;·&nbsp; S socket gem &nbsp;·&nbsp; 1-4 spend points';
+      ? fmt(`{B} close · {DPAD} select · {LB}{RB} tabs · {A} equip · {X} socket / pry gems${pt ? ' · {Y} spend points' : ''}${this.g.input.pads.canRumble() ? ` · {RS} rumble ${prefs.rumble ? 'on' : 'off'}` : ''}`)
+      : 'I / Tab close &nbsp;·&nbsp; Arrows select &nbsp;·&nbsp; Enter equip &nbsp;·&nbsp; S socket / pry gems &nbsp;·&nbsp; 1-4 spend points';
+    // Attack is what a blow really does: the weapon's roll with Strength applied, the Strength share beside it
+    const sm = strMul(d.str), sp = Math.round((sm - 1) * 100), w = P.equip.weapon;
     $('stats').innerHTML = [row('Level', s.lvl), row('Experience', `${s.xp} / ${s.next}`), row('Life', `${Math.ceil(s.hp)} / ${s.hpMax}`), row('Mana', `${s.mp} / ${s.mpMax}`),
       row('Strength', d.str, 1), row('Constitution', d.con, 2), row('Intellect', d.int, 3), row('Luck', d.lck, 4), row('Agility', d.dex),
-      row('Attack', `${d.dmg[0]}-${d.dmg[1]}` + d.elems.map(e => ` <em class="e-${e.elem}">+${e.dmg[0]}-${e.dmg[1]}</em>`).join('')), row('Critical', `${Math.round(d.crit)}%`), row('Attack speed', `+${Math.round(Math.min(120, d.ias))}%`), row('Defense', d.def), row('Magic find', `+${Math.round(d.mf)}%`), row('Gold', s.gold)].join('')
+      row('Attack', `${Math.round(d.dmg[0] * sm)}-${Math.round(d.dmg[1] * sm)} <small class="str">(${sp < 0 ? '−' : '+'}${Math.abs(sp)}% STR)</small>` + d.elems.map(e => ` <em class="e-${e.elem}">+${e.dmg[0]}-${e.dmg[1]}</em>`).join('')), row('DPS', `≈${Math.round(weaponDps(d, w ? BASES[w.base] : null).dps)}`),
+      row('Critical', `${Math.round(d.crit)}%`), row('Attack speed', `+${Math.round(Math.min(120, d.ias))}%`), row('Defense', d.def), row('Magic find', `+${Math.round(d.mf)}%`), row('Gold', s.gold)].join('')
       + (pt ? `<div class="pts">${s.pts} attribute point${s.pts > 1 ? 's' : ''} — ${touch ? 'tap + beside a stat' : pad ? fmt(this.statMode ? '{A} spend · {B} done' : 'press {Y} to spend') : 'press 1 · 2 · 3 · 4'}</div>` : '');
     $('stats').querySelectorAll('button.plus').forEach(b => b.onclick = e => { e.stopPropagation(); this.invKey(b.dataset.k); });
     $('slots').innerHTML = SLOTS.map(sl => { const it = P.equip[sl.id]; return `<div class="slot"><span class="n">${sl.label}</span><span class="q-${it?.rarity || 'normal'}">${it ? it.name + sockDots(it) : '—'}</span></div>`; }).join('')
@@ -170,58 +207,86 @@ export class UI {
       list = this.socketTargets();
       $('packList').innerHTML = `<li style="opacity:.7;pointer-events:none">Set the ${GEMS[this.socketMode.gem].name} into…</li>` + (list.length ? list.map((it, i) => `<li class="${i === this.sel ? 'sel' : ''} q-${it.rarity}">${this.icon(it)}${it.name}${sockDots(it)}<small>${Object.values(P.equip).includes(it) ? 'equipped' : ''}</small></li>`).join('') : '<li>No item has an open socket.</li>');
       detailItem = list[this.sel];
+    } else if (this.pryMode) {
+      list = this.pryTargets(); const free = this.atCoffin();
+      $('packList').innerHTML = `<li style="opacity:.7;pointer-events:none">Pry the gems out of… ${free ? `(free here up to item level ${FREE_PRY_LVL})` : '(rest at a coffin first)'}</li>` + list.map((it, i) => `<li class="${i === this.sel ? 'sel' : ''} q-${it.rarity}">${this.icon(it)}${it.name}${sockDots(it)}<small>${itemLevel(it) > FREE_PRY_LVL ? 'Librarian ' + pryCost(it) + 'g' : free ? 'free' : 'coffin'}</small></li>`).join('');
+      detailItem = list[this.sel];
     } else {
       list = this.packItems(); this.sel = Math.min(this.sel, Math.max(0, list.length - 1));
       $('packList').innerHTML = list.length ? list.map((it, i) => `<li class="${i === this.sel ? 'sel' : ''} q-${it.rarity}">${this.icon(it)}${it.name}${it.base ? sockDots(it) : ''}<small>${it.gem ? 'gem' : BASES[it.base].cls || BASES[it.base].slot}</small></li>`).join('') : '<li style="opacity:.5">Your pack is empty.</li>';
       detailItem = list[this.sel];
     }
-    $('packList').querySelectorAll('li').forEach((li, i) => li.onclick = () => { const off = this.socketMode ? 1 : 0; if (i - off < 0) return; if (this.sel === i - off) this.invKey('Enter'); else { this.sel = i - off; this.renderInv(); } });
+    $('packList').querySelectorAll('li').forEach((li, i) => li.onclick = () => { const off = this.socketMode || this.pryMode ? 1 : 0; if (i - off < 0) return; if (this.sel === i - off) this.invKey('Enter'); else { this.sel = i - off; this.renderInv(); } });
     $('packList').querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
     $('tabs').querySelectorAll('span').forEach((sp, i) => sp.onclick = () => { this.tab = TABS[i]; this.sel = 0; this.renderInv(); });
     $('detail').innerHTML = detailItem ? this.describe(detailItem, true) : '';
   }
   describe(it, compare) {
-    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (${fmt(pick({ touch: 'GEM button', kb: 'S', pad: '{X}' }))})</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">${fmt(pick({ touch: 'GEM: socket', kb: '[S] Socket', pad: '{X} Socket' }))} into an item</div>`; }
+    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (${fmt(pick({ touch: 'GEM button', kb: 'S', pad: '{X}' }))})</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="line art">Set gems are not lost: a coffin pries them from plain steel (item level ${FREE_PRY_LVL} or less), the Librarian from anything.</div><div class="act">${fmt(pick({ touch: 'GEM: socket', kb: '[S] Socket', pad: '{X} Socket' }))} into an item</div>`; }
     const b = BASES[it.base], st = itemStats(it), P = this.g.player;
     let h = `<h3 class="q-${it.rarity}">${it.name}</h3><div class="type">${it.rarity !== 'normal' ? it.rarity[0].toUpperCase() + it.rarity.slice(1) + ' ' : ''}${b.cls || b.name}${b.hands === 2 ? ' · Two-Handed' : ''} · item level ${itemLevel(it)}${P.stats.lvl < itemReq(it) ? ` · <em class="dn">requires level ${itemReq(it)}</em>` : ''}</div>`;
     const cur = compare && (b.slot === 'ring' ? P.equip.ring1 : P.equip[b.slot]), cs = cur && cur !== it ? itemStats(cur) : null;
     const diff = (a, c) => cs ? (a > c ? ` <em class="up">▲${a - c}</em>` : a < c ? ` <em class="dn">▼${c - a}</em>` : '') : '';
-    if (st.dmg) h += `<div class="line">Damage: ${st.dmg[0]}-${st.dmg[1]}${diff(Math.round((st.dmg[0] + st.dmg[1]) / 2), cs?.dmg ? Math.round((cs.dmg[0] + cs.dmg[1]) / 2) : 0)}</div>`;
+    // a weapon leads with what it does per second in your hands (speed, crits, Strength, elements, echo), against what you wield
+    if (b.slot === 'weapon') { const v = this.dpsOf(it), c = cs ? this.dpsOf(cur) : 0, p = c ? Math.round((v / c - 1) * 100) : 0; h += `<div class="line dps">≈${Math.round(v)} DPS${p > 0 ? ` <em class="up">▲${p}%</em>` : p < 0 ? ` <em class="dn">▼${-p}%</em>` : ''}</div>`; }
+    if (st.dmg) h += `<div class="line">Damage: ${st.dmg[0]}-${st.dmg[1]}${b.slot === 'weapon' ? ' per blow' : diff(Math.round((st.dmg[0] + st.dmg[1]) / 2), cs?.dmg ? Math.round((cs.dmg[0] + cs.dmg[1]) / 2) : 0)}</div>`;
     if (b.def) h += `<div class="line">Defense: ${st.def}${diff(st.def, cs?.def || 0)}</div>`; if (b.block) h += `<div class="line">Block: ${Math.round(b.block * 100)}%</div>`;
     for (const l of st.lines) h += `<div class="line ${l.cls}" ${l.css ? `style="color:${l.css}"` : ''}>${l.text}</div>`;
+    const art = b.slot === 'weapon' && echoArt(it.echo, b); // the mana art this weapon casts: taught on the weapon, not only in a toast
+    if (art) h += `<div class="line art">Mana art · ${fmt(pick({ kb: '↑ + J', pad: '{UP} + {X}', touch: 'up + ATTACK' }))} · ${ART_COST} MP: ${art}</div>`;
     if (it.sockets) h += `<div class="sockets">${Array.from({ length: it.sockets }, (_, i) => { const g = it.gems[i]; return `<span class="sock" style="${g ? `background:radial-gradient(circle at 35% 35%,#fff,${GEMS[g].css} 45%,#000);border-color:${GEMS[g].css}` : ''}"></span>`; }).join('')}</div>`;
-    h += `<div class="act">${fmt(this.socketMode ? pick({ kb: '[Enter] Socket here · [Esc] cancel', pad: '{A} Socket here · {B} cancel' }) : compare ? pick({ touch: 'Tap again to equip · worth ', kb: '[Enter] Equip · [U] unequip a slot · worth ', pad: '{A} Equip · worth ' }) + Math.round(itemValue(it) * 0.3) + 'g' : '')}</div>`;
+    const pryAct = this.pryMode && (itemLevel(it) > FREE_PRY_LVL ? `Only the Librarian can pry these (${pryCost(it)}g)` : this.atCoffin() ? pick({ kb: '[Enter] Pry the gems out · [Esc] cancel', pad: '{A} Pry the gems out · {B} cancel', touch: 'Tap again to pry the gems out' }) : 'Rest at a coffin to pry these out for free');
+    h += `<div class="act">${fmt(pryAct || (this.socketMode ? pick({ kb: '[Enter] Socket here · [Esc] cancel', pad: '{A} Socket here · {B} cancel' }) : compare ? pick({ touch: 'Tap again to equip · worth ', kb: '[Enter] Equip · [U] unequip a slot · worth ', pad: '{A} Equip · worth ' }) + Math.round(itemValue(it, P.stats.lvl) * 0.3) + 'g' : ''))}</div>`;
     return h;
   }
 
   // ------------------------------------------------------------------ warp mirror / librarian
   openMenu(kind, data) {
-    const P = this.g.player, s = P.stats;
+    const P = this.g.player, s = P.stats, was = this.menu && this.menu.kind + (this.menu.data || '');
     if (kind === 'warp') this.menu = { kind, title: 'The Mirror of Passage', hint: () => pick({ kb: 'Enter step through · Esc close', pad: '{A} step through · {B} close' }), rows: data.map(r => ({ label: r.def.name, sub: `Area ${r.def.area}`, act: () => { this.toggle('menu'); this.g.warpTo(r.def.id); } })) };
+    else if (kind === 'svc') this.menu = this.service(data);
     else {
-      const lvl = Math.max(2, s.lvl), stock = this._stock?.lvl === lvl ? this._stock.items : (this._stock = { lvl, items: [...Array.from({ length: 5 }, () => makeItem(randomBase(lvl + 1), { rarity: Math.random() < 0.3 ? 'rare' : 'magic', lvl: lvl + 1 })), ...Array.from({ length: 3 }, () => makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0]))] }).items;
+      const lvl = Math.max(2, s.lvl), stock = this._stock?.lvl === lvl ? this._stock.items : (this._stock = { lvl, items: [...Array.from({ length: 5 }, () => makeItem(randomBase(lvl + 1), { rarity: Math.random() < 0.3 ? 'rare' : 'magic', lvl: lvl + 1 })), ...Array.from({ length: 3 }, () => makeGem(DROP_GEMS[Math.random() * DROP_GEMS.length | 0], lvl))] }).items;
       const rows = [{ label: 'Potion of Vigor', sub: `${40 + lvl * 6}g`, cost: 40 + lvl * 6, full: () => s.potions >= this.g.potionCap(), act: r => { s.potions++; return true; }, keep: true }];
-      for (const it of stock) rows.push({ label: it.name, cls: 'q-' + it.rarity, sub: itemValue(it) + 'g', cost: itemValue(it), item: it, act: r => { P.bag.push(it); stock.splice(stock.indexOf(it), 1); return true; } });
-      for (const it of P.bag) rows.push({ label: 'Sell: ' + it.name, cls: 'q-' + it.rarity, sub: '+' + Math.round(itemValue(it) * 0.3) + 'g', item: it, sell: true, act: r => { s.gold += Math.round(itemValue(it) * 0.3); P.bag = P.bag.filter(x => x !== it); audio.play('coins_gather_quick', 0.5); return true; } });
+      for (const it of stock) rows.push({ label: it.name, cls: 'q-' + it.rarity, sub: itemValue(it, lvl) + 'g', cost: itemValue(it, lvl), item: it, act: r => { P.bag.push(it); stock.splice(stock.indexOf(it), 1); return true; } });
+      // the Librarian's crafts: where late gold goes
+      const gear = this.gear(), svc = [['pry', 'Pry gems from steel', '50g + 15g per item level', gear.some(i => i.gems.length)], ['punch', 'Punch a socket', '300g × sockets²', gear.some(i => i.sockets < maxSockets(i))], ['reroll', 'Re-sing an echo', '400g + 40g per item level', gear.some(canReroll)]];
+      for (const [k, label, sub, any] of svc) rows.push({ label: '✦ ' + label, sub, cls: 'svc' + (any ? '' : ' off'), act: () => { if (any) this.openMenu('svc', k); else { audio.play('ui_cancel', 0.4); this.toast('Nothing you carry needs that.', ''); } } });
+      for (const it of P.bag) rows.push({ label: 'Sell: ' + it.name, cls: 'q-' + it.rarity, sub: '+' + Math.round(itemValue(it, s.lvl) * 0.3) + 'g', item: it, sell: true, act: r => { s.gold += Math.round(itemValue(it, s.lvl) * 0.3); P.bag = P.bag.filter(x => x !== it); audio.play('coins_gather_quick', 0.5); return true; } });
       this.menu = { kind, title: 'The Librarian', hint: () => pick({ kb: 'Enter buy / sell · Esc close', pad: '{A} buy / sell · {B} close' }) + ' · “Knowledge is the only door that opens inward.”', rows };
     }
+    if (this.open === 'menu' && was !== kind + (data || '')) this.sel = 0; // a new list starts at its top
     this.sel = Math.min(this.sel, this.menu.rows.length - 1); if (this.open !== 'menu') { this.sel = 0; this.toggle('menu'); } this.renderMenu();
+  }
+  // one of the Librarian's crafts: every piece of gear it applies to (worn first), priced by the item
+  service(k) {
+    const P = this.g.player, worn = it => Object.values(P.equip).includes(it), S = {
+      pry: { title: 'The Librarian — Prying', ok: i => i.gems.length, cost: pryCost, sub: i => i.gems.map(g => GEMS[g].name).join(' · '), say: 'every gem comes out whole',
+        act: i => { const n = i.gems.length; this.pry(i); this.toast(`${n > 1 ? n + ' gems' : 'The gem'} pried from ${i.name}`, 'gem'); } },
+      punch: { title: 'The Librarian — Socketing', ok: i => i.sockets < maxSockets(i), cost: punchCost, sub: i => `${i.sockets} → ${i.sockets + 1} sockets`, say: 'each socket costs more than the last',
+        act: i => { i.sockets++; this.refit(i); audio.play('gem_collect', 0.5); this.toast(`${i.name} now holds ${i.sockets} gem${i.sockets > 1 ? 's' : ''}`, 'gem'); } },
+      reroll: { title: 'The Librarian — Echoes', ok: canReroll, cost: rerollCost, sub: i => ECHOES[i.echo].name, say: 'the old echo is lost; a new one answers',
+        act: i => { const old = ECHOES[i.echo].name; rerollEcho(i); this.refit(i); audio.play('glass_ping_small', 0.6); this.toast(`${old} fades — ${i.name} now carries ${ECHOES[i.echo].name}`, 'magic'); } },
+    }[k];
+    const rows = this.gear().filter(S.ok).map(it => ({ label: it.name + (worn(it) ? ' · worn' : ''), cls: 'q-' + it.rarity, sub: `${S.sub(it)} · ${S.cost(it)}g`, cost: S.cost(it), item: it, act: () => S.act(it) }));
+    return { kind: 'svc', data: k, back: 'shop', title: S.title, hint: () => pick({ kb: 'Enter choose · Esc back', pad: '{A} choose · {B} back' }) + ` · ${S.say}`, rows: rows.length ? rows : [{ label: 'Nothing you carry needs this.', act: () => {} }] };
   }
   listKey(code) {
     const m = this.menu, s = this.g.player.stats; if (!m) return;
-    if (code === 'Escape') return this.toggle('menu');
+    if (code === 'Escape') return m.back ? this.openMenu(m.back) : this.toggle('menu');
     if (code === 'ArrowDown') this.sel = Math.min(m.rows.length - 1, this.sel + 1); else if (code === 'ArrowUp') this.sel = Math.max(0, this.sel - 1);
     else if (code === 'Enter' || code === 'KeyE') { const r = m.rows[this.sel]; if (!r) return; if (r.full?.()) { audio.play('ui_cancel', 0.4); this.toast(`Your flasks are full (${s.potions}/${this.g.potionCap()}).`, ''); return; }
-      if (r.cost && s.gold < r.cost) { audio.play('ui_cancel', 0.4); this.toast('Not enough gold.', ''); return; } if (r.cost) { s.gold -= r.cost; audio.play('coin_collect', 0.5); } r.act(r); if (m.kind === 'shop') return this.openMenu('shop'); return; }
+      if (r.cost && s.gold < r.cost) { audio.play('ui_cancel', 0.4); this.toast('Not enough gold.', ''); return; } if (r.cost) { s.gold -= r.cost; audio.play('coin_collect', 0.5); } r.act(r);
+      if (this.menu !== m || this.open !== 'menu') return; if (m.kind === 'shop' || m.kind === 'svc') return this.openMenu(m.kind, m.data); return; } // an act may have opened another list
     this.renderMenu();
   }
   renderMenu() {
     const m = this.menu, s = this.g.player.stats;
-    $('menuTitle').textContent = m.title; $('menuHint').innerHTML = fmt((typeof m.hint === 'function' ? m.hint() : m.hint) + (m.kind === 'shop' ? `  ·  You have ${s.gold} gold` : ''));
+    $('menuTitle').textContent = m.title; $('menuHint').innerHTML = fmt((typeof m.hint === 'function' ? m.hint() : m.hint) + (m.kind === 'shop' || m.kind === 'svc' ? `  ·  You have ${s.gold} gold` : ''));
     $('menuList').innerHTML = m.rows.map((r, i) => `<li class="${i === this.sel ? 'sel' : ''} ${r.cls || ''}">${r.item ? this.icon(r.item) : ''}${r.label}<small>${r.sub || ''}</small></li>`).join('');
     $('menuList').querySelectorAll('li').forEach((li, i) => li.onclick = () => { if (this.sel === i) this.listKey('Enter'); else { this.sel = i; this.renderMenu(); } });
     $('menuList').querySelector('.sel')?.scrollIntoView({ block: 'nearest' });
-    const r = m.rows[this.sel]; $('menuDetail').innerHTML = r?.item ? this.describe(r.item, !r.sell) : '';
+    const r = m.rows[this.sel]; $('menuDetail').innerHTML = r?.item ? this.describe(r.item, !r.sell && m.kind !== 'svc') : '';
   }
 }
 function sockDots(it) { return it.sockets ? ` <small>[${it.gems.length}/${it.sockets}]</small>` : ''; }

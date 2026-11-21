@@ -8,13 +8,23 @@ import { STYLES } from './items.js';
 // pressing attack again after a clip's cancel frame flows into the next link. Styles not listed here (thrusts,
 // smashes, fists) keep their entries in items.js; an Attack Viewer override of a listed style's clip switches its chain off.
 const MOVESET = {
-  slash1h: [['vw_slash1', 0.6], ['vw_slash2', 0.5], ['vw_slash3', 0.62]],
-  slash2h: [['vw_great', 0.74]],
+  slash1h: [['vw_slash1', 0.56], ['vw_slash2', 0.5], ['vw_slash3', 0.62]],
+  slash2h: [['vw_great', 0.835]],
   // a link may carry its own fields: the staff's second link is the cast, which looses a bolt at frame 14 instead of cutting
-  whirl: [['vw_whirl', 0.58], ['vw_cast', 0.62, { ranged: 'staff', shotAt: 14, both: false }]],
-  reap: [['vw_reap', 0.72, { hits: [[7, 14], [15, 23]] }]],
+  whirl: [['vw_whirl', 0.58], ['vw_cast', 0.62, { ranged: 'staff', shotAt: 14, both: false, hits: null, boxes: null }]], // (the cast must not inherit the whirl's two windows)
+  reap: [['vw_reap', 0.72]],
   flurry: [['vw_flurry', 0.5]],
   needle: [['vw_flurry', 0.44]],
+  // hand-keyed (build_anims.py weapon_clips): each class swings its own way instead of borrowing a mocap chop or a boxing jab
+  chop: [['vw_chop', 0.5]],
+  smash: [['vw_smash', 0.58]],
+  smash2h: [['vw_maul', 0.9]],
+  // spears/lances: a full-body drawn-back drive; `thrust` levels the point through the hit and draws the needle streak
+  thrust: [['vw_thrust', 0.46, { thrust: true, upperOnly: false, lunge: 4.2 }]],
+  lance: [['vw_lance', 0.62, { thrust: true, upperOnly: false, lunge: 5.2 }]],
+  // ranged: full-body when planted (the keyed arm needs the clip's own hips), upper body only on the move; no step-in
+  shoot: [['vw_shoot', 0.46, { upperOnly: false, lunge: 0.001, freeHand: true }]],
+  hurl: [['vw_hurl', 0.4, { upperOnly: false, lunge: 0.6 }]],
 };
 
 export async function loadMoves() {
@@ -22,8 +32,10 @@ export async function loadMoves() {
   for (const [style, chain] of Object.entries(MOVESET)) {
     const st = STYLES[style]; if (!st) continue;
     st.chain = chain.filter(([clip]) => meta.clips[clip]).map(([clip, dur, extra]) => {
-      const m = meta.clips[clip]; // frames in moves.json are 1-based
-      return { anim: clip, dur, from: 0, to: m.frames - 1, hit: [m.hit[0] - 1, m.hit[1] - 1], cancel: m.cancel - 1, ...(m.hits ? { hits: m.hits.map(([a, b]) => [a - 1, b - 1]) } : {}), ...extra };
+      // moves.json counts the written frames from 0 (the guard); Blender keys frame i at i + 1, which the glTF exporter
+      // puts at t = (i + 1) / 30. So written frame i is clip frame i + 1: start on frame 1 (the guard) and shift every window by one.
+      const m = meta.clips[clip], o = 1;
+      return { anim: clip, dur, from: o, to: m.frames, hit: [m.hit[0] + o, m.hit[1] + o], cancel: m.cancel + o, ...(m.hits ? { hits: m.hits.map(([a, b]) => [a + o, b + o]) } : {}), ...extra };
     });
     if (st.chain.length) Object.assign(st, st.chain[0]); else delete st.chain;
   }

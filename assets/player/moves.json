@@ -12,45 +12,163 @@
    "frames": 22,
    "speed": 3.788
   },
-  "vw_slash1": {
-   "frames": 24,
-   "hit": [
-    6,
-    13
-   ],
-   "cancel": 15
-  },
-  "vw_slash2": {
-   "frames": 20,
-   "hit": [
-    6,
-    13
-   ],
-   "cancel": 13
-  },
-  "vw_slash3": {
+  "vw_chop": {
    "frames": 24,
    "hit": [
     7,
+    10
+   ],
+   "cancel": 13
+  },
+  "vw_smash": {
+   "frames": 25,
+   "hit": [
+    7,
+    10
+   ],
+   "cancel": 13
+  },
+  "vw_maul": {
+   "frames": 32,
+   "hit": [
+    10,
     14
    ],
-   "cancel": 15
+   "cancel": 24
   },
   "vw_great": {
-   "frames": 34,
+   "frames": 36,
+   "hit": [
+    10,
+    14
+   ],
+   "cancel": 23
+  },
+  "vw_thrust": {
+   "frames": 21,
+   "hit": [
+    6,
+    10
+   ],
+   "cancel": 12,
+   "hits": [
+    [
+     6,
+     10
+    ]
+   ]
+  },
+  "vw_lance": {
+   "frames": 26,
    "hit": [
     8,
+    13
+   ],
+   "cancel": 15,
+   "hits": [
+    [
+     8,
+     13
+    ]
+   ]
+  },
+  "vw_shoot": {
+   "frames": 22,
+   "hit": [
+    8,
+    9
+   ],
+   "cancel": 11
+  },
+  "vw_hurl": {
+   "frames": 20,
+   "hit": [
+    6,
+    7
+   ],
+   "cancel": 10
+  },
+  "vw_flurry": {
+   "frames": 27,
+   "hit": [
+    4,
+    17
+   ],
+   "cancel": 18,
+   "hits": [
+    [
+     4,
+     6
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     14,
+     17
+    ]
+   ]
+  },
+  "vw_reap": {
+   "frames": 36,
+   "hit": [
+    9,
     20
    ],
-   "cancel": 24
+   "cancel": 24,
+   "hits": [
+    [
+     9,
+     14
+    ],
+    [
+     16,
+     20
+    ]
+   ]
   },
   "vw_whirl": {
    "frames": 31,
    "hit": [
     7,
-    20
+    16
    ],
-   "cancel": 22
+   "cancel": 20,
+   "hits": [
+    [
+     7,
+     11
+    ],
+    [
+     13,
+     16
+    ]
+   ]
+  },
+  "vw_slash1": {
+   "frames": 20,
+   "hit": [
+    5,
+    8
+   ],
+   "cancel": 10
+  },
+  "vw_slash2": {
+   "frames": 21,
+   "hit": [
+    5,
+    8
+   ],
+   "cancel": 11
+  },
+  "vw_slash3": {
+   "frames": 26,
+   "hit": [
+    7,
+    10
+   ],
+   "cancel": 14
   },
   "vw_cast": {
    "frames": 32,
@@ -59,36 +177,6 @@
     19
    ],
    "cancel": 22
-  },
-  "vw_reap": {
-   "frames": 37,
-   "hit": [
-    8,
-    24
-   ],
-   "cancel": 27
-  },
-  "vw_flurry": {
-   "frames": 27,
-   "hit": [
-    5,
-    18
-   ],
-   "hits": [
-    [
-     5,
-     7
-    ],
-    [
-     10,
-     12
-    ],
-    [
-     15,
-     18
-    ]
-   ],
-   "cancel": 19
   },
   "vw_grip": {
    "frames": 2
