@@ -20,12 +20,16 @@ const dim60 = hex => { const r = hex >> 16 & 255, g = hex >> 8 & 255, b = hex & 
 const STEEL_ARC = 0x9ab0b8; // a plain blade's arc: cold steel
 // great blows a shield can only soften: half of the hit comes through and the guard is knocked aside
 const HEAVY = new Set(['slam', 'leap', 'ram', 'charge', 'fissure', 'forgefall', 'geyser', 'breath', 'sweep', 'eclipse']);
+// The rest at a save coffin: the hero lies down on the back like a tomb effigy, arms at the sides, breathing slowly (the idle at
+// REST_SPEED). The 'sitting' clip was a chair-sit with no chair (it read as a leg kick). `spin` (the hip pivot) tips back a quarter
+// turn and drops to REST_HIP over ~0.5 s; getting up takes REST_RISE s, during which the hero can't walk off mid-rise.
+const REST_HIP = 0.17, REST_SPEED = 0.45, REST_RISE = 0.45;
 const PARRY = 0.15, PARRY_REST = 0.25, GUARD_BREAK = 0.5, HURT_T = 0.24, DASH_IFR = [0.03, 0.23];
 
 const ANIM = {
   idle: 'axe_unarmed_idle', idleArmed: 'vw_guard', jog: 'vw_run', jogArmed: 'vw_run_armed',
   jump: 'axe_unarmed_jump', jumpArmed: 'sword_and_shield_jump', fall: 'falling', crouch: 'axe_crouch_idle', crouchArmed: 'sword_and_shield_crouch_idle',
-  backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'sitting',
+  backdash: 'standing_run_back', hurt: 'sword_and_shield_impact', death: 'sword_and_shield_death', sit: 'axe_unarmed_idle', // sit: the rest at a coffin, laid down on the back (REST_*)
   block: 'sword_and_shield_block_idle', crouchBlock: 'sword_and_shield_crouch_block_idle', pickup: 'axe_unarmed_equip_over_shoulder',
   dashAir: 'standing_melee_run_jump_attack', dive: 'jump_attack', cling: 'hanging_idle', ring: 'standing_taunt_battlecry', bow: 'shooting_arrow',
 };
@@ -346,7 +350,8 @@ export class Player {
     if (this.state === 'dead') { // keep falling and sliding to a stop so a mid-air death lands on the floor
       this.vel.x *= Math.max(0, 1 - dt * 6); this.vel.y = Math.max(-PHYS.fallMax, this.vel.y - PHYS.grav * dt); this.move(dt); this.animate(dt); return;
     }
-    if (this.state === 'sit') { if (inp.x || inp.jumpP || inp.attackP) { this.state = 'free'; } else { this.vel.set(0, 0); this.animate(dt); return; } }
+    if (this.state === 'sit') { if (inp.x || inp.jumpP || inp.attackP) { this.state = 'free'; this.riseT = REST_RISE; } else { this.vel.set(0, 0); this.animate(dt); return; } }
+    if (this.riseT > 0) { this.riseT -= dt; this.vel.set(0, 0); this.animate(dt); return; } // getting up off the floor
     if (this.state === 'ring') { this.vel.x = 0; if (this.stateT > (this.ringDur || 2.6)) { this.state = 'free'; this.ringDur = 0; } }
 
     const abil = this.abilities();
@@ -661,7 +666,7 @@ export class Player {
   groundFeet(dt) {
     this.toes ||= ['LeftToeBase', 'RightToeBase', 'LeftFoot', 'RightFoot'].map(n => this.model.getObjectByName('mixamorig' + n));
     let want = 0;
-    if (this.onGround && this.state !== 'dead' && this.state !== 'sit') {
+    if (this.onGround && this.state !== 'dead' && this.state !== 'sit' && !(this.restK > 0)) {
       const v = new THREE.Vector3(); let lo = 1e9;
       for (const t of this.toes) lo = Math.min(lo, t.getWorldPosition(v).y - (t.name.endsWith('Foot') ? 0.09 : 0.035));
       want = Math.min(0, this.pos.y - lo + this.spin.position.y - 0.95); // negative = drop the body by this much
@@ -724,6 +729,7 @@ export class Player {
         if (base === ANIM.backdash) opts.speed = 1.6;
         if (isRun) opts.speed = runScale;
         if (base === ANIM.hurt) { opts.once = true; }
+        if (this.state === 'sit') opts.speed = REST_SPEED;
         if (base === ANIM.dashAir) { opts.at = 2.6; opts.speed = 0.4; }
         if (base === ANIM.dive) { opts.at = 3.6; opts.speed = 0.05; }
         // jumps: the legs drive off one foot; the double-jump somersault and shade dash keep the tight tuck
@@ -746,7 +752,7 @@ export class Player {
     if (this.landT > 0) this.landT -= dt;
     this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
     this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); if (this.pairMesh?.userData.q0 && !(this.attack?.st.thrust && (this.attack.wi ?? 0) === 1)) this.pairMesh.quaternion.copy(this.pairMesh.userData.q0); this.twoHandIK(); if (wm && this.weaponKind === 'boomerang') wm.visible = !this.g.shots?.some(s => s.kind === 'boomerang' && s.friendly && s.life > 0); /* the boomerang leaves the hand while it flies */ if (this.attack?.st.thrust && wm) this.aimThrust(wm); if (wm && (this.weaponKind === 'spear' || this.weaponKind === 'lance')) this.liftTip(wm, this.onGround); /* a long point never goes through the floor or out through the stage's front (it did in the recoveries) */
-    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem, this.onGround ? this.pos.y : this.g.floorBelow?.(this.pos.x, this.pos.y + 0.05)); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
+    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem, this.onGround ? this.pos.y : this.g.floorBelow?.(this.pos.x, this.pos.y + 0.05)); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel, this.restK > 0 ? this.pos.y + 0.03 : -Infinity);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
@@ -759,13 +765,17 @@ export class Player {
     const lean = this.state === 'slide' ? this.facing * 1.05 : this.state === 'dive' ? -this.facing * 0.5 : this.state === 'dash' ? -this.facing * 0.35 : 0;
     if (!(this.flip > 0)) this.spin.rotation.z += (lean - this.spin.rotation.z) * Math.min(1, dt * 18);
     this.spin.position.y = 0.95 - (this.state === 'slide' ? 0.42 : 0);
+    // lying down at a coffin and getting back up (REST_*): eased, the head toward the side behind the hero, face up
+    if (this.state === 'sit' && !(this.restK > 0)) this.restDir = this.facing;
+    this.restK = THREE.MathUtils.clamp((this.restK || 0) + (this.state === 'sit' ? dt / 0.55 : -dt / REST_RISE), 0, 1);
+    if (this.restK > 0) { const k = this.restK * this.restK * (3 - 2 * this.restK); this.facing = this.restDir; this.spin.rotation.z = this.restDir * k * Math.PI / 2; this.spin.position.y = 0.95 + (REST_HIP - 0.95) * k; }
     if (this.flip > 0) { this.flip += dt * 2.3; const a = Math.min(1, this.flip); this.spin.rotation.z = -this.facing * (a * a * (3 - 2 * a)) * Math.PI * 2; if (this.flip >= 1 || this.onGround) { this.flip = 0; } } // smoothstep flip: gathers, whips round, settles upright
     // i-frame blink
     this.hurtRim ||= { col: new THREE.Color(0xa4acc0), k: RIM_K, p: 3.4 };
     if (this._rimmed !== this.gearVer) { this._rimmed = this.gearVer; this.model.traverse(o => { if (o.isMesh && !o.userData.xray) for (const m of [].concat(o.material)) if (!m.userData.rim) { m.userData.rim = 1; heroRim(m, this.hurtRim); } }); }
     const blink = this.inv > 0.3 && this.inv < 1.05 && this.state !== 'block' && this.state !== 'dead', on = blink && Math.floor(this.inv * 12) % 2 === 0;
     if (on) { this.hurtRim.col.setHex(0xe02848); this.hurtRim.k = 0.85; } else { this.hurtRim.col.setHex(0xa4acc0); this.hurtRim.k = RIM_K + (this.g.darken || 0) * 0.9; } // a cool edge always (brighter in an eclipse, so you never lose yourself); hurt flickers it crimson
-    this.model.visible = true; if (this.scarf) this.scarf.mesh.visible = true;
+    this.model.visible = true; if (this.scarf) this.scarf.mesh.visible = !(this.restK > 0.5); // the ribbon is built for a standing body (its width spans y): laid flat at a coffin it stood on edge, so it is tucked away
     // a boss's body over the hero on screen (its box overlaps his): the x-ray also shows through the foes
     const pa = this.aabb, over = !!this.g.room?.enemies?.some(e => { if (!e.boss || e.dead || e.gone || e.hidden || !e.root?.visible) return false; const a = e.aabb, hw = Math.max(e.T.w, e.visW || 0) * 0.5 + 0.3; return e.pos.x - hw < pa.x1 && e.pos.x + hw > pa.x0 && a.y0 - 0.3 < pa.y1 && a.y1 + 0.8 > pa.y0; }); // the model's width, not the hitbox: a dragon's head and wings reach metres past T.w
     // nothing below the ankles x-rays (what he stands on draws after the x-ray pass, world.js WALK_RO, so a ledge's front lip or
@@ -828,7 +838,7 @@ class Scarf {
     this.mesh = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ color: 0x6a0a14, emissive: 0x1a0204, roughness: 0.78, side: THREE.DoubleSide, alphaMap: am, alphaTest: 0.5 }));
     this.mesh.frustumCulled = false; this.mesh.castShadow = true; scene.add(this.mesh); this.init = false;
   }
-  update(dt, facing, vel) {
+  update(dt, facing, vel, floorY = -Infinity) { // floorY: the cloth rests on the floor instead of passing through it (lying at a coffin)
     if (!this.anchor) return;
     this.t += dt;
     const a = this.anchor.getWorldPosition(new THREE.Vector3()); a.y -= 0.02; a.x -= facing * 0.1;
@@ -838,7 +848,7 @@ class Scarf {
     this.p[0].copy(a); this.o[0].copy(a);
     for (let i = 1; i < this.n; i++) { const p = this.p[i], o = this.o[i], vx = (p.x - o.x) * 0.9, vy = (p.y - o.y) * 0.9, k = i / this.n;
       o.copy(p); p.x += vx + wind; p.y += vy + g + Math.sin(this.t * 13 - i * 0.9) * 0.0009 * k * (0.3 + sp); p.z = a.z - 0.05 - k * 0.06; }
-    for (let k = 0; k < 3; k++) for (let i = 1; i < this.n; i++) { const A = this.p[i - 1], B = this.p[i], d = B.clone().sub(A), L = d.length() || 1e-4; B.copy(A).addScaledVector(d, this.seg / L); }
+    for (let k = 0; k < 3; k++) for (let i = 1; i < this.n; i++) { const A = this.p[i - 1], B = this.p[i], d = B.clone().sub(A), L = d.length() || 1e-4; B.copy(A).addScaledVector(d, this.seg / L); if (B.y < floorY) B.y = floorY; }
     for (let i = 0; i < this.n; i++) {
       const p = this.p[i], q = this.p[Math.min(this.n - 1, i + 1)], r = this.p[Math.max(0, i - 1)], tx = q.x - r.x, ty = q.y - r.y, L = Math.hypot(tx, ty) || 1;
       const k = i / (this.n - 1), w = 0.16 - 0.11 * k, nx = -ty / L * w / 2, ny = tx / L * w / 2, tw = Math.sin(this.t * 7 + i * 0.55) * 0.05 * k * (0.4 + sp); // twist: the cloth turns its edge to the camera as it ripples

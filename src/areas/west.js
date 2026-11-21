@@ -81,7 +81,7 @@ export default [
     blocks: [{ x: 29, y: 0.5, w: 11, h: 0.7 }], // the sanctuary step
     platforms: zig([[23.5, 2.9, 3], [18.5, 5.1, 3], [23.5, 7.3, 3], [29, 9.5, 3], [33.5, 11.7, 6.5]]), // up to the singers' loft
     items: [{ x: 35, y: 1.2, unique: 'vespers_needle', altar: true, glow: 0xffd8a0 }],
-    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 6, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }], // 1080 hp: a ~25 s duel on act-1 steel
+    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 6, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }], // 168 hp: ~20 blows of act-1 steel
     chests: [{ x: 37.5, y: 11.7, tier: 2, rarity: 'rare' }],
     breakables: [{ x: 8.5 }, { x: 26 }, { x: 35, y: 11.7 }],
     props: [{ t: 'window', x: 35, big: true }, { t: 'rosewindow', x: 18, y: 15 }, { t: 'altar', x: 35, y: 1.2, steps: 1 }, { t: 'pews', x: 7, face: 1 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 17, face: 1 },

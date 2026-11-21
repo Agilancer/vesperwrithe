@@ -9,6 +9,7 @@ import { World, glowTex, flameTex, ZB } from './world.js';
 import { SW, SH, FLOOR, BELLS, BELL_ORDER, rowFloorY, DOOR_H, HOLE_W } from './rooms.js';
 import { Player } from './player.js';
 import { Enemy, TYPES, ELEM_COL } from './enemies.js';
+import { hordeSpecs } from './horde.js';
 import { UI } from './ui.js';
 import { initTouch } from './touch.js';
 import { loadMeta, weaponModel, audio, surface, loadGLTF, LOW_MEM } from './assets.js';
@@ -405,6 +406,10 @@ class Game {
         if ((spec.boss || TYPES[spec.t].boss || TYPES[spec.t].mini) && this.flags[`boss:${def.id}:${i}`]) return;
         const e = new Enemy(this, spec, room); e.key = `boss:${def.id}:${i}`;
         try { await e.load(); if (e.boss) e.visW = visWidth(e); room.enemies.push(e); } catch (err) { console.warn('enemy', spec.t, err); }
+      }));
+      await Promise.all((room.horde ||= hordeSpecs(room, LOW_MEM)).map(async (spec, i) => { // the room's company (horde.js): more foes, all of them easy
+        const e = new Enemy(this, spec, room); e.key = `horde:${def.id}:${i}`;
+        try { await e.load(); room.enemies.push(e); } catch (err) { console.warn('enemy', spec.t, err); }
       }));
       def.chests.forEach((c, i) => room.chests.push(this.makeChest(room, c, i)));
       this.placeItems(room);
@@ -1185,11 +1190,11 @@ class Game {
     const P = this.player, T = e.T, echo = P.d.echo;
     if (e.summoner) { P.gainXP(Math.round(T.xp * 0.15)); return; }
     P.stats.kills++;
-    P.gainXP(Math.max(1, Math.round(T.xp * THREE.MathUtils.clamp(1 + (T.lvl - P.stats.lvl) * 0.12, 0.2, 2.2))));
+    P.gainXP(Math.max(1, Math.round(T.xp * (e.spec.horde ? 0.6 : 1) * THREE.MathUtils.clamp(1 + (T.lvl - P.stats.lvl) * 0.12, 0.2, 2.2)))); // a room's company (horde.js) is worth a little less, so the extra foes don't race the levels
     if (echo === 'vampire') P.heal(Math.round(P.stats.hpMax * 0.05));
     if (echo === 'harvest') { P.stats.mp = Math.min(P.stats.mpMax, P.stats.mp + 4); this.dropLoot(e.pos.x, e.pos.y + 1, { gold: 4 + T.lvl * 3 }, e.room); }
     if (echo === 'nova') { this.fx.ring(e.cx, e.cy, 0x7ad8ff, 6); audio.play('ice_freeze_2', 0.4); for (const o of this.room.enemies) if (!o.dead && o !== e && Math.hypot(o.cx - e.cx, o.cy - e.cy) < 4.5) { o.chill = 4; o.damage(Math.round(6 + P.stats.lvl * 3), 'ice', true); } }
-    const again = !e.key || this.slain.has(e.key), drop = e.spec.drop === 'potion' && !again ? { potion: true } : rollDrop(Math.max(1, T.lvl), P.d.mf, { respawn: again && !e.boss }); if (e.key) this.slain.add(e.key); // tables: items.js rollDrop; a foe killed before (this.slain) drops lean
+    const again = !e.key || this.slain.has(e.key), drop = e.spec.drop === 'potion' && !again ? { potion: true } : rollDrop(Math.max(1, T.lvl), P.d.mf, { respawn: (again || !!e.spec.horde) && !e.boss }); /* the company drops lean, like a respawn */ if (e.key) this.slain.add(e.key); // tables: items.js rollDrop; a foe killed before (this.slain) drops lean
     if (drop) after(0.5, () => this.dropLoot(e.pos.x, e.pos.y + 1, drop, e.room));
     if (e.boss) {
       this.flags[e.key] = true; this.unseal(); $('bossBar').classList.add('hidden'); this.bossE = null;

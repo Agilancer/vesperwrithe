@@ -40,6 +40,9 @@ function shadowTex() {
 const FADE_STATES = new Set(['blink', 'vanish', 'buried', 'under']), FADE_MOVES = new Set(['blink', 'mirror', 'hunt']);
 // a blow has to show itself before it lands: wind-up before the first active frame, and the active frame's least length
 const LEAD = 0.38, LEAD_BIG = 0.5, ACTIVE = 0.13;
+// SotN pacing: a common foe swings, then leaves a long opening; its cooldowns (whatever the brain set) run at this rate, so a
+// room full of them attacks in turns instead of all at once
+const COOL_RATE = 0.6;
 // moves a poise break may not cut into (cut short they would leave the boss hidden, faded, airborne or spun): it waits for their end
 const NO_CUT = new Set(['blink', 'mirror', 'hunt', 'grimoire', 'takeoff', 'land', 'divebomb', 'strafe', 'swoop', 'shellspin', 'eclipse']);
 import { fitHeight } from './world.js';
@@ -219,7 +222,7 @@ export class Enemy {
 
   // ------------------------------------------------------------------------------------------------ update
   update(dt, P) {
-    const T = this.T; this.t += dt; if (this.flash > 0) this.flash -= dt; if (this.flashCd > 0) this.flashCd -= dt; if (this.invulnT > 0 && (this.invulnT -= dt) <= 0) this.invuln = false; if (this.cool > 0) this.cool -= dt; if (this.breakT > 0) this.breakT -= dt;
+    const T = this.T; this.t += dt; if (this.flash > 0) this.flash -= dt; if (this.flashCd > 0) this.flashCd -= dt; if (this.invulnT > 0 && (this.invulnT -= dt) <= 0) this.invuln = false; if (this.cool > 0) this.cool -= dt * (this.boss ? 1 : COOL_RATE); if (this.breakT > 0) this.breakT -= dt;
     if (this.chill > 0) this.chill -= dt;
     if (this.poison > 0) { this.poison -= dt; this.pT = (this.pT || 0) + dt; if (this.pT > 0.5) { this.pT = 0; this.damage(Math.max(1.5, this.poisonDmg || 0), 'poison', true, false, 0, true); } }
     if (this.burn > 0) { this.burn -= dt; this.bT = (this.bT || 0) + dt; if (this.bT > 0.4) { this.bT = 0; this.damage(Math.max(2, this.burnDmg || 0), 'fire', true, false, 0, true); this.g.fx.burst(this.cx, this.cy, 0xff6a20, 4, 2); } }
@@ -291,7 +294,7 @@ export class Enemy {
         if (r === 'block' && !this.boss) { this.state = 'stagger'; this.t = 0; this.vel.x = -this.facing * 2.5; this.play(T.anim.hit, 0.08, { once: true, restart: true }); return; }
       }
     }
-    if (k >= 1) { this.state = 'chase'; this.t = 0; this.atk = null; this.cool = o.cool ?? ((this.boss ? 0.55 : 1.0) / (this.phase > 1 ? 1.3 : 1) + Math.random() * 0.6); o.done?.(this, P); }
+    if (k >= 1) { this.state = 'chase'; this.t = 0; this.atk = null; this.cool = o.cool ?? ((this.boss ? 0.7 : 1.0) / (this.phase > 1 ? 1.3 : 1) + Math.random() * 0.6); o.done?.(this, P); }
   }
 
   // A place this body can actually stand near (x, around height y): on stone, clear of solids, not across a gate.
@@ -493,12 +496,12 @@ export class Enemy {
     }
   }
 
-  // Poise: a great foe's stance breaks under pressure (12% of its life without a 1.5 s let-up), into a 1 s stagger that
+  // Poise: a great foe's stance breaks under pressure (22% of its life without a 1.5 s let-up), into a 1 s stagger that
   // takes 1.5x damage (hit()); each break costs 25% more. A move that leaves it hidden or airborne finishes first.
   poiseHit(n) {
     if (this.stun > 0 || this.dead) return;
     this.pz = (this.pz || 0) + n; this.pzT = 0;
-    if (this.pz < this.hpMax * 0.12 * Math.pow(1.25, this.breaks || 0)) return;
+    if (this.pz < this.hpMax * 0.22 * Math.pow(1.25, this.breaks || 0)) return; // ~5 blows of a 20-blow boss
     this.pz = 0; this.breaks = (this.breaks || 0) + 1;
     if (this.mv && (NO_CUT.has(this.mv.m.k) || (this.mv.m.k === 'leap' && !this.ground))) this.breakQ = true; else this.stagger();
   }
