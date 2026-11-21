@@ -134,7 +134,7 @@ export default [
 
   // Idea: the carillon under the roof. The great bell hangs in a walled cradle; the only ledges to the roof hole are the
   // ones it remembers (Echo Sight). East, a swinging clapper over a bed of spikes guards the Seraphwing.
-  { id: 'tower_crown', name: 'Carillon Crown', area: '15', col: 37, row: -16, w: 4, h: 2, theme: 'belfry',
+  { id: 'tower_crown', name: 'Carillon Crown', area: '15', col: 37, row: -16, w: 4, h: 2, theme: 'belfry', vista: 16,
     doors: [{ side: 'S', col: 37 }, { side: 'N', col: 38 }],
     blocks: [{ x: 14.5, y: 0.5, w: 1.2, h: 3.6 }, { x: 24.3, y: 0.5, w: 1.2, h: 3.6 },   // the bell cradle
       { x: 46.5, y: 0.5, w: 6.833, h: 3.0 }],                                            // reliquary dais
@@ -146,7 +146,7 @@ export default [
     chests: [{ x: 51.2, y: 3.5, unique: 'seraphwing', big: true }],
     items: [{ x: 2, y: 10.6, up: 'mana' }],
     breakables: [{ x: 11.5 }, { x: 18 }, { x: 22 }, { x: 47.6, y: 3.5 }],
-    props: [...pr('bigbell', [20, 4.1], [34, 8.0], [44, 8.0]), ...pr('gargoyle', [15.1, 4.1], [24.9, 4.1], [52, 3.5]), ...pr('window', [8, 3.9], [40, 5.0]), ...pr('chain', 12.5, 28, [48, 3.5]),
+    props: [{ t: 'bellframe', x: 20 }, ...pr('bigbell', [34, 8.0], [44, 8.0]), ...pr('gargoyle', [15.1, 4.1], [24.9, 4.1], [52, 3.5]), ...pr('window', [8, 3.9], [40, 5.0]), ...pr('chain', 12.5, 28, [48, 3.5]),
       ...pr('brazier', 2.5, 13, [50.3, 3.5]), ...pr('torch', [1.2, 7.3], 20), ...pr('rubble', 17), ...pr('bones', 23, 10), ...pr('banner', [49, 3.5])],
     lore: [{ x: 20, text: 'The great bell hangs over nothing. Strike it in your mind and, for a breath, there are steps in the air.' },
       { x: 27, text: 'The clapper still swings, back and forth above the iron teeth.' }] },
@@ -173,7 +173,7 @@ export default [
   // ================================================================== FORBIDDEN ATHENAEUM (area 23, act 3)
   // Idea: three stacked corridors of shelves that snake east, west, east. The librarian waits at the dead end of the
   // middle corridor; the top one runs to the tower. A cell walled into the east end opens only from above (Dive).
-  { id: 'athenaeum', name: 'Forbidden Athenaeum', area: '23', col: 32, row: -10, w: 5, h: 3, theme: 'library',
+  { id: 'athenaeum', name: 'Forbidden Athenaeum', area: '23', col: 32, row: -10, w: 5, h: 3, theme: 'library', vista: 15,
     doors: [{ side: 'W', row: -8 }, { side: 'W', row: -9 }, { side: 'W', row: -10 }, { side: 'E', row: -10 }],
     blocks: [{ x: 0, y: 7, w: 55, h: 1 }, { x: 61, y: 7, w: 5.667, h: 1 },       // floor of the middle corridor
       { x: 0, y: 14.5, w: 6, h: 1 }, { x: 12, y: 14.5, w: 50.2, h: 1 },          // floor of the top corridor
@@ -192,7 +192,7 @@ export default [
     chests: [{ x: 64.4, tier: 3, rarity: 'magic' }, { x: 31.4, y: 19.6, tier: 3, rarity: 'rare' }, { x: 65, y: 8.0, tier: 4, rarity: 'rare' }],
     items: [{ x: 63.4, y: 8.0, gem: 'emerald' }],
     breakables: [{ x: 9 }, { x: 27 }, { x: 52 }, { x: 34, y: 8.0 }, { x: 14, y: 8.0 }, { x: 20, y: 15.5 }, { x: 53, y: 15.5 }],
-    props: [...pr('bookshelf', 6, 20, 26, 40, 52, [16, 8.0], [28, 8.0], [36, 8.0], [50, 8.0], [18, 15.5], [32, 15.5], [44, 15.5], [58, 15.5]),
+    props: [{ t: 'chandelier', x: 13.3 }, { t: 'chandelier', x: 46.6 }, ...pr('bookshelf', 6, 20, 26, 40, 52, [16, 8.0], [28, 8.0], [36, 8.0], [50, 8.0], [18, 15.5], [32, 15.5], [44, 15.5], [58, 15.5]),
       ...pr('candles', 11, 23, 36, 48, 60, [5, 8.0], [19, 8.0], [33, 8.0], [45, 8.0], [53, 8.0], [3, 15.5], [15, 15.5], [28, 15.5], [41, 15.5], [54, 15.5]),
       ...pr('table', 15.5, [26, 8.0], [37.5, 15.5]), ...pr('chandelier', [44, 8.0], [22, 15.5]), ...pr('orrery', [46, 15.5]), ...pr('rug', [10, 15.5]), ...pr('statue', 58), ...pr('rubble', [60, 8.0])],
     lore: [{ x: 20, text: 'Every shelf is chained. Not to keep the books from readers - to keep them on the shelves.' },

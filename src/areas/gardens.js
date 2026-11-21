@@ -146,7 +146,7 @@ export default [
 
   // Tall room 2: the Great Movement. Ride the turning gears and the weight-lift up a 30 m gear-house; no walls to
   // lean on in the middle. Thornstep off the wall above the east door reaches the mana vessel.
-  { id: 'great_movement', name: 'The Great Movement', area: '34', col: 41, row: -10, w: 2, h: 4, theme: 'clock',
+  { id: 'great_movement', name: 'The Great Movement', area: '34', col: 41, row: -10, w: 2, h: 4, theme: 'clock', vista: 16,
     doors: [{ side: 'E', row: -7 }, { side: 'E', row: -10 }, { side: 'N', col: 41 }],
     movers: [{ x: 15, y: 4.5, w: 3.2, orbit: 3, period: 6 }, { x: 4, y: 9.5, w: 3, dy: 7, period: 5 }, { x: 15.5, y: 19.5, w: 3.2, orbit: 3, period: 6 }],
     platforms: P([[8.5, 9.5, 3.5], [8.5, 17.5, 4], [10, 24.5, 3.5], [5.2, 26.8, 3], [20, 27.3, 3]]),
@@ -155,7 +155,7 @@ export default [
     items: [{ x: 21.5, y: 27.3, up: 'mana' }],
     breakables: [{ x: 6 }, { x: 19.5 }, { x: 9.2, y: 17.5 }, { x: 25.6, y: 23 }],
     props: [...pr('gear', 4, 16.6, 23, [16.6, 9.5], [3, 17.5], [17, 23], [24, 17.5], [12, 24.5]), ...pr('torch', 1.2, 13, 25.4, [9, 9.5], [12, 17.5], [25.4, 23], [6.7, 26.8]),
-      ...pr('chain', [5.5, 17.5], [22, 9.5]), ...pr('pendulum', [22.5, 3]), ...pr('anvil', 21.5), ...pr('crate', 7.4, 8.5), ...pr('pipe', 1, [25.6, 9.5])],
+      ...pr('chain', [5.5, 17.5], [22, 9.5]), ...pr('pendulum', [22.5, 3]), { t: 'dial', x: 13.3, h: 6.5, r: 3.2 }, ...pr('anvil', 21.5), ...pr('crate', 7.4, 8.5), ...pr('pipe', 1, [25.6, 9.5])],
     lore: [{ x: 14, text: 'The Great Movement has kept no hour since the bells were silenced. It turns anyway.' }] },
 
   // Mid-way save.

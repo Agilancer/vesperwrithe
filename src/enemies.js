@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { cloneGLTF, weaponModel, audio, WEAPONS } from './assets.js';
+import { glowTex } from './world.js';
+import { cloneGLTF, weaponModel, audio, WEAPONS, addRim } from './assets.js';
+const RIM_COOL = new THREE.Color(0x7c8cb0), RIM_HOT = new THREE.Color(0xff3020), RIM_HIT = new THREE.Color(0xffffff);
 import { fitHeight } from './world.js';
 import { BESTIARY } from './catalog.js';
 
@@ -49,9 +51,11 @@ export class Enemy {
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });
+    this.rim = { col: RIM_COOL.clone(), k: 0.3 }; for (const m of this.mats) addRim(m, this.rim); this.weaponMats = []; this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
     try { await this.armUp(); } catch (e) { console.warn('arm', this.spec.t, e); }
+    this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; }); // weapons too: only stone hides the hero
     if (this.spec.illusion) this.setAlpha(0.55);
     this.room.group.add(this.root);
     this.play(this.state === 'buried' ? T.anim.rise : T.anim.idle, 0, this.state === 'buried' ? { paused: true } : {});
@@ -64,7 +68,7 @@ export class Enemy {
     const T = this.T, ms = this.model.scale.x;
     const attach = async (bone, id, len, q, off) => {
       if (!bone || !WEAPONS[id]) return;
-      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s);
+      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
       const hs = bone.getWorldScale(new THREE.Vector3()).x || 1; s.scale.setScalar(len / hs); s.quaternion.copy(q); if (off) s.position.copy(off).multiplyScalar(1 / hs); s.add(w);
     };
     if (T.sword) { // UAL rig: blade along the knuckle line, handle across the palm
@@ -124,7 +128,8 @@ export class Enemy {
       default: (BRAIN[T.ai] || BRAIN.walker)(this, dt, P, c);
     }
     // contact damage
-    if (!this.hidden && T.touch && !['buried', 'rise', 'hurt', 'stagger', 'under', 'hang', 'intro'].includes(this.state) && !this.spec.illusion) {
+    const charging = this.mv && ['charge', 'ram'].includes(this.mv.m.k) && this.mv.s.go;
+    if (!this.hidden && T.touch && !charging && !['buried', 'rise', 'hurt', 'stagger', 'under', 'hang', 'intro', 'crouch'].includes(this.state) && !this.spec.illusion) {
       const a = this.aabb, pa = P.aabb;
       if (a.x0 + 0.1 < pa.x1 && a.x1 - 0.1 > pa.x0 && a.y0 < pa.y1 && a.y1 > pa.y0) P.takeHit(Math.round(T.touch * this.dmgMul), this.pos.x, null, this);
     }
@@ -149,12 +154,12 @@ export class Enemy {
   }
   tickAttack(dt, P, c) {
     const A = this.atk, o = A.o, T = this.T, k = this.t / A.dur, w0 = A.wins[0].a;
-    if (k < w0) this.flash = Math.max(this.flash, Math.sin(this.t * 40) > 0.6 ? 0.03 : 0);
+    if (k < w0) this.warn = Math.max(this.warn || 0, k / w0);
     if (k > w0 - 0.08 && !A.tele) { A.tele = true; audio.play(this.boss ? 'sword_attack_3' : (T.sword || T.arm) ? 'sword_attack_2' : 'squelching_1', 0.45, this.boss ? 0.7 : 1); }
     this.vel.x = o.lunge && k > w0 - 0.1 && k < A.wins[0].b ? this.facing * o.lunge : 0;
     if (k >= w0 && !A.fired) { A.fired = true; o.fire?.(this, P); }
     for (const w of A.wins) if (!w.done && k >= w.a && k <= w.b && !o.noHit) {
-      const hb = { x0: this.pos.x + (this.facing > 0 ? -0.2 : -A.reach), x1: this.pos.x + (this.facing > 0 ? A.reach : 0.2), y0: this.pos.y + (o.low ? 0 : 0.2), y1: this.pos.y + (o.low ? 1.0 : Math.max(2.2, T.h * 0.95)) };
+      const hb = { x0: this.pos.x + (this.facing > 0 ? -0.2 : -A.reach), x1: this.pos.x + (this.facing > 0 ? A.reach : 0.2), y0: this.pos.y + (o.low ? 0 : 0.2), y1: this.pos.y + (o.low ? 1.0 : T.h + 0.4) };
       const pa = P.aabb;
       if (hb.x0 < pa.x1 && hb.x1 > pa.x0 && hb.y0 < pa.y1 && hb.y1 > pa.y0) {
         const r = P.takeHit(Math.round(A.dmg), this.pos.x, o.elem || (T.venom ? 'poison' : null), this); if (r) w.done = true;
@@ -216,8 +221,16 @@ export class Enemy {
     this.yaw += (target - this.yaw) * Math.min(1, dt * (T.quad ? 6 : 10));
     this.root.position.set(this.pos.x, this.pos.y + (this.state === 'hang' ? T.h : 0), T.quad ? -0.3 : 0); this.model.rotation.y = this.yaw;
     this.root.rotation.z = this.state === 'hang' ? Math.PI : 0;
-    const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, key = f * 10 + st;
-    if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.7 : st ? 0.6 : m.userData.emI; } }
+    // white = it was hit; a red heat building toward the blow = it is about to strike (held hot for the last fifth)
+    // a cool rim keeps every foe readable against dark stone; a wind-up heats the rim to red and sets the weapon glowing,
+    // with a flare at the hand for the last moment; a hit flashes the rim white. The body itself only takes a light tint.
+    const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, w = f ? 0 : Math.min(1, this.warn || 0), key = f * 10 + st;
+    this.warn = 0;
+    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
+    if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.25 : st ? 0.45 : m.userData.emI; } }
+    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat) { this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? 0xff3a10 : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
+    if (w > 0.78 || this.flare?.visible) { if (!this.flare) { this.flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); this.root.add(this.flare); }
+      const fl = this.flare; fl.visible = w > 0.78; if (fl.visible) { const at = this.hand ? this.hand.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(this.mouth.x, this.mouth.y, 0); this.root.worldToLocal(at); fl.position.copy(at); fl.position.z += 0.3; fl.scale.setScalar(0.7 + (w - 0.78) * 2.5); fl.material.opacity = (w - 0.78) / 0.22; } }
   }
 
   // ------------------------------------------------------------------------------------------------ taking hits
@@ -251,13 +264,14 @@ export class Enemy {
 
   damage(n, elem, quiet, crit, pushDir) {
     if (this.dead || this.invuln) return;
-    this.hp -= n; this.flash = 0.08;
+    this.hp -= n; this.flash = 0.08; if (pushDir) this.lastPush = pushDir; this.lastMelee = !quiet && !!pushDir;
     if (quiet) this.g.ui.dmg(this.pos.x + rnd(-0.3, 0.3), this.pos.y + Math.min(this.T.h, 3.4) + 0.2, Math.round(n), elem);
     if (!quiet) audio.play('sword_impact_hit_' + (1 + (Math.random() * 3 | 0)), 0.55);
     this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 4 : 10, 3);
     if (this.hp <= 0) return this.die();
     const heavy = this.boss || this.T.ai === 'brute' || this.T.ai === 'worm';
-    if (!quiet && !heavy && this.state !== 'attack' && !this.air) { this.state = 'hurt'; this.t = 0; this.vel.x = (pushDir || -this.facing) * (crit ? 4 : 2.2); this.play(this.T.anim.hit, 0.05, { once: true, restart: true }); }
+    const light = !this.boss && !this.T.mini && this.T.h <= 2.0 && !this.T.block, winding = this.state === 'attack' && this.atk && this.t / this.atk.dur < this.atk.wins[0].a;
+    if (!quiet && !heavy && (this.state !== 'attack' || (light && winding)) && !this.air) { this.atk = null; this.state = 'hurt'; this.t = 0; this.vel.x = (pushDir || -this.facing) * (crit ? 4 : 2.2); this.play(this.T.anim.hit, 0.05, { once: true, restart: true }); }
     else if (!quiet && !heavy && this.air) { this.vel.x = (pushDir || -this.facing) * 3; }
     if (this.boss && !this.spec.illusion) {
       const ph = this.hp < this.hpMax * 0.33 && (this.T.moves || []).some(m => m.phase === 3) ? 3 : this.hp < this.hpMax * 0.6 ? 2 : 1;
@@ -270,6 +284,7 @@ export class Enemy {
     this.dead = true; this.state = 'dead'; this.t = 0; this.mv = null; this.atk = null; this.air = false; this.hidden = false; this.root.visible = true; this.setAlpha(1); this.root.rotation.z = 0;
     const d = this.clipFor(this.T.anim.death); if (d) this.play(d, 0.1, { once: true, restart: true });
     audio.play(this.boss ? 'rock_wall_2' : 'bone_snap', 0.5);
+    if (!this.boss) { this.vel.x = (this.lastPush || -this.facing) * 4.5; if (!this.flying) this.vel.y = 3.2; if (this.lastMelee) this.g.stopT = Math.max(this.g.stopT || 0, 0.1); } // the kill freeze answers your own blade, not a poison tick
     this.g.onEnemyDeath(this);
   }
 
@@ -307,6 +322,7 @@ const BRAIN = {
 
   hopper(e, dt, P, c) {
     const T = e.T;
+    if (e.state === 'crouch') { e.vel.x = 0; e.warn = e.t / 0.25; e.tilt.position.y = -Math.min(1, e.t / 0.25) * T.h * 0.08; if (e.t > 0.25) { e.tilt.position.y = 0; e.state = 'leap'; e.t = 0; e.leapHit = false; e.vel.set(e.leapV.x, e.leapV.y); e.ground = false; e.play(e.clipFor(T.anim.jump) || T.anim.attack, 0.08, { once: true, restart: true }); audio.play('clothing_1', 0.3, 1.5); } return; }
     if (e.state === 'leap') { if (e.ground && e.t > 0.2) { e.state = 'chase'; e.t = 0; e.cool = 0.5 + Math.random() * 0.6; e.vel.x = 0; } else if (!e.leapHit) { const a = e.aabb, pa = P.aabb; if (a.x0 < pa.x1 && a.x1 > pa.x0 && a.y0 < pa.y1 && a.y1 > pa.y0) { if (P.takeHit(T.dmg, e.pos.x, null, e)) e.leapHit = true; } } return; }
     if (e.state === 'flee') { if (e.t > 0.7 || !e.walk(-sgn(c.dx), T.speed * 1.1, T.anim.walk, 1.3)) { e.state = 'chase'; e.t = 0; } e.facing = -sgn(c.dx); return; }
     if (!c.sees) { e.vel.x = 0; e.play(T.anim.idle); e.state = 'idle'; return; }
@@ -314,7 +330,7 @@ const BRAIN = {
     if (e.cool <= 0 && Math.abs(c.dy) < 2.5) {
       if (c.adx < T.reach + 0.2) return e.attackStart({ anim: Math.random() < 0.5 && T.anim.attack2 ? T.anim.attack2 : T.anim.attack, done: s => { if (Math.random() < 0.6) { s.state = 'flee'; s.t = 0; } } });
       if (T.thrower && c.adx > 4 && c.adx < 11 && Math.random() < 0.02) return e.attackStart({ anim: T.anim.attack2 || T.anim.attack, noHit: true, fire: (s, p) => s.shootAt(p, T.thrower), cool: 1.6 });
-      if (c.adx > 2.2 && c.adx < 5.5 && e.ground && Math.random() < 0.035) { e.state = 'leap'; e.t = 0; e.leapHit = false; e.vel.set(e.facing * Math.min(7.5, c.adx * 1.7), 7.2); e.ground = false; e.play(e.clipFor(T.anim.jump) || T.anim.attack, 0.08, { once: true, restart: true }); audio.play('clothing_1', 0.3, 1.5); return; }
+      if (c.adx > 2.2 && c.adx < 5.5 && e.ground && Math.random() < 0.035) { e.state = 'crouch'; e.t = 0; e.leapV = new THREE.Vector2(e.facing * Math.min(7.5, c.adx * 1.7), 7.2); e.play(T.anim.idle, 0.1); return; }
     }
     if (c.adx > T.reach * 0.7) e.walk(e.facing, T.speed * c.slow, T.anim.walk, 1.2); else { e.vel.x = 0; e.play(T.anim.idle); }
   },
@@ -357,7 +373,7 @@ const BRAIN = {
 
   charger(e, dt, P, c) {
     const T = e.T;
-    if (e.state === 'paw') { e.vel.x = 0; e.flash = Math.max(e.flash, Math.sin(e.t * 40) > 0.5 ? 0.03 : 0); if (e.t > 0.7) { e.state = 'charge'; e.t = 0; e.chHit = false; e.play(T.anim.run, 0.1, { speed: 1.4 }); } return; }
+    if (e.state === 'paw') { e.vel.x = 0; e.warn = e.t / 0.7; if (e.t > 0.7) { e.state = 'charge'; e.t = 0; e.chHit = false; e.play(T.anim.run, 0.1, { speed: 1.4 }); } return; }
     if (e.state === 'charge') {
       e.vel.x = e.facing * 8.5 * c.slow; if (Math.random() < 0.4) e.g.fx.dust(e.pos.x - e.facing * 0.5, e.pos.y);
       const a = e.aabb, pa = P.aabb; if (!e.chHit && a.x0 - 0.3 < pa.x1 && a.x1 + 0.3 > pa.x0 && a.y0 < pa.y1 && a.y1 > pa.y0) { const r = P.takeHit(Math.round(T.dmg * 1.2), e.pos.x, null, e); if (r) e.chHit = true; if (r === 'block') { e.stun = 1.2; e.stunStars = true; e.vel.x = -e.facing * 3; } }
@@ -401,13 +417,14 @@ const BRAIN = {
 
   spider(e, dt, P, c) {
     const T = e.T;
+    if (e.state === 'crouch') { e.vel.x = 0; e.warn = e.t / 0.25; if (e.t > 0.25) { e.state = 'leap'; e.t = 0; e.leapHit = false; e.vel.set(e.leapV.x, e.leapV.y); e.ground = false; e.play(e.clipFor(T.anim.jump) || T.anim.attack, 0.08, { once: true, restart: true }); } return; }
     if (e.state === 'hang') { e.pos.y = e.hangY - T.h * 0.5; if (c.adx < 3.5 && c.dy < 0 && c.dy > -11) { e.state = 'leap'; e.t = 0; e.leapHit = false; e.vel.set(0, -2); e.pos.y = e.hangY - T.h - 0.1; audio.play('squelching_3', 0.4, 1.4); } return; }
     if (e.state === 'leap') { if (e.ground && e.t > 0.15) { e.state = 'chase'; e.t = 0; e.cool = 0.6 + Math.random() * 0.5; e.vel.x = 0; e.g.fx.dust(e.pos.x, e.pos.y); } else if (!e.leapHit) { const a = e.aabb, pa = P.aabb; if (a.x0 < pa.x1 && a.x1 > pa.x0 && a.y0 < pa.y1 && a.y1 > pa.y0 && P.takeHit(T.dmg, e.pos.x, T.venom ? 'poison' : null, e)) e.leapHit = true; } return; }
     if (!c.sees) { e.vel.x = 0; e.play(T.anim.idle); e.state = 'idle'; return; }
     e.state = 'chase'; e.facing = sgn(c.dx);
     if (e.cool <= 0 && Math.abs(c.dy) < 3) {
       if (c.adx < T.reach) return e.attackStart({ anim: Math.random() < 0.5 ? T.anim.attack2 : T.anim.attack });
-      if (c.adx > 2.5 && c.adx < 7 && e.ground && Math.random() < 0.04) { e.state = 'leap'; e.t = 0; e.leapHit = false; e.vel.set(e.facing * Math.min(9, c.adx * 1.5), 8); e.ground = false; e.play(e.clipFor(T.anim.jump) || T.anim.attack, 0.08, { once: true, restart: true }); return; }
+      if (c.adx > 2.5 && c.adx < 7 && e.ground && Math.random() < 0.04) { e.state = 'crouch'; e.t = 0; e.leapV = new THREE.Vector2(e.facing * Math.min(9, c.adx * 1.5), 8); e.play(T.anim.idle, 0.1); return; }
     }
     if (c.adx > T.reach * 0.7) e.walk(e.facing, T.speed * c.slow, e.clipFor(T.anim.run) || T.anim.walk, 1.2); else { e.vel.x = 0; e.play(T.anim.idle); }
   },
@@ -479,7 +496,7 @@ const frontBox = (e, P, reach, low, dmg, elem) => hitBox(e, P, e.pos.x + (e.faci
 const MOVE = {
   melee(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, m = mv.m, [a, b] = m.windup || e.T.windup;
-    if (k < a) e.flash = Math.max(e.flash, Math.sin(mv.t * 40) > 0.6 ? 0.03 : 0);
+    if (k < a) e.warn = Math.max(e.warn || 0, k / a);
     if (k >= a && !mv.s.snd) { mv.s.snd = 1; audio.play('sword_attack_3', 0.5, 0.7); if (m.shock) { e.g.shockwave(e, e.pos.x + e.facing * 2, e.pos.y, e.facing, e.T.elem); e.g.shake(0.3); } }
     if (k >= a && k <= b && !mv.s.hit && frontBox(e, P, (m.range || e.T.reach) - 0.2, m.low, e.T.dmg, e.T.venom ? 'poison' : null)) mv.s.hit = 1;
     return k >= 1;
@@ -491,25 +508,25 @@ const MOVE = {
   },
   charge(e, mv, dt, P, c) {
     mv.t += dt; const m = mv.m, wind = 0.55;
-    if (mv.t < wind) { e.vel.x = -e.facing * 0.6; e.flash = Math.max(e.flash, Math.sin(mv.t * 40) > 0.5 ? 0.03 : 0); mv.s.x0 = e.pos.x; return false; }
+    if (mv.t < wind) { e.vel.x = -e.facing * 0.6; e.warn = mv.t / wind; mv.s.x0 = e.pos.x; return false; }
     if (!mv.s.go) { mv.s.go = 1; audio.play('crowd_gasp', 0.3, 0.5); }
-    e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y);
-    const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, a.y1, e.T.dmg * 1.25)) mv.s.hit = 1;
+    e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y, e.boss ? 0x9a8c7a : undefined); // a boss's charge leaves a pale streak
+    const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
     if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); } return true; }
-    return Math.abs(e.pos.x - mv.s.x0) > (m.range || 14) || mv.t > 2.6 || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram');
+    return (m.k !== 'ram' && Math.abs(e.pos.x - mv.s.x0) > (m.range || 14)) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
   },
   ram(e, mv, dt, P, c) { return MOVE.charge(e, mv, dt, P, c); },
   leap(e, mv, dt, P, c) {
     mv.t += dt; const m = mv.m, wind = 0.45, air = 0.95;
-    if (mv.t < wind) { e.flash = Math.max(e.flash, Math.sin(mv.t * 40) > 0.5 ? 0.03 : 0); return false; }
-    if (!mv.s.go) { mv.s.go = 1; const rb = e.room.b, tx = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2, rb.x1 - 2); e.vel.set((tx - e.pos.x) / air, 20 * air / 2); e.ground = false; mv.s.tx = tx; audio.play('clothing_1', 0.5, 0.6); return false; }
+    if (mv.t < wind) { e.warn = mv.t / wind; return false; }
+    if (!mv.s.go) { mv.s.go = 1; const rb = e.room.b, tx = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2, rb.x1 - 2); e.vel.set((tx - e.pos.x) / air, 20 * air / 2); e.ground = false; mv.s.tx = tx; audio.play('clothing_1', 0.5, 0.6); e.g.erupt({ x: tx, y: e.pos.y, delay: air, w: 4.8, h: 0.3, dmg: 0, col: 0xff4040, src: e, quiet: true }); return false; }
     if (!e.ground || mv.t < wind + 0.2) { e.vel.x = (mv.s.tx - e.pos.x) > 0 === e.vel.x > 0 ? e.vel.x : 0; return false; }
     if (!mv.s.land) { mv.s.land = mv.t; e.vel.x = 0; e.g.shake(0.45); e.g.fx.dust(e.pos.x, e.pos.y); audio.play('rock_wall_1', 0.6); hitBox(e, P, e.pos.x - 2.4, e.pos.x + 2.4, e.pos.y, e.pos.y + 1.6, e.T.dmg * 1.1); if (m.slamOnLand) { e.g.shockwave(e, e.pos.x + 1.4, e.pos.y, 1, e.T.elem); e.g.shockwave(e, e.pos.x - 1.4, e.pos.y, -1, e.T.elem); } }
     return mv.t - mv.s.land > 0.55;
   },
   slam(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, a = (mv.m.windup || e.T.windup)[0];
-    if (k < a) e.flash = Math.max(e.flash, Math.sin(mv.t * 40) > 0.6 ? 0.03 : 0);
+    if (k < a) e.warn = Math.max(e.warn || 0, k / a);
     if (k >= a && !mv.s.f) { mv.s.f = 1; const el = mv.m.elem || e.T.elem; e.g.shockwave(e, e.pos.x + e.facing * 1.6, e.pos.y, e.facing, el); e.g.shockwave(e, e.pos.x - e.facing * 1.2, e.pos.y, -e.facing, el); e.g.shake(0.5); frontBox(e, P, e.T.reach, false, e.T.dmg); if (e.phase > 1) setTimeout(() => { if (!e.dead) { e.g.shockwave(e, e.pos.x + 1.6, e.pos.y, 1, el); e.g.shockwave(e, e.pos.x - 1.6, e.pos.y, -1, el); } }, 450); }
     return k >= 1;
   },
@@ -588,7 +605,7 @@ const MOVE = {
   divebomb(e, mv, dt, P) {
     mv.t += dt; const s = mv.s, fy = e.arenaFloor ?? e.home.y;
     if (mv.t < 0.7) { e.vel.set((P.pos.x - e.pos.x) * 3, (fy + 8 - e.pos.y) * 3); return false; }
-    if (mv.t < 1.05) { e.vel.set(0, 0); e.flash = Math.max(e.flash, Math.sin(mv.t * 50) > 0.3 ? 0.03 : 0); if (!s.mark) { s.mark = 1; e.g.erupt({ x: e.pos.x, y: fy, delay: 0.45, w: 2.6, h: 0.3, dmg: 0, col: 0xff4040, src: e, quiet: true }); } return false; }
+    if (mv.t < 1.05) { e.vel.set(0, 0); e.warn = (mv.t - 0.7) / 0.35; if (!s.mark) { s.mark = 1; e.g.erupt({ x: e.pos.x, y: fy, delay: 0.45, w: 2.6, h: 0.3, dmg: 0, col: 0xff4040, src: e, quiet: true }); } return false; }
     if (!s.down) { e.vel.set(0, -26); const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0, a.x1, a.y0 - 0.5, a.y1, e.T.dmg * 1.3)) s.hit = 1; if (e.pos.y <= fy + 0.2) { s.down = mv.t; e.pos.y = fy; e.vel.set(0, 0); e.air = false; e.g.shake(0.6); audio.play('rock_wall_2', 0.7); e.g.shockwave(e, e.pos.x + 1.2, fy, 1, e.T.elem); e.g.shockwave(e, e.pos.x - 1.2, fy, -1, e.T.elem); e.g.fx.dust(e.pos.x, fy); e.stunStars = true; e.play(e.clipFor(e.T.anim.hit) || e.T.anim.idle, 0.1, { once: true, restart: true }); } return false; }
     e.vel.set(0, 0); if (mv.t - s.down > (e.T.dragon ? 1.4 : 1.8)) { if (!(e.T.dragon && e.T.fly) || true) e.air = e.flying || e.T.fly; return true; }
     return false;

@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { World, glowTex, ZB } from './world.js';
 import { SW, SH, FLOOR, BELLS, BELL_ORDER, rowFloorY, DOOR_H, HOLE_W } from './rooms.js';
@@ -11,10 +12,20 @@ import { Enemy, TYPES, ELEM_COL } from './enemies.js';
 import { UI } from './ui.js';
 import { initTouch } from './touch.js';
 import { loadMeta, weaponModel, audio, surface, loadGLTF, LOW_MEM } from './assets.js';
+import { wantsTouch } from './touch.js';
 import { startWeapon } from './attacks.js';
 import { makeItem, makeGem, makeUnique, rollDrop, tierItem, BASES, GEMS, DROP_GEMS, ECHOES } from './items.js';
 
-const CAMZ = 10.7, SAVE_KEY = 'vesperwrithe_save2';
+const HUE = { // [interior ambient, shadow lift (rgb)]: each wing keeps its own cast against the warm torch pools
+  crypt: [0x2c3a34, [0.008, 0.022, 0.016]], catacomb: [0x2e3a32, [0.008, 0.02, 0.014]], royalcrypt: [0x2e383c, [0.01, 0.02, 0.022]], ossuary: [0x3a3828, [0.016, 0.016, 0.008]],
+  cistern: [0x20363e, [0.004, 0.02, 0.028]], aqueduct: [0x223a36, [0.004, 0.022, 0.02]], clock: [0x4a3a20, [0.024, 0.016, 0.004]],
+  throne: [0x4a262c, [0.03, 0.006, 0.012]], hollow: [0x4c2620, [0.03, 0.008, 0.006]], vestibule: [0x48302e, [0.024, 0.01, 0.012]],
+  library: [0x4c3a26, [0.022, 0.014, 0.006]], portrait: [0x48282c, [0.024, 0.008, 0.012]], servants: [0x463826, [0.02, 0.014, 0.006]],
+  chapel: [0x363252, [0.014, 0.012, 0.034]], shrine: [0x422e3a, [0.022, 0.01, 0.02]], mirror: [0x3c3a56, [0.016, 0.014, 0.036]],
+  prison: [0x3a3430, [0.016, 0.012, 0.01]], mine: [0x2a2c38, [0.01, 0.012, 0.026]], sanctum: [0x2c2650, [0.016, 0.008, 0.04]], observatory: [0x24304e, [0.006, 0.014, 0.04]],
+  belfry: [0x323a4c, [0.01, 0.014, 0.03]], menagerie: [0x3c3a28, [0.018, 0.016, 0.006]], forge: [0x4c2818, [0.034, 0.01, 0.002]], magma: [0x4c2014, [0.036, 0.008, 0.002]],
+};
+const CAMZ = 12.2, SAVE_KEY = 'vesperwrithe_save2';
 const $ = id => document.getElementById(id);
 const rnd = (a, b) => a + Math.random() * (b - a);
 const MUSIC = { outdoor: 'intro_cursed_citadel', courtyard: 'ambient_2', garden: 'ambient_4', rampart: 'dark_5', crypt: 'dark_2', catacomb: 'dark_3', royalcrypt: 'ambient_6', aqueduct: 'ambient_5', cistern: 'ambient_7', library: 'light_2', portrait: 'light_4', vestibule: 'light_1', servants: 'ambient_1', ossuary: 'dark_4', prison: 'dark_4', clock: 'fx_2', mine: 'ambient_8', forge: 'fx_1', magma: 'fx_3', mirror: 'light_3', observatory: 'ambient_9', belfry: 'dark_5', sanctum: 'ambient_10', hollow: 'ambient_10', shrine: 'light_5', menagerie: 'ambient_3' };
@@ -57,7 +68,7 @@ class FX {
     this.parts.push({ s, vx, vy, life, max: life, size, grav });
   }
   burst(x, y, col, n = 12, sp = 3) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = sp * (0.4 + Math.random()); this.spawn(x, y, 0.6, Math.cos(a) * v, Math.sin(a) * v, col, 0.35 + Math.random() * 0.3, 0.18 + Math.random() * 0.2); } }
-  dust(x, y, col = 0x8a8070) { for (let i = 0; i < 8; i++) this.spawn(x + (Math.random() - 0.5) * 0.6, y + 0.1, 0.4, (Math.random() - 0.5) * 2.5, Math.random() * 0.8, col, 0.5, 0.35, -0.5, false); }
+  dust(x, y, col = 0x5a5046) { for (let i = 0; i < 8; i++) this.spawn(x + (Math.random() - 0.5) * 0.6, y + 0.1, 0.4, (Math.random() - 0.5) * 2.5, Math.random() * 0.8, col, 0.5, 0.35, -0.5, false); }
   glint(x, y, col) { this.spawn(x, y, 0.8, 0, 0, col, 0.25, 0.9, 0); }
   ring(x, y, col, r = 6, flat = false) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -88,7 +99,7 @@ class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_MEM ? 1.25 : 1.75));
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = LOW_MEM ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.contextLost = true; const m = $('loadMsg'); $('title').classList.remove('hidden'); if (m) m.textContent = 'The graphics ran out of memory. Close other tabs, then reload the page.'; });
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x05040a);
     this.scene.fog = new THREE.Fog(0x0b0810, 16, 50);
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.5, 400);
@@ -96,20 +107,37 @@ class Game {
     this.moon = new THREE.DirectionalLight(0xaab8ff, 0.6); this.moon.castShadow = true;
     Object.assign(this.moon.shadow.camera, { left: -16, right: 16, top: 11, bottom: -8, near: 1, far: 60 }); this.moon.shadow.mapSize.setScalar(LOW_MEM ? 1024 : 2048); this.moon.shadow.bias = -0.0005; this.moon.shadow.normalBias = 0.03;
     this.scene.add(this.moon, this.moon.target);
-    this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.62); this.scene.add(this.camFill, this.camFill.target);
+    this.camFill = new THREE.DirectionalLight(0xd8d0e8, 0.22); this.scene.add(this.camFill, this.camFill.target);
     this.backRim = new THREE.DirectionalLight(0x9fb4ff, 1.8); this.scene.add(this.backRim, this.backRim.target);
-    const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; this.scene.environmentIntensity = 0.3;
+    const pm = new THREE.PMREMGenerator(this.renderer); this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; this.scene.environmentIntensity = 0.14;
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1024, 576), 0.55, 0.5, 0.82); this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, time: { value: 0 }, aspect: { value: 16 / 9 }, warm: { value: 0 }, lift: { value: new THREE.Vector3(0.012, 0.016, 0.034) } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float time, aspect, warm; uniform vec3 lift; varying vec2 vUv;
+        void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+          c.rgb = mix(vec3(l), c.rgb, 0.86);                                                     // a little desaturation
+          vec3 hi = mix(vec3(1.03, 1.0, 0.94), vec3(1.06, 0.98, 0.88), warm);
+          c.rgb = c.rgb * mix(vec3(0.97, 0.98, 1.04), hi, smoothstep(0.25, 0.85, l)) + lift * (1.0 - smoothstep(0.0, 0.35, l)); // cold shadows, warm light
+          vec2 d = vUv - 0.5; d.x *= aspect; c.rgb *= mix(0.6, 1.0, smoothstep(0.98, 0.34, length(d)));                         // vignette
+          float g = fract(sin(dot(floor(vUv * vec2(1920.0, 1080.0)) + time * 7.0, vec2(12.9898, 78.233))) * 43758.5453); c.rgb += (g - 0.5) * 0.028;
+          gl_FragColor = c; }` });
+    this.composer.addPass(this.grade);
     this.input = new Input(); this.fx = new FX(this.scene); this.ui = new UI(this);
     this.world = new World(this.scene); this.player = new Player(this);
+    { const es = new THREE.Scene(); es.background = new THREE.Color(0x0a0806);
+      const room = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshBasicMaterial({ color: 0x120c08, side: THREE.BackSide })); room.position.y = 3; es.add(room);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshBasicMaterial({ color: 0x1a120a })); floor.rotation.x = -Math.PI / 2; floor.position.y = -1.9; es.add(floor);
+      for (const [x, z] of [[-6, -6], [6, -5], [-5, 6], [7, 5]]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa050).multiplyScalar(6), side: THREE.DoubleSide })); c.position.set(x, 1.5, z); c.lookAt(0, 1, 0); es.add(c); }
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x6a6878).multiplyScalar(1.4), side: THREE.DoubleSide })); win.scale.setScalar(0.6); win.position.set(0, 4, -9.5); es.add(win);
+      this.world.setMetalEnv(pm.fromScene(es, 0.04).texture); }
     this.loot = []; this.shots = []; this.waves = []; this.erupts = []; this.suns = []; this.seals = []; this.visited = new Set(); this.flags = {};
     this.camPos = new THREE.Vector2(); this.camZ = CAMZ; this.shakeT = 0; this.stopT = 0; this.time = 0; this.playTime = 0;
     addEventListener('resize', () => this.resize()); this.resize();
   }
-  resize() { const w = Math.max(2, innerWidth), h = Math.max(2, innerHeight); this._sz = w + 'x' + h; this.renderer.setSize(w, h, false); this.composer.setSize(w, h); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
+  resize() { const w = Math.max(2, innerWidth), h = Math.max(2, innerHeight); this._sz = w + 'x' + h; this.renderer.setSize(w, h, false); this.composer.setSize(w, h); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); if (this.grade) this.grade.uniforms.aspect.value = w / h; }
 
   async load(msg) {
     msg('Reading the castle\'s bones…'); await loadMeta();
@@ -134,7 +162,7 @@ class Game {
         try { await e.load(); room.enemies.push(e); } catch (err) { console.warn('enemy', spec.t, err); }
       }));
       def.chests.forEach((c, i) => room.chests.push(this.makeChest(room, c, i)));
-      def.items.forEach((it, i) => { const key = `item:${def.id}:${i}`; if (!this.flags[key]) this.spawnPlaced(room, it, key); });
+      this.placeItems(room);
       room.cracks.forEach((s, i) => { s.key = `crack:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
       room.gates.forEach((s, i) => { s.key = `gate:${def.id}:${i}`; if (this.flags[s.key]) { s.gone = true; s.mesh.visible = false; } });
       for (const ch of room.chests) if (this.flags[ch.key]) ch.open(true);
@@ -158,6 +186,8 @@ class Game {
       for (const s of ['weapon', 'offhand']) await P.attachVisual(s);
       room = this.world.byId(save.room) || this.world.rooms.find(r => r.def.start);
     } else room = this.world.rooms.find(r => r.def.start);
+    // rooms raised during loading lost their pickups when the loot list was cleared above (the causeway blade among them)
+    for (const r of this.world.rooms) if (r.live) { this.placeItems(r); for (const ch of r.chests) if (this.flags[ch.key] && !ch.opened) ch.open(true); }
     await this.ensureRoom(room);
     if (save && room.saveAt) P.pos.set(room.saveAt.x, room.saveAt.y); else P.pos.set(room.b.x0 + (room.def.start?.x ?? 5), room.b.y0 + (room.def.start?.y ?? 0.5));
     P.refreshStats(); if (!save) { P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; }
@@ -165,14 +195,38 @@ class Game {
   }
 
   // ------------------------------------------------------------------ loot
+  // a room's placed pickups (and their pedestals, which stay once the prize is taken)
+  placeItems(room) {
+    const def = room.def; room.peds ||= new Set();
+    def.items.forEach((it, i) => {
+      const key = `item:${def.id}:${i}`;
+      if (it.pedestal && !room.peds.has(key)) { room.peds.add(key); this.pedestal(room, room.b.x0 + it.x, room.b.y0 + (it.y ?? FLOOR), it.altar, it.tutorial); }
+      if (!this.flags[key] && !this.loot.some(L => L.key === key)) this.spawnPlaced(room, it, key);
+    });
+  }
   async spawnPlaced(room, it, key) {
     const x = room.b.x0 + it.x, y = room.b.y0 + (it.y ?? FLOOR);
     const item = it.gem ? makeGem(it.gem) : it.up ? { up: it.up } : it.potion ? { potion: true } : it.gold ? { gold: it.gold } : it.unique ? makeUnique(it.unique) : it.tier ? tierItem(it.tier, it.rarity) : makeItem(it.tutorial ? startWeapon() : it.base, { rarity: it.rarity, sockets: it.sockets }); // the Attack Viewer can swap the first weapon
-    if (it.pedestal) {
-      const m = surface(it.altar ? 'marble' : 'ashlar', 1, 1, it.altar ? { dir: 'assets/game/interior/' } : {});
-      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
-      this.dropLoot(x, y + 0.9, item, room, key, true);
-    } else this.dropLoot(x, y, item, room, key, true);
+    if (it.tutorial) return this.plantBlade(room, x, y + 1.02, item, key);
+    this.dropLoot(x, it.pedestal ? y + 0.9 : y, item, room, key, true);
+  }
+  // the first weapon is not loot: it stands upright in the pilgrim's stone, lit by a thin shaft of moonlight
+  async plantBlade(room, x, y, item, key) {
+    const grp = new THREE.Group(); grp.position.set(x, y, -0.6); room.group.add(grp);
+    const L = { item, room, grp, x, y, key, bob: 0, placed: true, planted: true, model: new THREE.Group() }; grp.add(L.model); this.loot.push(L);
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 9), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xa8b8e0, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false })); shaft.position.set(-1.0, 4.2, -0.8); shaft.rotation.z = -0.24; grp.add(shaft); // a soft column of moonlight, not a scratch
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: 0xa8b8e0, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.005, 0.2); grp.add(pool);
+    const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xe8f0ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); glint.scale.set(0.09, 0.55, 1); L.model.add(glint); L.glint = glint; // a thin travelling gleam on the edge, not a ball
+    try { const m = await weaponModel(BASES[item.base].model, BASES[item.base].scale * 1.38); const len = m.userData.len; m.rotation.z = Math.PI; m.position.y = len * 0.78; L.model.add(m); L.len = len;
+      m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x34486e); o.material.emissiveIntensity = 0.7; } }); // a cold edge of moonlight on the steel
+      L.model.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(m), inv = L.model.matrixWorld.clone().invert(); bb.applyMatrix4(inv); L.blade = bb; // the glint runs up the real blade
+    } catch (e) { console.warn(e); }
+    return L;
+  }
+  pedestal(room, x, y, altar, tutorial) {
+    if (tutorial) { this.world.pilgrimStone(room, x, y); return; }
+    const m = surface(altar ? 'marble' : 'ashlar', 1, 1, altar ? { dir: 'assets/game/interior/' } : {});
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 0.9, 10), m); ped.position.set(x, y + 0.45, -0.6); ped.castShadow = ped.receiveShadow = true; room.group.add(ped);
   }
 
   async dropLoot(x, y, item, room = this.room, key, placed) {
@@ -200,10 +254,11 @@ class Game {
     const P = this.player;
     for (const L of this.loot) {
       if (L.room !== this.room) continue;
-      L.bob += dt * 2.4; L.model.position.y = 0.55 + Math.sin(L.bob) * 0.08; L.model.rotation.y += dt * 1.6;
+      if (L.planted) { L.bob += dt; if (L.glint && L.blade) { const u = (L.bob * 0.45) % 1, B = L.blade; L.glint.position.set((B.min.x + B.max.x) / 2, B.min.y + 0.15 + (B.max.y - B.min.y) * 0.62 * u, B.max.z + 0.02); L.glint.material.opacity = Math.sin(u * Math.PI) * 0.9; } }
+      else { L.bob += dt * 2.4; L.model.position.y = 0.55 + Math.sin(L.bob) * 0.08; L.model.rotation.y += dt * 1.6; }
       if (!L.placed) { L.vy -= 18 * dt; L.grp.position.y += L.vy * dt; const floor = this.floorBelow(L.grp.position.x, L.grp.position.y + 0.3); if (L.grp.position.y <= floor) { L.grp.position.y = floor; L.vy = 0; L.placed = true; } if (L.grp.position.y < this.room.b.y0 - 2) L.taken = true; }
       const dx = Math.abs(P.pos.x - L.grp.position.x), dy = L.grp.position.y + 0.4 - P.pos.y;
-      if (dx < 0.75 && dy > -0.4 && dy < 1.8 && P.state !== 'dead') this.pickup(L);
+      if (dx < (L.planted ? 0.9 : 0.75) && dy > (L.planted ? -1.4 : -0.4) && dy < 1.8 && P.state !== 'dead' && (!L.planted || P.onGround)) this.pickup(L);
     }
     this.loot = this.loot.filter(L => !L.taken);
   }
@@ -216,14 +271,17 @@ class Game {
     if (it.potion) { if (P.stats.potions >= this.potionCap()) { P.heal(Math.round(P.stats.hpMax * 0.25)); this.ui.toast('Your flasks are full — you drink it where you stand.', 'magic'); } else { P.stats.potions++; this.ui.toast(`Potion of Vigor (${P.stats.potions}/${this.potionCap()})`, 'magic'); } audio.play('heart_collect', 0.5); return; }
     if (it.up) { if (it.up === 'life') P.stats.lifeUp++; else P.stats.manaUp++; P.refreshStats(); P.stats.hp = P.stats.hpMax; P.stats.mp = P.stats.mpMax; audio.play('firebuff_1', 0.6); this.flash(); this.fx.burst(P.pos.x, P.pos.y + 1, it.up === 'life' ? 0xff4060 : 0x5a80ff, 40, 5); this.ui.roomName(it.up === 'life' ? 'LIFE VESSEL — MAX LIFE UP' : 'MANA VESSEL — MAX MANA UP', 2600); return; }
     P.bag.push(it);
-    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — open the pack (I) and press S to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
-    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast('Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
-    if (it.base === startWeapon() && !this.flags.equipHint) { this.flags.equipHint = 1; this.ui.prompt(`Press I to open your pack, then Enter to equip the ${it.name}`); this.tutorial = 'equip'; }
+    if (it.gem) { audio.play('gem_collect', 0.6); this.ui.toast(`${GEMS[it.gem].name} — ${wantsTouch() ? 'open the pack and tap GEM' : 'open the pack (I) and press S'} to socket it`, 'gem'); if (it.gem === 'ruby' && !this.flags.rubyHint) { this.flags.rubyHint = 1; setTimeout(() => this.ui.toast('A fire gem in a weapon will burn through blackthorn.', 'gem'), 1600); } }
+    else { audio.play(it.rarity === 'unique' ? 'firebuff_1' : it.rarity === 'rare' ? 'gem_collect' : it.rarity === 'magic' ? 'glass_ping_small' : 'weapon_pick_up', 0.6); this.ui.toast(`${it.rarity === 'unique' ? '★ ' : ''}${it.name}${it.echo ? ' — ' + ECHOES[it.echo].name : ''}`, it.rarity); if (BASES[it.base].slot === 'offhand' && !this.flags.shieldHint) { this.flags.shieldHint = 1; setTimeout(() => this.ui.toast(wantsTouch() ? 'Equip it from the pack, then HOLD the shield button to raise it' : 'Equip it (I), then HOLD L to raise the shield', 'magic'), 1200); } }
+    if (L.planted && BASES[it.base]?.slot === 'weapon' && !P.equip.weapon) { // drawn from the stone straight into the hand
+      this.flags.equipHint = 1; P.equipItem('weapon', it); P.state = 'ring'; P.stateT = 0; P.ringDur = 1.1; P.vel.x = 0; this.slowMo(0.5); this.flash(); audio.play('firebuff_1', 0.5); this.fx.burst(L.x, L.y + 0.8, 0xc8d8ff, 30, 4); this.ui.roomName(it.name.toUpperCase(), 2200);
+      this.tutorial = 'strike'; setTimeout(() => { if (this.tutorial === 'strike') this.ui.prompt(wantsTouch() ? 'Tap the sword button to strike — try the candles ahead' : 'J to strike — try the candles ahead'); }, 1300);
+    } else if (it.base === startWeapon() && !this.flags.equipHint) { this.flags.equipHint = 1; this.ui.prompt(wantsTouch() ? `Open the pack and tap the ${it.name} to equip it` : `Press I to open your pack, then Enter to equip the ${it.name}`); this.tutorial = 'equip'; }
   }
 
   makeChest(room, c, i) {
     const x = room.b.x0 + c.x, y = room.b.y0 + (c.y ?? FLOOR), key = `chest:${room.def.id}:${i}`;
-    const wood = surface(c.unique ? 'pv_dark_walnut' : 'wood', 1, 1, c.unique ? { dir: 'assets/game/tex2/' } : {}), iron = new THREE.MeshStandardMaterial({ color: c.unique ? 0xb08a3a : 0x3a3028, metalness: 0.85, roughness: 0.4 });
+    const wood = surface('pv_dark_walnut', 1, 1, { dir: 'assets/game/tex2/', tint: c.unique ? 0xffffff : 0x9a8a80 }), iron = new THREE.MeshStandardMaterial({ color: c.unique ? 0xb08a3a : 0x3a3028, metalness: 0.85, roughness: 0.4 });
     const g = new THREE.Group(); g.position.set(x, y, -1.2); if (c.big) g.scale.setScalar(1.35);
     const bodyM = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.8), wood); bodyM.position.y = 0.3; bodyM.castShadow = true;
     const lid = new THREE.Group(); lid.position.set(0, 0.6, -0.4);
@@ -269,12 +327,12 @@ class Game {
     const old = this.room, P = this.player;
     if (!room.live) { this.loading = true; $('fade').style.opacity = 1; try { await this.ensureRoom(room); } finally { this.loading = false; } }
     if (old) { old.group.visible = false; this.leaveRoom(old); }
-    this.room = room; room.group.visible = true; this.visited.add(room.def.id);
+    this.room = room; room.group.visible = true; this.visited.add(room.def.id); if (instant) P.groundS = null;
     for (const e of room.enemies) if (e.dead && !e.boss && !e.summoner) e.reset();
     for (const bk of room.breakables) if (bk.broken && Math.random() < 0.6) { bk.broken = false; bk.grp.visible = true; }
     this.applyBells(room);
     const T = room.theme; this.scene.fog.color.setHex(T.fog[0]); this.scene.fog.near = T.fog[1]; this.scene.fog.far = T.fog[2]; this.scene.background.setHex(T.sky === 'moon' ? 0x141a30 : T.sky === 'storm' ? 0x0c1018 : T.fog[0]);
-    this.amb = T.amb * 1.25; this.hemi.intensity = this.amb; this.moon.intensity = T.moon;
+    const open = !!T.sky; this.amb = T.amb * (open ? 1.0 : 1.3); this.hemi.intensity = this.amb; const hue = HUE[room.def.theme] || [0x463e38, [0.012, 0.014, 0.018]]; this.hemi.color.setHex(open ? 0x8a90c0 : hue[0]); this.hemi.groundColor.setHex(open ? 0x201418 : 0x161014); this.grade.uniforms.lift.value.set(...(open ? [0.012, 0.016, 0.034] : hue[1])); this.backRim.intensity = open ? 1.8 : 0; /* indoors the back rim only painted the set cold */ this.moon.intensity = open ? T.moon * 0.85 : room.lancets ? Math.min(0.5, T.moon * 0.7) : 0.1; this.camFill.intensity = open ? 0.3 : 0.21; this.scene.environmentIntensity = open ? 0.2 : 0.12; this.grade.uniforms.warm.value = T.heat ? 1 : 0;
     if (!instant) { $('fade').style.opacity = 0.85; setTimeout(() => $('fade').style.opacity = 0, 90); } else $('fade').style.opacity = 0;
     this.snapCam = true;
     if (!old || old.def.name !== room.def.name) this.ui.roomName(room.def.name);
@@ -292,7 +350,7 @@ class Game {
     const near = new Set([cur, ...this.neighbours(cur)]);
     for (const r of live.filter(r => !near.has(r)).sort((a, b) => (a.seen || 0) - (b.seen || 0)).slice(0, live.length - (LOW_MEM ? 4 : 9))) {
       this.loot = this.loot.filter(L => { if (L.room !== r) return true; if (!L.key) return false; return false; });
-      this.world.unload(r, r.enemies.map(e => e.root)); r.live = false; r.living = null; r.enemies = []; r.chests = []; r.bellObj = null;
+      this.world.unload(r, r.enemies.map(e => e.root)); r.live = false; r.living = null; r.enemies = []; r.chests = []; r.bellObj = null; r.peds = null;
     }
   }
   leaveRoom(old) {
@@ -364,6 +422,7 @@ class Game {
     if (echo === 'star' && Math.random() < 0.15) { this.shoot({ x: e.pos.x + rnd(-1, 1), y: e.pos.y + 12, vx: 0, vy: -20, kind: 'star', dmg: Math.round(dmg * 1.5), friendly: true, life: 1.5, blast: 2 }); audio.play('rock_meteor_throw_1', 0.4); }
   }
   onSwing(P, A) {
+    if (this.tutorial === 'strike') { this.tutorial = null; this.ui.prompt(''); this._pt = null; setTimeout(() => this.ui.toast(wantsTouch() ? 'Strikes chain — keep tapping. Jump and swing in the air too.' : 'Strikes chain — keep pressing J. Swing while jumping or crouching too.', 'magic'), 900); }
     if (P.d.echo === 'crescent' && A.n % 3 === 0) { const r = P.rollDamage(); this.shoot({ x: P.pos.x + P.facing * 0.8, y: P.pos.y + (P.crouch ? 0.6 : 1.1), vx: P.facing * 13, vy: 0, kind: 'pcrescent', dmg: Math.round(r.dmg * 0.6), friendly: true, pierce: true, life: 0.9 }); audio.play('wave_attack_2', 0.35, 1.4); }
   }
   // Up + Attack: spend mana to loose the weapon's echo at full strength (a crescent of force if it has none)
@@ -550,7 +609,7 @@ class Game {
   }
   hitStop(t) { this.stopT = Math.max(this.stopT, t); }
   shake(a) { this.shakeT = Math.max(this.shakeT, a); }
-  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast('3 attribute points to spend — open the pack (I), press 1-4', 'rare'); audio.play('firebuff_1', 0.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
+  levelUp(lvl) { const P = this.player; this.ui.roomName(`LEVEL ${lvl}`, 2200); this.ui.toast(wantsTouch() ? '3 attribute points to spend — open the pack and tap +' : '3 attribute points to spend — open the pack (I), press 1-4', 'rare'); audio.play('firebuff_1', 0.5); this.fx.ring(P.pos.x, P.pos.y + 1, 0xffd84a, 7); this.fx.burst(P.pos.x, P.pos.y + 1, 0xffd84a, 40, 6); }
 
   onEnemyDeath(e) {
     const P = this.player, T = e.T, echo = P.d.echo;
@@ -594,7 +653,7 @@ class Game {
   }
   unseal() { for (const s of this.seals) this.scene.remove(s.m); this.seals = []; }
   bossPhase(e, ph) { this.shake(0.6); this.flash(); audio.play('crowd_gasp', 0.4, 0.5); this.ui.toast(ph === 2 ? `${e.T.name.split(',')[0]} grows desperate!` : `${e.T.name.split(',')[0]} burns with a last fury!`, 'unique'); this.fx.ring(e.cx, e.cy, 0xff4040, 10); }
-  bossUpdate(e) { if (e === this.bossE) $('bossFill').style.width = Math.max(0, 100 * e.hp / e.hpMax) + '%'; }
+  bossUpdate(e) { if (e === this.bossE) { const w = Math.max(0, 100 * e.hp / e.hpMax) + '%'; $('bossFill').style.width = w; $('bossTrail').style.width = w; } }
   ending() {
     const P = this.player, s = P.stats, pct = Math.round(100 * this.visited.size / this.world.rooms.length), mins = Math.round(this.playTime / 60);
     setTimeout(() => { this.cine = true; this.ui.ending(`The hollow sun gutters out. Above Castle Velscour, for the first time in an age, seven bells ring.`, [['Level', s.lvl], ['Castle explored', pct + '%'], ['Foes slain', s.kills], ['Time', `${Math.floor(mins / 60)}h ${mins % 60}m`]]); audio.music('intro_cursed_citadel', 0.5); audio.play('title_bells', 0.8); }, 5200);
@@ -633,13 +692,14 @@ class Game {
     for (const c of r.chests) if (!c.opened && Math.abs(P.pos.x - c.x) < 1.4 && Math.abs(P.pos.y - c.y) < 1) { c.open(); return; }
   }
   promptFor() {
-    const P = this.player, r = this.room; if (this.tutorial) return;
+    const P = this.player, r = this.room;
     let t = '', ctx = ''; const near = (o, d = 1.8) => o && Math.abs(P.pos.x - o.x) < d && Math.abs(P.pos.y - o.y) < 1, key = document.body.classList.contains('touch') ? '' : 'E — ';
     if (near(r.saveAt)) { t = key + 'Rest at the coffin (heal & save)'; ctx = 'REST'; }
     else if (near(r.warpAt)) { t = key + 'Step through the mirror'; ctx = 'TOUCH'; }
     else if (near(r.shopAt, 2.2)) { t = key + 'Trade'; ctx = 'TRADE'; }
     else if (r.chests.some(c => !c.opened && near(c, 1.4))) { t = key + 'Open the chest'; ctx = 'OPEN'; }
-    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text;
+    else for (const l of r.def.lore) if (Math.abs(P.pos.x - (r.b.x0 + l.x)) < 3 && (l.y === undefined || Math.abs(P.pos.y - (r.b.y0 + l.y)) < 3)) t = l.text.replace('{jump}', wantsTouch() ? 'JUMP' : 'SPACE').replace('{dash}', wantsTouch() ? 'DASH' : 'SHIFT');
+    if (!t && this.tutorial) return; // a standing tutorial line yields to anything the room has to say
     this.ctxAction = ctx; // touch: shows the USE button
     if (t !== this._pt) { this._pt = t; this.ui.prompt(t); }
   }
@@ -673,23 +733,31 @@ class Game {
     const P = this.player, b = this.room.b, cam = this.camera;
     if (this._sz !== Math.max(2, innerWidth) + 'x' + Math.max(2, innerHeight)) this.resize();
     if (!isFinite(this.camPos.x) || !isFinite(this.camPos.y)) this.snapCam = true;
-    const boss = this.bossE && !this.bossE.dead ? this.bossE : null;
-    this.camZ += ((boss ? (boss.T.quad || boss.T.fly ? 15.5 : 13) : CAMZ) - this.camZ) * Math.min(1, dt * 1.5);
+    const boss = this.bossE && !this.bossE.dead ? this.bossE : null, def = this.room.def;
+    let wantZ = def.vista || CAMZ; if (def.vistaAt && P.pos.x - b.x0 > def.vistaAt.x) wantZ = def.vistaAt.z;
+    if (boss) { const sep = Math.abs(P.pos.x - boss.pos.x); wantZ = Math.max(wantZ, Math.min(19, (boss.T.quad || boss.T.fly ? 15.5 : 13.5) + Math.max(0, sep - 7) * 0.55)); } // keep a charging boss on screen
+    this.camZ += (wantZ - this.camZ) * Math.min(1, dt * 1.5);
     const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * this.camZ, halfW = halfH * cam.aspect;
-    let tx = P.pos.x + P.facing * 1.4, ty = P.pos.y + 1.3;
-    if (boss) { tx = boss.state === 'intro' && boss.t < 2 && boss.phase === 1 ? boss.pos.x - boss.facing * 1.2 : P.pos.x * 0.6 + boss.pos.x * 0.4; ty = P.pos.y * 0.7 + (boss.pos.y + 1) * 0.3 + 1.6; }
+    // look-ahead follows running, not facing, and eases slowly: turning to fight no longer swings the frame
+    const run = Math.abs(P.vel.x) > 1 && P.state !== 'backdash' ? Math.sign(P.vel.x) : 0; this.lookX ||= 0; if (run) this.lookX = (this.lookX || 0) + (run * 1.6 - (this.lookX || 0)) * Math.min(1, dt * 1.6); // standing still keeps the last offset: no drift after every stop
+    // height holds on the last footing; a jump only moves the frame once it climbs out of a band, a fall follows at once
+    if (P.onGround || this.footY === undefined || this.snapCam) this.footY = P.pos.y;
+    let fy = this.footY; if (P.pos.y > fy + 1.6) fy = P.pos.y - 1.6; if (P.pos.y < fy) { fy = P.pos.y; this.footY = fy; }
+    let tx = P.pos.x + this.lookX, ty = fy + (def.open ? 2.6 : 1.5); // open air: give the sky and the castle more of the frame
+    if (def.vistaAt && P.pos.x - b.x0 > def.vistaAt.x) ty += 2.2; // and lift it to take in the barbican's crown
+    if (boss) { tx = boss.state === 'intro' && boss.t < 2 && boss.phase === 1 ? boss.pos.x - boss.facing * 1.2 : P.pos.x * 0.6 + boss.pos.x * 0.4; ty = fy * 0.7 + (boss.pos.y + 1) * 0.3 + 1.4; }
     tx = (b.x1 - b.x0) <= halfW * 2 ? (b.x0 + b.x1) / 2 : Math.max(b.x0 + halfW, Math.min(b.x1 - halfW, tx));
-    const lo = b.y0 + halfH - 0.85, hi = Math.max(lo, b.y1 - halfH + (this.room.def.open ? 6 : 0.2));
+    const lo = b.y0 + halfH - (def.open ? 0.7 : 0.35), hi = Math.max(lo, b.y1 - halfH + (def.open ? 6 : 0.2));
     ty = Math.max(lo, Math.min(hi, ty));
     if (this.snapCam) { this.camPos.set(tx, ty); this.snapCam = false; }
-    else { const k = 1 - Math.exp(-dt * 7); this.camPos.x += (tx - this.camPos.x) * k; this.camPos.y += (ty - this.camPos.y) * (1 - Math.exp(-dt * 5)); }
+    else { const k = 1 - Math.exp(-dt * 6); this.camPos.x += (tx - this.camPos.x) * k; this.camPos.y += (ty - this.camPos.y) * (1 - Math.exp(-dt * 4)); }
     let sx = 0, sy = 0; if (this.shakeT > 0) { this.shakeT -= dt; sx = (Math.random() - 0.5) * this.shakeT * 0.5; sy = (Math.random() - 0.5) * this.shakeT * 0.5; }
-    cam.position.set(this.camPos.x + sx, this.camPos.y + 0.9 + sy, this.camZ); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
-    this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 5, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
+    cam.position.set(this.camPos.x + sx, this.camPos.y + 0.45 + sy, this.camZ); cam.lookAt(this.camPos.x + sx, this.camPos.y + sy, 0);
+    this.backRim.position.set(this.camPos.x + 2, this.camPos.y + 1, -12); this.backRim.target.position.set(this.camPos.x, this.camPos.y, 0);
     this.camFill.position.set(this.camPos.x + 3, this.camPos.y + 4, 14); this.camFill.target.position.set(this.camPos.x, this.camPos.y, 0);
-    this.moon.position.set(this.camPos.x - 8, this.camPos.y + 18, 14); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1);
+    if (this.room.theme.sky) { this.moon.position.set(this.camPos.x - 10, this.camPos.y + 16, 6); this.moon.target.position.set(this.camPos.x, this.camPos.y - 2, -1); } else { this.moon.position.set(this.camPos.x - 15, this.camPos.y + 4.5, 3); this.moon.target.position.set(this.camPos.x, this.camPos.y, -2.5); } // indoors the moon rakes across the masonry from a window
     this.hemi.intensity = (this.amb || 0.5) * (this.room.lightning > 0 ? 3.5 : 1);
-    this.ui.hud();
+    this.ui.hud(); this.grade.uniforms.time.value = (this.time || 0) % 100;
     if (!window.__norender) this.composer.render();
   }
 

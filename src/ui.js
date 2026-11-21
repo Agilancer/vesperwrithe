@@ -31,7 +31,7 @@ export class UI {
 
   hud() {
     const s = this.g.player.stats;
-    $('hpFill').style.width = (100 * s.hp / s.hpMax) + '%'; $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
+    const hpw = (100 * s.hp / s.hpMax) + '%'; if (hpw !== this._hpw) { this._hpw = hpw; $('hpFill').style.width = hpw; $('hpTrail').style.width = hpw; $('hpBar').classList.toggle('low', s.hp < s.hpMax * 0.25); } $('hpText').textContent = `${Math.ceil(s.hp)} / ${s.hpMax}`;
     $('mpFill').style.width = (100 * s.mp / s.mpMax) + '%'; $('mpText').textContent = `${s.mp}`;
     $('xpFill').style.width = Math.min(100, 100 * s.xp / s.next) + '%';
     $('lvl').textContent = s.lvl; $('lvl').classList.toggle('pts', s.pts > 0);
@@ -130,11 +130,12 @@ export class UI {
   }
   renderInv() {
     const P = this.g.player, s = P.stats; P.refreshStats(); const d = P.d, pt = s.pts > 0;
-    const row = (k, v, key) => `<span class="k">${k}${key && pt ? ` <kbd>${key}</kbd>` : ''}</span><span>${v}</span>`;
+    const touch = document.body.classList.contains('touch'), row = (k, v, key) => `<span class="k">${k}${key && pt ? (touch ? ` <button class="plus" data-k="Digit${key}">+</button>` : ` <kbd>${key}</kbd>`) : ''}</span><span>${v}</span>`;
     $('stats').innerHTML = [row('Level', s.lvl), row('Experience', `${s.xp} / ${s.next}`), row('Life', `${Math.ceil(s.hp)} / ${s.hpMax}`), row('Mana', `${s.mp} / ${s.mpMax}`),
       row('Strength', d.str, 1), row('Constitution', d.con, 2), row('Intellect', d.int, 3), row('Luck', d.lck, 4), row('Agility', d.dex),
       row('Attack', `${d.dmg[0]}-${d.dmg[1]}` + d.elems.map(e => ` <em class="e-${e.elem}">+${e.dmg[0]}-${e.dmg[1]}</em>`).join('')), row('Critical', `${Math.round(d.crit)}%`), row('Attack speed', `+${Math.round(Math.min(120, d.ias))}%`), row('Defense', d.def), row('Magic find', `+${Math.round(d.mf)}%`), row('Gold', s.gold)].join('')
-      + (pt ? `<div class="pts">${s.pts} attribute point${s.pts > 1 ? 's' : ''} — press 1 · 2 · 3 · 4</div>` : '');
+      + (pt ? `<div class="pts">${s.pts} attribute point${s.pts > 1 ? 's' : ''} — ${touch ? 'tap + beside a stat' : 'press 1 · 2 · 3 · 4'}</div>` : '');
+    $('stats').querySelectorAll('button.plus').forEach(b => b.onclick = e => { e.stopPropagation(); this.invKey(b.dataset.k); });
     $('slots').innerHTML = SLOTS.map(sl => { const it = P.equip[sl.id]; return `<div class="slot"><span class="n">${sl.label}</span><span class="q-${it?.rarity || 'normal'}">${it ? it.name + sockDots(it) : '—'}</span></div>`; }).join('')
       + `<div class="bellrow">${BELL_ORDER.map(b => `<span class="${P.has(b) ? 'on' : ''}" style="--c:${hex(BELLS[b].color)}">${P.has(b) ? BELLS[b].verb : '· · ·'}</span>`).join('')}</div>`;
     $('tabs').innerHTML = TABS.map(t => `<span class="${t === this.tab ? 'on' : ''}">${t.toUpperCase()}</span>`).join('');
@@ -154,7 +155,7 @@ export class UI {
     $('detail').innerHTML = detailItem ? this.describe(detailItem, true) : '';
   }
   describe(it, compare) {
-    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (S)</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">[S] Socket into an item</div>`; }
+    if (it.gem) { const G = GEMS[it.gem]; return `<h3 class="q-gem">${G.name}</h3><div class="type">Gem — socket into gear (${document.body.classList.contains('touch') ? 'GEM button' : 'S'})</div><div class="line"><b>Weapon:</b> ${G.weapon.text}</div><div class="line"><b>Armor:</b> ${G.armor.text}</div><div class="line"><b>Shield:</b> ${G.shield.text}</div><div class="act">${document.body.classList.contains('touch') ? 'GEM: socket' : '[S] Socket'} into an item</div>`; }
     const b = BASES[it.base], st = itemStats(it), P = this.g.player;
     let h = `<h3 class="q-${it.rarity}">${it.name}</h3><div class="type">${it.rarity !== 'normal' ? it.rarity[0].toUpperCase() + it.rarity.slice(1) + ' ' : ''}${b.cls || b.name}${b.hands === 2 ? ' · Two-Handed' : ''} · item level ${itemLevel(it)}${P.stats.lvl < itemReq(it) ? ` · <em class="dn">requires level ${itemReq(it)}</em>` : ''}</div>`;
     const cur = compare && (b.slot === 'ring' ? P.equip.ring1 : P.equip[b.slot]), cs = cur && cur !== it ? itemStats(cur) : null;
@@ -163,7 +164,7 @@ export class UI {
     if (b.def) h += `<div class="line">Defense: ${st.def}${diff(st.def, cs?.def || 0)}</div>`; if (b.block) h += `<div class="line">Block: ${Math.round(b.block * 100)}%</div>`;
     for (const l of st.lines) h += `<div class="line ${l.cls}" ${l.css ? `style="color:${l.css}"` : ''}>${l.text}</div>`;
     if (it.sockets) h += `<div class="sockets">${Array.from({ length: it.sockets }, (_, i) => { const g = it.gems[i]; return `<span class="sock" style="${g ? `background:radial-gradient(circle at 35% 35%,#fff,${GEMS[g].css} 45%,#000);border-color:${GEMS[g].css}` : ''}"></span>`; }).join('')}</div>`;
-    h += `<div class="act">${this.socketMode ? '[Enter] Socket here · [Esc] cancel' : compare ? '[Enter] Equip · [U] unequip a slot · worth ' + Math.round(itemValue(it) * 0.3) + 'g' : ''}</div>`;
+    h += `<div class="act">${this.socketMode ? '[Enter] Socket here · [Esc] cancel' : compare ? (document.body.classList.contains('touch') ? 'Tap again to equip · worth ' : '[Enter] Equip · [U] unequip a slot · worth ') + Math.round(itemValue(it) * 0.3) + 'g' : ''}</div>`;
     return h;
   }
 
