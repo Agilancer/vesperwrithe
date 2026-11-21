@@ -237,7 +237,7 @@ export class Enemy {
       gh = this.ghosts[this.ghostI % n] = { c, mat, src, dst, t: 0, life }; this.room.group.add(c);
     }
     for (let i = 0; i < gh.src.length && i < gh.dst.length; i++) { const a = gh.src[i], b = gh.dst[i]; b.position.copy(a.position); b.quaternion.copy(a.quaternion); b.scale.copy(a.scale); }
-    this.model.updateWorldMatrix(true, false); gh.c.matrix.copy(this.model.matrixWorld); gh.c.matrix.decompose(gh.c.position, gh.c.quaternion, gh.c.scale); gh.c.position.z -= 0.15;
+    this.model.updateWorldMatrix(true, false); gh.c.matrix.copy(this.model.matrixWorld); gh.c.matrix.decompose(gh.c.position, gh.c.quaternion, gh.c.scale); gh.c.position.z -= 0.55; // set back behind the body, so it trails rather than washing the live model out
     gh.mat.color.setHex(col); gh.t = 0; gh.life = life; gh.op = op; gh.c.visible = true;
   }
   tickGhosts(dt) { for (const g of this.ghosts || []) if (g?.c.visible) { g.t += dt; const k = g.t / g.life; g.mat.opacity = g.op * Math.max(0, 1 - k) ** 1.5; if (k >= 1) g.c.visible = false; } }
@@ -725,7 +725,7 @@ const MOVE = {
     if (k < 0.2) { e.warn = k / 0.2; e.vel.x = 0; return false; }
     const i = Math.min(2, Math.floor((k - 0.2) / 0.25)), u = ((k - 0.2) / 0.25) % 1;
     if (s.i !== i) { s.i = i; s.hit = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('sword_attack_3', 0.5, 0.95 + i * 0.12); e.play(e.clipFor(i === 1 ? 'atk3' : 'atk1') || e.T.anim.attack, 0.06, { restart: true, speed: 1.7, once: true }); }
-    if (u < 0.5 && k < 0.95) { e.vel.x = e.facing * 12 * (1 - u / 0.5); if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.045; e.ghost(0xb8c8ff, 0.26, 0.38); } if (!s.hit && u > 0.15 && frontBox(e, P, e.T.reach + 0.3, false, e.T.dmg * 0.7)) s.hit = 1; } else e.vel.x = 0;
+    if (u < 0.5 && k < 0.95) { e.vel.x = e.facing * 12 * (1 - u / 0.5); if (Math.abs(e.vel.x) > 4 && (s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.05; e.ghost(0x5a74ff, 0.24, 0.28); } if (!s.hit && u > 0.15 && frontBox(e, P, e.T.reach + 0.3, false, e.T.dmg * 0.7)) s.hit = 1; } else e.vel.x = 0;
     return k >= 1;
   },
   // the crab tucks into its shell and spins across the floor, throwing sparks; it rebounds off one wall, then reels
@@ -733,7 +733,7 @@ const MOVE = {
     mv.t += dt; const s = mv.s;
     if (mv.t < 0.5) { e.warn = mv.t / 0.5; e.vel.x = 0; e.tilt.rotation.y += dt * 6 * (mv.t / 0.5); return false; }
     if (!s.go) { s.go = 1; s.b = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('rock_meteor_throw_1', 0.6, 0.7); }
-    e.vel.x = e.facing * 11; e.tilt.rotation.y += dt * 26; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.06; e.ghost(0xffd0a0, 0.22, 0.3); }
+    e.vel.x = e.facing * 11; e.tilt.rotation.y += dt * 26; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.08; e.ghost(0xff7a30, 0.2, 0.2); }
     if (Math.random() < 0.8) e.g.fx.spawn(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y + 0.1, 0.6, -e.facing * rnd(2, 6), rnd(1, 4), Math.random() < 0.5 ? 0xffd080 : 0xffffff, 0.3, 0.12, 14);
     const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.2, a.x1 + 0.2, a.y0, a.y1, e.T.dmg * 1.1)) s.hit = 1;
     if (e.hitWall) { e.g.shake(0.4); audio.play('rock_wall_2', 0.6, 1.1); e.g.fx.burst(e.pos.x + e.facing * e.T.w * 0.5, e.pos.y + 0.8, 0xffe0a0, 16, 4); if (++s.b > 1) { e.tilt.rotation.y = 0; e.stun = 1.4; e.stunStars = true; return true; } e.facing *= -1; s.hit = 0; }
@@ -751,7 +751,7 @@ const MOVE = {
   miasma(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 3, i = Math.floor((k - 0.3) / 0.45 * n), fy = e.arenaFloor ?? e.home.y;
     if (k < 0.3) e.warn = k / 0.3;
-    if (k >= 0.3 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(P.pos.x + rnd(-3, 3), a0 - 2, a1 + 2); e.g.cloud(x, fy, 2.6, 5, 'poison', Math.round(e.T.dmg * 0.25 * e.dmgMul), e); e.g.fx.line({ x: e.mouth.x, y: e.mouth.y }, { x, y: fy + 0.6 }, 0x8aff5a); audio.play('waterspray_1', 0.5, 0.6); }
+    if (k >= 0.3 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(P.pos.x + rnd(-3, 3), a0 - 2, a1 + 2); const T = 0.6, g = 14, mx = e.mouth.x, my = e.mouth.y; e.g.shoot({ x: mx, y: my, vx: (x - mx) / T, vy: (fy + 0.3 - my) / T + 0.5 * g * T, grav: g, kind: 'lob', dmg: Math.round(e.T.dmg * 0.4 * e.dmgMul), elem: 'poison', src: e, life: T + 0.05, splash: 'miasma', cloudDmg: Math.round(e.T.dmg * 0.25 * e.dmgMul) }); audio.play('waterspray_1', 0.5, 0.6); } // a glob of bile arcs out and bursts into a cloud where it lands
     return k >= 1;
   },
   // the bone golem stamps and the ossuary answers: a ring of bone teeth bursts outward on both sides
@@ -766,7 +766,8 @@ const MOVE = {
   maw(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
     if (k < 0.7) { e.warn = Math.min(1, k / 0.5); e.facing = sgn(P.pos.x - e.pos.x); const d = P.pos.x - e.pos.x; if (Math.abs(d) < 14 && Math.abs(P.pos.y - e.pos.y) < 5) P.push = (P.push || 0) - sgn(d) * dt * 9;
-      for (let i = 0; i < 2; i++) { const r = rnd(3, 7), y = e.cy + rnd(-2, 2); e.g.fx.spawn(e.pos.x + e.facing * r, y, 0.7, -e.facing * r * 2.2, (e.cy - y) * 2, 0x6a4aa0, 0.45, rnd(0.15, 0.3), 0, false); } if (!s.snd) { s.snd = 1; audio.play('wave_attack_1', 0.6, 0.35); } return false; }
+      if ((s.st = (s.st || 0) - dt) <= 0) { s.st = 0.035; e.g.fx.streak(e.pos.x + e.facing * rnd(2.5, 8), e.cy + rnd(-1.8, 2.2), -e.facing, rnd(1.6, 3.2), Math.random() < 0.5 ? 0x9a7ad8 : 0xd8c8ff); } // the air itself rushes into the maw
+      if (Math.random() < 0.6) e.g.fx.spawn(e.pos.x + e.facing * rnd(2, 9), e.pos.y + 0.15, 0.7, -e.facing * rnd(4, 8), rnd(0, 0.6), 0x5a5048, 0.5, rnd(0.2, 0.4), 0, false); if (!s.snd) { s.snd = 1; audio.play('wave_attack_1', 0.6, 0.35); } return false; }
     if (!s.f) { s.f = 1; audio.play('squelching_4', 0.7, 0.6); e.g.shake(0.4); e.play(e.T.anim.attack, 0.06, { restart: true, once: true, speed: 1.6 }); if (frontBox(e, P, e.T.reach + 1, false, e.T.dmg * 1.3)) e.g.hitStop(0.08); }
     return k >= 1;
   },
