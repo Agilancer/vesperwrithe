@@ -70,7 +70,7 @@ const dmgAt = (lvl, mult) => { const avg = (7 + lvl * 2.9) * mult; return [Math.
 export const BASES = {
   // armour and trinkets have no models; icon = a Bellmourn wardrobe icon
   leather_cap:   { name: 'Leather Cap', slot: 'head', def: 2, sockets: [0, 1], lvl: 1, icon: 'ash_hood_head' },
-  iron_helm:     { name: 'Iron Helm', slot: 'head', def: 6, sockets: [0, 2], lvl: 5, icon: 'knight_helm_head' },
+  iron_helm:     { name: 'Iron Helm', slot: 'head', def: 6, sockets: [0, 2], lvl: 5, icon: 'knight_head' },
   great_helm:    { name: 'Great Helm', slot: 'head', def: 13, sockets: [0, 2], lvl: 14, icon: 'night_hood_head' },
   crown_helm:    { name: 'Crowned Helm', slot: 'head', def: 22, sockets: [1, 3], lvl: 24, icon: 'crimson_pointed_head' },
   padded_jerkin: { name: 'Padded Jerkin', slot: 'body', def: 4, sockets: [0, 2], lvl: 1, icon: 'ash_jacket_chest' },
