@@ -185,3 +185,26 @@ em.up { color: #6aff8a; font-style: normal; font-size: .85em; } em.dn { color: #
 #ending .stats { display: grid; grid-template-columns: auto auto; gap: 6px 26px; margin-top: 18px; font-size: 17px; } #ending .k { color: #a89c80; text-align: right; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .dmg.shadow { color: #c090ff; } .dmg.poison { color: #8aff5a; } .dmg.fire { color: #ff8a40; } .dmg.ice { color: #8ad8ff; }
+
+/* ---------------------------------------------------------------- game controllers (gamepad.js)
+   Button badges for hints ({A} {RT} …), title focus for a pad, and the touch overlay steps aside while a pad is in hand. */
+.pg{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:1.9em;min-width:1.9em;padding:0 .2em;margin:0 .12em;vertical-align:-.5em;border-radius:50%;background:radial-gradient(circle at 50% 32%,#2c2632,#110e15);border:1px solid rgba(232,222,200,.5);box-shadow:0 1px 3px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.12);color:#f2e8d2;font:800 .72em/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-style:normal;letter-spacing:0;text-indent:0;text-transform:none;text-shadow:none;white-space:nowrap;opacity:1}
+.pg svg{width:1.3em;height:1.3em;display:block;overflow:visible}
+.pg.sh{border-radius:.6em;padding:0 .55em;font-size:.6em;height:2.25em;letter-spacing:.05em}
+.pg.st{border-width:2px;border-color:rgba(232,222,200,.75);font-size:.6em;height:2.3em;min-width:2.3em}
+.pg.dp{background:none;border:0;box-shadow:none;padding:0;min-width:0}
+.pg.dp svg{width:1.95em;height:1.95em}
+body.pad #touch{display:none}
+body.pad #prompt{max-width:80vw}
+#title .pad-controls{display:none}
+body.pad #title .controls:not(.pad-controls){display:none}
+body.pad #title .pad-controls{display:flex}
+body.pad #title .pad-controls>span{display:inline-flex;align-items:center;gap:.25em}
+body.pad #title .pad-controls .pg{font-size:1.05em}
+#title button.padfocus{color:#fff;letter-spacing:.56em;text-shadow:0 0 18px rgba(116,230,216,.85),0 0 4px rgba(255,255,255,.5)}
+#title button.padfocus::after{width:72%}
+body.pad #title .t-menu:has(.padfocus) button:not(.padfocus){color:var(--mist);letter-spacing:.46em;text-shadow:0 0 12px rgba(0,0,0,.9)}
+body.pad #title .t-menu:has(.padfocus) button:not(.padfocus)::after{width:0}
+.stats .pplus{font-style:normal;color:#ffe08a;margin-left:4px;opacity:.85}
+.stats span.psel{background:rgba(255,224,138,.13);color:#fff;box-shadow:0 0 0 1px rgba(255,224,138,.35)}
+.stats .k .pg{font-size:1.1em;vertical-align:-.55em}
