@@ -459,7 +459,7 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1]; A.pastHit = f > st.hit[1];
-    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (st.boxes?.[wi]?.pull) this.g.fx.crescent(this.pos.x + this.facing * 1.3, this.pos.y + 0.7, this.facing, 0xd8f0c8, 1.5); /* the reap leaves a pale crescent */ if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); A.streak = wi; } } // a flurry: every drive is its own hit
+    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (st.boxes?.[wi]?.pull) this.g.fx.crescent(this.pos.x + this.facing * 1.4, this.pos.y + 0.5, this.facing, 0xd8f0c8, 1.3); /* the reap leaves a pale crescent */ if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); A.streak = wi; } } // a flurry: every drive is its own hit
     const pad = st.cancel !== undefined ? 1 : 3; // authored clips: the ribbon belongs to the cut, not the wind-up
     if (f >= st.hit[0] - pad && f <= st.hit[1] + pad - 1) this.trailOn = true;
     if (st.ranged) { if (!A.shot && f >= (st.shotAt ?? st.hit[0])) { A.shot = true; this.g.playerShoot(this, st.ranged); } }
@@ -637,7 +637,7 @@ export class Player {
     if (this.landT > 0) this.landT -= dt;
     this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
     this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); if (this.pairMesh?.userData.q0 && !(this.attack?.st.thrust && (this.attack.wi ?? 0) === 1)) this.pairMesh.quaternion.copy(this.pairMesh.userData.q0); this.twoHandIK(); if (this.attack?.st.thrust && wm) this.aimThrust(wm);
-    if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
+    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);

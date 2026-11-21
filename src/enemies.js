@@ -260,7 +260,7 @@ export class Enemy {
     this.warn = 0;
     if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(this.warnCol ? _wc.setHex(this.warnCol) : RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
     if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.25 : st ? 0.45 : m.userData.emI; } }
-    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat) { this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? 0xff3a10 : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
+    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat || this.warnCol !== this._wcol) { this._wcol = this.warnCol; this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? (this.warnCol || 0xff3a10) : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
     if (w > 0.78 || this.flare?.visible) { if (!this.flare) { this.flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); this.root.add(this.flare); }
       const fl = this.flare; fl.visible = w > 0.78; if (fl.visible) { const at = this.hand ? this.hand.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(this.mouth.x, this.mouth.y, 0); this.root.worldToLocal(at); fl.position.copy(at); fl.position.z += 0.3; fl.scale.setScalar(0.7 + (w - 0.78) * 2.5); fl.material.opacity = (w - 0.78) / 0.22; } }
   }
@@ -300,7 +300,7 @@ export class Enemy {
     this.hp -= n; this.flash = 0.08; if (pushDir) this.lastPush = pushDir; this.lastMelee = !quiet && !!pushDir;
     if (quiet) this.g.ui.dmg(this.pos.x + rnd(-0.3, 0.3), this.pos.y + Math.min(this.T.h, 3.4) + 0.2, Math.round(n), elem);
     if (!quiet) audio.play('sword_impact_hit_' + (1 + (Math.random() * 3 | 0)), 0.55);
-    this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 4 : 10, 3);
+    this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 3 : 5, 3); if (!quiet) this.g.fx.sparks(this.cx - (pushDir || 0) * 0.3, this.cy + 0.2, 0xffe8c0, 7, 7); /* steel on flesh throws sparks; a little blood */
     if (this.hp <= 0) return this.die();
     const heavy = this.boss || this.T.ai === 'brute' || this.T.ai === 'worm';
     const light = !this.boss && !this.T.mini && this.T.h <= 2.0 && !this.T.block, winding = this.state === 'attack' && this.atk && this.t / this.atk.dur < this.atk.wins[0].a;
@@ -548,7 +548,7 @@ const MOVE = {
     e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) { if (e.boss) e.g.fx.puff(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); else e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); } // a boss's charge throws up soft warm dust
     if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.07; e.ghost(m.k === 'ram' ? 0xff4020 : 0xffa040, 0.3); e.g.fx.streaks(e, 2, m.k === 'ram' ? 0xff6040 : 0xffa060); } /* and leaves its own silhouette behind */
     const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
-    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); if (e.boss) { e.g.hitStop(0.1); e.g.shake(0.8); const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; for (let i = 0; i < 5; i++) e.g.rainShot(e, THREE.MathUtils.clamp(e.pos.x - e.facing * (1.5 + i * 2.2 + rnd(-0.6, 0.6)), rb.x0 + 1, rb.x1 - 1), fy, 'rock', null, e.T.dmg * 0.6 * e.dmgMul); } } return true; } // the wall shakes loose its masonry: punish him, but mind the ceiling
+    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); if (e.boss) { e.g.hitStop(0.1); e.g.shake(0.8); const wx = e.pos.x + e.facing * e.T.w * 0.55; e.g.fx.cracks(wx, e.pos.y + 1.8, 2.4, 0x140e0a, true); for (let i = 0; i < 26; i++) e.g.fx.spawn(wx, e.pos.y + rnd(0.5, 3.5), 0.8, -e.facing * rnd(1, 5), rnd(-1, 3), i % 3 ? 0x8a8070 : 0x5a5248, 0.9, rnd(0.25, 0.6), 4, false); e.g.debris(wx - e.facing * 0.5, e.pos.y + 2.5, 5, 0x6a625a, 1.2); /* the wall bursts where he hits it */ const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; for (let i = 0; i < 5; i++) e.g.rainShot(e, THREE.MathUtils.clamp(e.pos.x - e.facing * (1.5 + i * 2.2 + rnd(-0.6, 0.6)), rb.x0 + 1, rb.x1 - 1), fy, 'rock', null, e.T.dmg * 0.6 * e.dmgMul); } } return true; } // the wall shakes loose its masonry: punish him, but mind the ceiling
     return (m.k !== 'ram' && Math.abs(e.pos.x - mv.s.x0) > (m.range || 14)) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
   },
   ram(e, mv, dt, P, c) { return MOVE.charge(e, mv, dt, P, c); },
@@ -786,7 +786,7 @@ const MOVE = {
   meteor(e, mv, dt, P) {
     mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 6, i = Math.floor((k - 0.25) / 0.55 * n), fy = e.arenaFloor ?? e.home.y;
     if (k < 0.25) e.warn = k / 0.25;
-    if (k >= 0.25 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(i % 2 ? P.pos.x + P.vel.x * 0.4 : rnd(a0, a1), a0 - 1, a1 + 1); e.g.erupt({ x, y: fy, delay: 0.85, w: 2.2, h: 0.2, dmg: 0, col: 0xff6a20, quiet: true }); setTimeout(() => { if (!e.dead && e.g.room === e.room) e.g.shoot({ x: x - 3, y: fy + 12, vx: 3.6, vy: -14, kind: 'fireball', dmg: Math.round(e.T.dmg * 0.8 * e.dmgMul), elem: 'fire', src: e, life: 2, splash: 'fire' }); }, 0); }
+    if (k >= 0.25 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(i % 2 ? P.pos.x + P.vel.x * 0.4 : rnd(a0, a1), a0 - 1, a1 + 1); e.g.erupt({ x, y: fy, delay: 0.85, w: 2.2, h: 0.2, dmg: 0, col: 0xff6a20, quiet: true }); setTimeout(() => { if (!e.dead && e.g.room === e.room) e.g.shoot({ x: x - 3, y: fy + 12, vx: 3.6, vy: -14, kind: 'meteor', dmg: Math.round(e.T.dmg * 0.8 * e.dmgMul), elem: 'fire', src: e, life: 2, splash: 'fire' }); }, 0); }
     return k >= 1;
   },
   // the undead wyrm's frost nova: a ring of ice crystals that races outward from it both ways
