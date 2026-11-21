@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { glowTex } from './world.js';
-import { cloneGLTF, weaponModel, audio, WEAPONS, addRim } from './assets.js';
+import { cloneGLTF, weaponModel, audio, WEAPONS, addRim, LOW_MEM } from './assets.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 const RIM_COOL = new THREE.Color(0x7c8cb0), RIM_HOT = new THREE.Color(0xff3020), RIM_HIT = new THREE.Color(0xffffff);
 import { fitHeight } from './world.js';
 import { BESTIARY } from './catalog.js';
@@ -170,6 +171,13 @@ export class Enemy {
   }
 
   // A place this body can actually stand near (x, around height y): on stone, clear of solids, not across a gate.
+  // the open floor a big body can run along: walk out from its home until stone (a block, a step, a wall) stands in the way
+  arenaSpan() {
+    if (this._span) return this._span;
+    const fy = this.arenaFloor ?? this.home.y, hw = this.T.w / 2 + 0.2, sol = this.g.activeSolids().filter(q => !q.oneway && !q.gone && q.y0 < fy + 1.8 && q.y1 > fy + 0.3);
+    const free = x => !sol.some(q => q.x0 < x + hw && q.x1 > x - hw), go = d => { let x = this.home.x; for (let i = 0; i < 200 && free(x + d * 0.4); i++) x += d * 0.4; return x; };
+    return (this._span = [go(-1), go(1)]);
+  }
   safeSpot(x, y) {
     const rb = this.room.b, w = this.T.w / 2 + 0.2, solids = this.room.solids.filter(s => !s.gone && !s.oneway);
     for (const dx of [0, 1.5, -1.5, 3, -3, 5, -5, 8, -8]) {
@@ -215,7 +223,25 @@ export class Enemy {
     if (this.pos.y < rb.y0 - 3) { this.pos.copy(this.home); this.vel.set(0, 0); } // fell out of the world: walk it back
   }
 
+  // An afterimage: a ghost of the model frozen in this instant's pose, tinted and fading. A small pool per foe (bosses only
+  // call it), so a charge leaves a trail of its own silhouette without new allocations each frame.
+  ghost(col = 0xff3a20, life = 0.32, op = 0.42) {
+    const n = LOW_MEM ? 2 : 4; this.ghosts ||= []; this.ghostI = (this.ghostI || 0) + 1;
+    let gh = this.ghosts[this.ghostI % n];
+    if (!gh) {
+      const c = SkeletonUtils.clone(this.model), mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+      c.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = false; o.frustumCulled = false; o.renderOrder = 1; } if (o.isSprite || o.isLight) o.visible = false; });
+      const src = [], dst = []; this.model.traverse(o => src.push(o)); c.traverse(o => dst.push(o));
+      gh = this.ghosts[this.ghostI % n] = { c, mat, src, dst, t: 0, life }; this.room.group.add(c);
+    }
+    for (let i = 0; i < gh.src.length && i < gh.dst.length; i++) { const a = gh.src[i], b = gh.dst[i]; b.position.copy(a.position); b.quaternion.copy(a.quaternion); b.scale.copy(a.scale); }
+    this.model.updateWorldMatrix(true, false); gh.c.matrix.copy(this.model.matrixWorld); gh.c.matrix.decompose(gh.c.position, gh.c.quaternion, gh.c.scale); gh.c.position.z -= 0.15;
+    gh.mat.color.setHex(col); gh.t = 0; gh.life = life; gh.op = op; gh.c.visible = true;
+  }
+  tickGhosts(dt) { for (const g of this.ghosts || []) if (g?.c.visible) { g.t += dt; const k = g.t / g.life; g.mat.opacity = g.op * Math.max(0, 1 - k) ** 1.5; if (k >= 1) g.c.visible = false; } }
+
   sync(dt) {
+    if (this.ghosts) this.tickGhosts(dt);
     this.mixer.update(dt);
     const T = this.T, target = this.facing * (T.quad ? Math.PI / 2 - 0.22 : Math.PI / 2 - 0.42);
     this.yaw += (target - this.yaw) * Math.min(1, dt * (T.quad ? 6 : 10));
@@ -257,7 +283,7 @@ export class Enemy {
       if (e.elem === 'ice') this.chill = 3; if (e.elem === 'poison') { this.poison = 2.5; this.poisonDmg = e.dmg * 0.3; } if (e.elem === 'fire') this.g.fx.burst(this.cx, this.cy, 0xff6a20, 14, 3);
       if (e.elem === 'lightning') this.g.chainLightning(this, e.dmg);
     }
-    this.damage(total, null, false, roll.crit, hb.proj ? 0 : P.facing);
+    this.damage(total, null, false, roll.crit, hb.proj ? 0 : hb.pull && !T.mini ? sgn(P.pos.x - this.pos.x) * 1.9 : hb.both ? sgn(this.pos.x - P.pos.x) || P.facing : P.facing); // a scythe hooks foes in; a turning strike throws them outward
     const lp = P.d.leech; if (lp) P.heal(Math.max(1, Math.round(total * lp / 100)), true);
     return true;
   }
@@ -477,7 +503,7 @@ const BRAIN = {
     } else if (c.adx > T.reach * 0.75) e.walk(e.facing, T.speed * c.slow * (c.adx > 7 ? 1.7 : 1), c.adx > 7 && e.clipFor(T.anim.run) ? T.anim.run : T.anim.walk);
     else { e.vel.x = 0; e.play(T.anim.idle, 0.25); }
     if (e.cool > 0) return;
-    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon'];
+    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon', 'cyclone', 'grimoire', 'eclipse', 'hunt', 'stormcall'];
     const ok = T.moves.filter(m => (!e.spec.illusion || m.k === 'volley' || m.k === 'fan') && (!reachUp || UP.includes(m.k) || !T.moves.some(q => UP.includes(q.k) && (q.phase || 1) <= e.phase)) && (m.phase || 1) <= e.phase && (reachUp || ((!m.min || c.adx >= m.min) && (!m.range || c.adx <= m.range))) && (T.dragon && T.fly ? (e.air ? m.air : !m.air) : true) && m !== e.lastMove && !(m.k === 'summon' && e.room.enemies.filter(x => x.summoner === e && !x.dead).length >= m.max));
     if (!ok.length) { e.lastMove = null; return; }
     let tot = ok.reduce((s, m) => s + m.w * ((m.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1), 0), r = Math.random() * tot, m = ok[0];
@@ -485,7 +511,7 @@ const BRAIN = {
     e.lastMove = m; const dur = (m.dur || T.atkDur) / (e.phase >= 3 ? 1.15 : 1);
     e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0;
     const anim = e.clipFor(m.anim) || e.clipFor(T.anim.attack);
-    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else e.playFor(anim, dur);
+    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else if (m.k !== 'hunt') e.playFor(anim, dur);
     e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + Math.min(T.h, 3.5) * 0.85, 0xff4040);
   },
 };
@@ -511,8 +537,9 @@ const MOVE = {
     if (mv.t < wind) { e.vel.x = -e.facing * 0.6; e.warn = mv.t / wind; mv.s.x0 = e.pos.x; return false; }
     if (!mv.s.go) { mv.s.go = 1; audio.play('crowd_gasp', 0.3, 0.5); }
     e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) { if (e.boss) e.g.fx.puff(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); else e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); } // a boss's charge throws up soft warm dust
+    if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.07; e.ghost(m.k === 'ram' ? 0xff4020 : 0xffa040, 0.3); e.g.fx.streaks(e, 3); } // and leaves its own silhouette behind
     const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
-    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); } return true; }
+    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); if (e.boss) { e.g.hitStop(0.1); e.g.shake(0.8); const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; for (let i = 0; i < 5; i++) e.g.rainShot(e, THREE.MathUtils.clamp(e.pos.x - e.facing * (1.5 + i * 2.2 + rnd(-0.6, 0.6)), rb.x0 + 1, rb.x1 - 1), fy, 'rock', null, e.T.dmg * 0.6 * e.dmgMul); } } return true; } // the wall shakes loose its masonry: punish him, but mind the ceiling
     return (m.k !== 'ram' && Math.abs(e.pos.x - mv.s.x0) > (m.range || 14)) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
   },
   ram(e, mv, dt, P, c) { return MOVE.charge(e, mv, dt, P, c); },
@@ -520,7 +547,7 @@ const MOVE = {
     mv.t += dt; const m = mv.m, wind = 0.45, air = 0.95;
     if (mv.t < wind) { e.warn = mv.t / wind; return false; }
     if (!mv.s.go) { mv.s.go = 1; const rb = e.room.b, tx = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2, rb.x1 - 2); e.vel.set((tx - e.pos.x) / air, 20 * air / 2); e.ground = false; mv.s.tx = tx; audio.play('clothing_1', 0.5, 0.6); e.g.erupt({ x: tx, y: e.pos.y, delay: air, w: 4.8, h: 0.3, dmg: 0, col: 0xff4040, src: e, quiet: true }); return false; }
-    if (!e.ground || mv.t < wind + 0.2) { e.vel.x = (mv.s.tx - e.pos.x) > 0 === e.vel.x > 0 ? e.vel.x : 0; return false; }
+    if (!e.ground || mv.t < wind + 0.2) { e.vel.x = (mv.s.tx - e.pos.x) > 0 === e.vel.x > 0 ? e.vel.x : 0; if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.09; e.ghost(0xff6030, 0.28, 0.32); } return false; }
     if (!mv.s.land) { mv.s.land = mv.t; e.vel.x = 0; e.g.shake(0.45); e.g.fx.dust(e.pos.x, e.pos.y); audio.play('rock_wall_1', 0.6); hitBox(e, P, e.pos.x - 2.4, e.pos.x + 2.4, e.pos.y, e.pos.y + 1.6, e.T.dmg * 1.1); if (m.slamOnLand) { e.g.shockwave(e, e.pos.x + 1.4, e.pos.y, 1, e.T.elem); e.g.shockwave(e, e.pos.x - 1.4, e.pos.y, -1, e.T.elem); } }
     return mv.t - mv.s.land > 0.55;
   },
@@ -600,6 +627,7 @@ const MOVE = {
     mv.t += dt; const k = Math.min(1, mv.t / mv.dur), u = 1 - k, s = mv.s; e.vel.set(0, 0);
     e.pos.set(u * u * s.p0.x + 2 * u * k * s.p1.x + k * k * s.p2.x, u * u * s.p0.y + 2 * u * k * s.p1.y + k * k * s.p2.y);
     const a = e.aabb; if (!s.hit && k > 0.2 && k < 0.8 && hitBox(e, P, a.x0, a.x1, a.y0, a.y1, e.T.dmg)) s.hit = 1;
+    if (e.boss && k > 0.1 && (s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.06; e.ghost(0xb0c8ff, 0.3, 0.35); }
     return k >= 1;
   },
   divebomb(e, mv, dt, P) {
@@ -619,6 +647,72 @@ const MOVE = {
     e.facing = s.dir; e.vel.set(s.dir * 11, (fy + 6.5 - e.pos.y) * 3);
     e.g.flameWall(e, e.pos.x + s.dir * 2.5, fy, mv.m.elem, e.T.dmg * 0.6, dt, 6);
     return (s.dir > 0 ? e.pos.x >= s.x1 : e.pos.x <= s.x1) || mv.t > 5;
+  },
+  // ---- signatures: one per great foe, each with its own telegraph and its own way to be beaten
+  // Caddoc drives his blade into the floor: a fissure of stone teeth races out toward you, then a shorter one behind him
+  fissure(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = 0.38;
+    if (k < a) { e.warn = k / a; return false; }
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b, d = sgn(P.pos.x - e.pos.x); e.g.shake(0.5); audio.play('rock_wall_2', 0.7, 0.7); e.g.fx.cracks(e.pos.x + d * 1.2, fy, 3);
+      for (const [dir, n, t0] of [[d, mv.m.n || 8, 0.18], [-d, 3, 0.55]]) for (let i = 0; i < n; i++) { const x = e.pos.x + dir * (1.8 + i * 1.45); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) e.g.erupt({ x, y: fy, delay: t0 + i * 0.075, w: 1.3, h: 2.2 + (i % 2) * 0.7, dmg: e.T.dmg * 0.85 * e.dmgMul, elem: 'stone', src: e }); } }
+    return k >= 1;
+  },
+  // Sirelle beats up a feather cyclone that wanders the floor, dragging you toward it and spitting quills
+  cyclone(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.35) { e.warn = k / 0.35; e.vel.set(0, 0); return false; }
+    if (!mv.s.f) { mv.s.f = 1; e.g.cyclone(e, e.pos.x + e.facing * 2, e.arenaFloor ?? e.home.y, sgn(P.pos.x - e.pos.x), 5.5); audio.play('wave_attack_1', 0.7, 0.5); }
+    return k >= 1;
+  },
+  // the Hydra's geysers chase your feet, then the whole cistern heaves a wave across the floor: jump it
+  geyser(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 3, i = Math.floor((k - 0.15) / 0.5 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.15) e.warn = k / 0.15;
+    if (k >= 0.15 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; e.g.erupt({ x: P.pos.x + P.vel.x * 0.25, y: fy, delay: 0.62, w: 1.7, h: 6, dmg: e.T.dmg * 0.8 * e.dmgMul, elem: 'water', src: e }); }
+    if (k >= 0.8 && !mv.s.w) { mv.s.w = 1; e.g.tide(e, sgn(P.pos.x - e.pos.x)); }
+    return k >= 1;
+  },
+  // Gravehart melts into the mist; two green eyes kindle at the edge of the court, then it comes through like a hunt
+  hunt(e, mv, dt, P, c) {
+    const s = mv.s, rb = e.room.b, fy = e.arenaFloor ?? e.home.y; mv.t += dt;
+    if (!s.ph) { s.ph = 1; s.n = 0; s.t = 0; }
+    s.t += dt;
+    if (s.ph === 1) { e.setAlpha(Math.max(0.02, 1 - s.t / 0.5)); e.vel.x = 0; if (s.t > 0.5) { s.ph = 2; s.t = 0; e.hidden = true; s.side = s.n % 2 ? -s.side : (P.pos.x < (e.arenaSpan()[0] + e.arenaSpan()[1]) / 2 ? 1 : -1); const [a0, a1] = e.arenaSpan(); s.a0 = a0; s.a1 = a1; e.pos.set(s.side > 0 ? a1 - 0.3 : a0 + 0.3, fy); e.facing = -s.side; e.g.huntEyes(e); audio.play('crowd_gasp', 0.3, 0.4); } return false; }
+    if (s.ph === 2) { e.warn = Math.min(1, s.t / 0.7); if (s.t > 0.75) { s.ph = 3; s.t = 0; e.hidden = false; e.setAlpha(1); e.play(e.clipFor(mv.m.anim) || e.T.anim.run || e.T.anim.walk, 0.1, { restart: true, speed: 1.3 }); audio.play('crowd_gasp', 0.4, 0.6); } return false; }
+    if (s.ph === 3) { e.vel.x = e.facing * 15; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.05; e.ghost(0x8aff7a, 0.34, 0.4); } const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 2), e.T.dmg * 1.2)) s.hit = 1; if (Math.random() < 0.5) e.g.fx.puff(e.pos.x - e.facing, e.pos.y, 0x3a4a2a);
+      if ((e.facing > 0 ? e.pos.x > s.a1 - 0.8 : e.pos.x < s.a0 + 0.8) || e.hitWall || s.t > 2.5) { s.n++; s.hit = 0; e.vel.x = 0; if (s.n >= (mv.m.n || 2)) return true; s.ph = 1; s.t = 0; } return false; }
+    return true;
+  },
+  // Brannoch brings the hammer down on the forge-floor: molten slag arcs out both ways and burns where it lands
+  forgefall(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = (mv.m.windup || e.T.windup)[0];
+    if (k < a) { e.warn = Math.max(e.warn || 0, k / a); return false; }
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y; e.g.shake(0.7); e.g.hitStop(0.06); audio.play('rock_meteor_swarm_2', 0.7, 0.7); e.g.fx.cracks(e.pos.x + e.facing * 1.6, fy, 2.5, 0xff6a14); frontBox(e, P, e.T.reach, false, e.T.dmg);
+      for (let i = 0; i < (mv.m.n || 8); i++) { const dir = i % 2 ? 1 : -1, sp = 4 + (i >> 1) * 2.2; e.g.shoot({ x: e.pos.x + e.facing * 1.6, y: fy + 1.2, vx: dir * sp, vy: 11 + rnd(-1, 1.5), grav: 22, kind: 'slag', dmg: Math.round(e.T.dmg * 0.6 * e.dmgMul), elem: 'fire', src: e, life: 3, splash: 'fire' }); } }
+    return k >= 1;
+  },
+  // Malgrave opens every book at once: they wheel around him, then fly out in a turning spiral with gaps to slip through
+  grimoire(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (k < 0.25) { e.warn = k / 0.25; if (!s.o) { s.o = 1; e.g.fx.ring(e.cx, e.cy, 0xd0a060, 6); audio.play('spell_impact_3', 0.6, 0.6); } return false; }
+    s.a = (s.a ?? Math.random() * 6.28) + dt * 2.1; s.c = (s.c || 0) - dt;
+    if (k < 0.85 && s.c <= 0) { s.c = 0.11; for (let j = 0; j < 3; j++) { const ang = s.a + j * Math.PI * 2 / 3; e.g.shoot({ x: e.cx + Math.cos(ang) * 0.8, y: e.cy + 0.6 + Math.sin(ang) * 0.8, vx: Math.cos(ang) * 6.5, vy: Math.sin(ang) * 6.5, kind: 'book', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), src: e, life: 2.6 }); } audio.play('clothing_1', 0.25, 1.6); }
+    return k >= 1;
+  },
+  // Vhalgor calls the storm down: rune-lines kindle across the floor in a march, then lightning strikes each one
+  stormcall(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, rb = e.room.b, fy = e.arenaFloor ?? e.home.y, s = mv.s;
+    if (!s.f) { s.f = 1; s.dir = P.pos.x < (rb.x0 + rb.x1) / 2 ? 1 : -1; const n = mv.m.n || 9, span = rb.x1 - rb.x0 - 4, gap = Math.floor(rnd(2, n - 2)); for (let i = 0; i < n; i++) { if (i === gap) continue; const x = (s.dir > 0 ? rb.x0 + 2 : rb.x1 - 2) + s.dir * span * i / (n - 1); e.g.erupt({ x, y: fy, delay: 0.7 + i * 0.13, w: 1.6, h: 14, dmg: e.T.dmg * 0.9 * e.dmgMul, elem: 'lightning', src: e }); } audio.play('spell_impact_2', 0.6, 0.6); }
+    return k >= 1;
+  },
+  // Velscour eclipses his own sun: the hall darkens, the black sun drags you in and wheels fire around itself
+  eclipse(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (!s.f) { s.f = 1; s.sun = e.g.blackSun(e, mv.dur); audio.play('firebuff_2', 0.7, 0.4); audio.play('crowd_gasp', 0.4, 0.4); }
+    e.g.darken = Math.max(e.g.darken || 0, Math.min(1, k * 4, (1 - k) * 4));
+    if (k > 0.2 && k < 0.88) { const sx = s.sun.position.x, sy = s.sun.position.y; P.push = (P.push || 0) + sgn(sx - P.pos.x) * dt * 7; s.a = (s.a ?? 0) + dt * 1.3; s.c = (s.c || 0) - dt;
+      if (s.c <= 0) { s.c = 0.16; for (let j = 0; j < 4; j++) { const ang = s.a + j * Math.PI / 2; e.g.shoot({ x: sx + Math.cos(ang) * 1.2, y: sy + Math.sin(ang) * 1.2, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, kind: 'ember', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), elem: 'fire', src: e, life: 3 }); } } }
+    return k >= 1;
   },
   buffet(e, mv, dt, P) { mv.t += dt; const k = mv.t / mv.dur; if (k > 0.35 && k < 0.8) { e.g.windPush(e, 16 * dt * 6); if (!mv.s.f) { mv.s.f = 1; audio.play('wave_attack_1', 0.7, 0.4); for (let i = 0; i < 5; i++) setTimeout(() => { if (!e.dead) e.g.shoot({ x: e.pos.x + e.facing * 2.5, y: e.pos.y + 0.8 + i * 0.8, vx: e.facing * 12, vy: 0, kind: 'gust', dmg: Math.round(e.T.dmg * 0.5), elem: e.T.elem, src: e, life: 2.2 }); }, i * 130); } } return k >= 1; },
 };

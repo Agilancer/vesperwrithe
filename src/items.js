@@ -22,6 +22,14 @@ export const STYLES = {
   lance:   { anim: 'fist_fight_a', from: 234, to: 264, hit: [246, 258], cancel: 261, dur: 0.58, reach: 3.2, height: 0.8, yOff: 0.9, grip: 'forward', upperOnly: true },
   stab:    { anim: 'sword_and_shield_slash', from: 10, to: 28, hit: [16, 23], cancel: 26, dur: 0.26, reach: 1.1, height: 1.0, yOff: 1.1 },
   punch:   { anim: 'fist_fight_a', from: 160, to: 188, hit: [170, 180], cancel: 183, dur: 0.32, reach: 0.9, height: 0.7, yOff: 1.25 },
+  // staff: a leaping full turn that strikes on both sides, then (chain link 2, src/moves.js) a two-hand drive that looses
+  // the staff's own bolt — fire bursts, ice splinters, storm forks, grave wisps hunt, thorn staves raise briars
+  whirl:   { anim: 'vw_whirl', from: 0, to: 30, hit: [7, 20], cancel: 22, dur: 0.58, reach: 1.9, height: 2.0, yOff: 1.0, both: true },
+  // scythe: a turn that opens into a long, low reap; the hooked blade drags whatever it catches in toward you
+  reap:    { anim: 'vw_reap', from: 0, to: 36, hit: [8, 24], cancel: 27, dur: 0.72, reach: 2.6, height: 2.2, yOff: 0.95, both: true, pull: true },
+  // daggers (paired when the off hand is free) and rapiers: three quick drives, each its own hit, stepping in with each
+  flurry:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.48, reach: 1.45, height: 0.9, yOff: 1.25, lunge: 3.4, hitMul: 0.5 },
+  needle:  { anim: 'vw_flurry', from: 0, to: 26, hit: [4, 17], hits: [[4, 6], [9, 11], [14, 17]], cancel: 18, dur: 0.42, reach: 2.2, height: 0.7, yOff: 1.3, lunge: 5.5, hitMul: 0.55 },
   // ranged classes: the missile leaves at the hit frame (bows loose arrows, boomerangs come back)
   shoot:   { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [18, 19], dur: 0.5, reach: 0.6, height: 0.6, yOff: 1.25, ranged: 'arrow', upperOnly: true },
   hurl:    { anim: 'sword_and_shield_slash', from: 8, to: 30, hit: [17, 18], dur: 0.42, reach: 0.6, height: 0.6, yOff: 1.2, ranged: 'boomerang', upperOnly: true },
@@ -37,13 +45,24 @@ const KINDS = {
   great_mace:  { slot: 'weapon', hands: 2, style: 'smash2h', mult: 2.2, sockets: 4, scale: 1.0, cls: 'Maul' },
   spear:       { slot: 'weapon', hands: 2, style: 'thrust', mult: 1.45, sockets: 3, scale: 0.95, cls: 'Spear' },
   lance:       { slot: 'weapon', hands: 2, style: 'lance', mult: 2.0, sockets: 4, scale: 0.95, cls: 'Lance' },
-  dagger:      { slot: 'weapon', hands: 1, style: 'stab', mult: 0.8, sockets: 1, scale: 0.85, cls: 'Dagger' },
+  dagger:      { slot: 'weapon', hands: 1, style: 'flurry', mult: 0.8, sockets: 1, scale: 0.85, cls: 'Dagger' },
+  staff:       { slot: 'weapon', hands: 2, style: 'whirl', mult: 1.3, sockets: 3, scale: 0.95, cls: 'Staff' },
+  scythe:      { slot: 'weapon', hands: 2, style: 'reap', mult: 1.9, sockets: 4, scale: 1.0, cls: 'Scythe', noDrop: true },
+  rapier:      { slot: 'weapon', hands: 1, style: 'needle', mult: 1.05, sockets: 3, scale: 0.9, cls: 'Rapier', noDrop: true },
   bow:         { slot: 'weapon', hands: 2, style: 'shoot', mult: 0.95, sockets: 3, scale: 0.85, cls: 'Bow' },
   boomerang:   { slot: 'weapon', hands: 1, style: 'hurl', mult: 0.8, sockets: 2, scale: 1.0, cls: 'Boomerang' },
   kite:        { slot: 'offhand', sockets: 3, scale: 0.85, cls: 'Kite Shield', block: 0.62 },
   tower:       { slot: 'offhand', sockets: 3, scale: 0.8, cls: 'Tower Shield', block: 0.78 },
 };
 export const MAX_ILVL = 30;
+// Models in items/swords.json that play as another class: hands 3 are staves, one hooked staff is a scythe, the swept-hilt sword a rapier
+export const REKIND = { pale_crescent: 'scythe', swept_rapier: 'rapier' };
+export const swordKind = (id, s) => REKIND[id] || (s.hands === 3 ? 'staff' : s.hands === 2 ? 'great_sword' : 'sword');
+// A staff's bolt follows what its name says it was made from (main.js staffBolt)
+const STAFF_ELEM = [[/fire|ember|cinder|magma|lava|flame|phoenix|dragonheart|blood_moon|bloodsigil/, 'fire'], [/ice|frost|rime|hoar|glacier|winter|snow/, 'ice'],
+  [/storm|wind|maelstrom|tempest|thunder|shard|galaxy|orrery|riptide/, 'lightning'], [/death|skull|lich|grave|bone|void|dusk|night|dark|wraith|abyss|umbral|duskorb/, 'shadow'],
+  [/vine|verdant|moss|grove|thorn|wild|oak|life|ivy|green|druid|hedge|earth|root|emerald/, 'poison']];
+export const staffElem = id => (STAFF_ELEM.find(([re]) => re.test(id)) || [0, null])[1];
 const dmgAt = (lvl, mult) => { const avg = (7 + lvl * 2.9) * mult; return [Math.max(1, Math.round(avg * 0.8)), Math.round(avg * 1.2)]; };
 
 export const BASES = {
@@ -70,14 +89,14 @@ const ALIAS = { short_sword: 'copper_sword', knight_sword: 'crossguard_sword', k
 export function initBases(weapons, swords = {}) {
   const groups = {};
   for (const w of Object.values(weapons)) (groups[w.kind] ||= []).push(w);
-  for (const [id, s] of Object.entries(swords)) { if (s.hands === 3 || !s.file) continue; (groups[s.hands === 2 ? 'great_sword' : 'sword'] ||= []).push({ id, name: id.split('_').map(t => t[0].toUpperCase() + t.slice(1)).join(' '), tier: 2, extra: true }); }
+  for (const [id, s] of Object.entries(swords)) { if (!s.file) continue; const kind = swordKind(id, s), name = id.split('_').map(t => t[0].toUpperCase() + t.slice(1)).join(' '); (groups[kind] ||= []).push({ id, name: kind === 'staff' && !/staff|crook|rod|spire|lantern|coil|trident/.test(id) ? name + ' Staff' : name, tier: 2, extra: true }); }
   for (const [kind, list] of Object.entries(groups)) {
     const K = KINDS[kind]; if (!K) continue;
     list.sort((a, b) => (a.tier ?? 1) - (b.tier ?? 1)); // plain iron first, relic steel last
     list.forEach((w, i) => {
       const lvl = Math.max(1, Math.round(1 + (i / Math.max(1, list.length - 1)) * (MAX_ILVL - 2)));
       const b = { name: w.name, slot: K.slot, model: w.id, kind, cls: K.cls, hands: K.hands, style: K.style, sockets: [0, K.sockets], scale: K.scale, lvl };
-      if (K.slot === 'weapon') b.dmg = dmgAt(lvl, K.mult);
+      if (K.slot === 'weapon') b.dmg = dmgAt(lvl, K.mult); if (K.noDrop) b.noDrop = true; // relic classes come only as uniques
       else { b.def = Math.round((kind === 'tower' ? 6 : 4) + lvl * (kind === 'tower' ? 1.25 : 0.95)); b.block = Math.min(0.92, K.block + lvl * 0.004); if (kind === 'tower') b.heavy = true; }
       BASES[w.id] = b;
     });
@@ -229,6 +248,10 @@ export const UNIQUES = {
   redthirst:   U('bloodletter', 26, 'The Red Thirst', 1, 'frenzy', [{ dmgPct: 90 }, '+90% damage'], [{ leechPct: 9 }, '9% life stolen per hit'], [{ ias: 30 }, '+30% attack speed'], [{ crit: 10 }, '+10% critical chance']),
   sunsplitter: U('solar_greataxe', 27, 'Sunsplitter', 4, 'star', [{ dmgPct: 55 }, '+55% damage'], [{ fire: 24 }, '+24 fire damage', 'fire'], [{ str: 12 }, '+12 Strength'], [{ crit: 10 }, '+10% critical chance']),
   hollowsun:   U('sunguard_sword', 30, 'Blade of the Hollow Sun', 3, 'crescent', [{ dmgPct: 90 }, '+90% damage'], [{ fire: 30 }, '+30 fire damage', 'fire'], [{ crit: 15 }, '+15% critical chance'], [{ str: 12 }, '+12 Strength'], [{ hp: 80 }, '+80 life']),
+  // relics of the castle's hidden rooms (secret rooms in src/areas): each is the only one of its class
+  vespers_needle: U('swept_rapier', 7, 'Vesper\'s Needle', 2, 'twin', [{ dmgPct: 55 }, '+55% damage'], [{ ias: 25 }, '+25% attack speed'], [{ crit: 15 }, '+15% critical chance'], [{ dex: 6 }, '+6 Agility']),
+  pale_reaper: U('pale_crescent', 9, 'The Pale Reaper', 3, 'harvest', [{ dmgPct: 60 }, '+60% damage'], [{ leechPct: 6 }, '6% life stolen per hit'], [{ critDmg: 50 }, '+50% critical damage'], [{ str: 6 }, '+6 Strength']),
+  tidecaller:  U('riptide_staff', 11, 'Tidecaller', 3, 'chain', [{ dmgPct: 55 }, '+55% damage'], [{ lightning: 14 }, '+14 lightning damage', 'lightning'], [{ mp: 40 }, '+40 mana'], [{ int: 8 }, '+8 Intellect']),
   lastlight:   U('radiant_lance', 30, 'Last Light', 4, 'sunder', [{ dmgPct: 60 }, '+60% damage'], [{ lightning: 30 }, '+30 lightning damage', 'lightning'], [{ critDmg: 80 }, '+80% critical damage'], [{ lck: 12 }, '+12 Luck']),
 };
 export function makeUnique(id) { const u = UNIQUES[id]; if (!u) return makeItem('iron_sword', { rarity: 'rare' }); const it = makeItem(u.base, { rarity: 'unique', sockets: u.sockets, noEcho: true }); it.affixes = u.affixes.map(a => ({ ...a })); it.name = u.name; if (u.echo) it.echo = u.echo; it.uniq = id; it.lvl = u.lvl; return it; }

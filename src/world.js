@@ -269,7 +269,10 @@ export class World {
         case 'crack': {
           const w = s.x1 - s.x0, h = s.y1 - s.y0, grp = new THREE.Group();
           grp.add(wbox(s.by === 'dive' ? floorM : blockM, s.x0, s.y0, s.x1, s.y1, ZB, s.by === 'dive' ? ZF : 1.85));
-          const cr = plane(decal('cracks', s.by === 'dive' ? 0x7ae0f0 : 0x100c10, 0.95), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (s.by === 'dive' ? ZF : 1.85) + 0.02); grp.add(cr);
+          const sealed = s.by !== 'dive' && s.ref?.hp > 1; // a walled-up doorway: rougher infill, a hairline crack that widens as it is struck
+          const cr = plane(decal('cracks', s.by === 'dive' ? 0x7ae0f0 : 0x100c10, sealed ? 0.5 : 0.95), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (s.by === 'dive' ? ZF : 1.85) + 0.02); grp.add(cr); s.decal = cr;
+          if (sealed) { const gl = plane(decal('cracks', 0x9ab8e0, 0.2), Math.max(w, 1.4), Math.max(h, 1.4), (s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, 1.88); gl.material.blending = THREE.AdditiveBlending; gl.material.depthWrite = false; grp.add(gl); s.glow = gl; }
+          if (sealed) for (let i = 0; i < 4; i++) { const sy = s.y0 + 0.5 + i * (h - 0.8) / 3 + (i % 2) * 0.2, sx = (s.x0 + s.x1) / 2 + (i % 2 ? 0.18 : -0.22); grp.add(wbox(blockM, sx - 0.32, sy - 0.18, sx + 0.32, sy + 0.18, 1.6, 1.99)); } // loose infill stones stand proud of the face
           if (s.by === 'dive') { const top = plane(decal('cracks', 0x7ae0f0, 0.9), w, 3, (s.x0 + s.x1) / 2, s.y1 + 0.012, -0.4); top.rotation.x = -Math.PI / 2; grp.add(top); }
           s.mesh = grp; add(grp); break;
         }

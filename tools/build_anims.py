@@ -173,6 +173,27 @@ def loop(name, src, f0, f1, fn=None):
             if cur[s].z < floor + 0.06 and prev[s].z < floor + 0.06: v.append((cur[s].y - prev[s].y) * 30)
     v.sort(); META['clips'][name] = {'frames': len(out), 'speed': round(v[len(v) // 2], 3) if v else 0}
 
+def flurry(name='vw_flurry'):
+    """Three quick drives from the guard: the arm shoots out to the combo's longest straight reach (standing combo, f60),
+    chest kept in profile, the blade aimed dead ahead (high, level, then a lower finishing lunge). Three hit windows."""
+    G = pose(*GUARD)
+    def E(aim):
+        p = pose('standing_melee_combo_attack_ver_3', 60); hq = p[HIPS][0]; p = blend(p, G, 0.9, LOWER); p[HIPS] = (hq, p[HIPS][1])
+        p = blend(p, G, 0.5, SPINE); a = chest_yaw(p); p = yaw_hips(p, -(a - math.copysign(min(abs(a), 35), a)))
+        return aim_blade(p, aim, 1.0)
+    C = aim_blade(blend(G, pose('standing_melee_combo_attack_ver_3', 54), 0.35, RARM), (-0.05, -0.75, 0.35), 0.8)   # chambered: fist drawn back by the ribs
+    out = [G]; hits = []
+    for i in range(1, 4): out.append(blend(G, C, ease_out(i / 3)))
+    for j, aim in enumerate(((0, -1, 0.16), (0, -1, 0.0), (0, -1, -0.12))):
+        X = E(aim); a = len(out)
+        out.append(blend(C, X, 0.55)); out.append(X); out.append(X)
+        if j < 2: hits.append([a + 1, a + 3]); out.append(blend(X, C, 0.5)); out.append(blend(X, C, 0.85))
+        else: out.append(X); out.append(X); hits.append([a + 1, a + 4])
+    cancel = len(out)
+    for i in range(1, 9): out.append(blend(X, G, ease(i / 8)))
+    write(name, out)
+    META['clips'][name] = {'frames': len(out), 'hit': [hits[0][0], hits[-1][1]], 'hits': hits, 'cancel': cancel}
+
 def build():
     arm.animation_data.action = None
     g = [guard_pose(f) for f in range(1, 110)]
@@ -197,6 +218,14 @@ def build():
     attack('vw_slash2', 'sword_and_shield_attack', 29, 34, 42, 45, na=3, rate=1.3, nf=3, nr=7, legs='guard', legs_w=0.85)
     attack('vw_slash3', 'standing_melee_attack_downward', 44, 49, 55, 58, na=4, rate=1.0, nf=4, nr=9)
     attack('vw_great', 'great_sword_slash', 40, 45, 55, 58, na=5, rate=0.9, nf=7, nr=10)   # long held follow-through: weight
+    # ---- new weapon classes ---------------------------------------------------------------------------------
+    # staff link 1: a leaping full turn that lands in a low sweep (the staff hits on both sides while it spins)
+    attack('vw_whirl', 'axe_standing_melee_attack_360_low', 12, 21, 33, 38, na=4, rate=1.0, nf=5, nr=9)
+    # staff link 2: both hands present the staff head-up and drive it forward (the bolt leaves at the hit frame)
+    attack('vw_cast', 'standing_2h_magic_attack_01', 40, 58, 69, 74, na=5, rate=1.1, nf=6, nr=10, legs='guard', legs_w=0.5)
+    # scythe: a full turn that opens into a long, low reaping lunge
+    attack('vw_reap', 'standing_melee_attack_360_high', 38, 49, 67, 74, na=5, rate=1.2, nf=6, nr=10)
+    flurry()
     # ---- grip: finger curl used whenever a weapon is in hand ------------------------------------------------
     g = pose('sword_and_shield_idle', 1); rest = pose('axe_unarmed_idle', 1)
     write('vw_grip', [blend(rest, g, 1, RFING + LFING)] * 2); META['clips']['vw_grip'] = {'frames': 2}

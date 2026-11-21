@@ -13,9 +13,9 @@ const weapons = JSON.parse(fs.readFileSync(path.join(root, 'assets/game/weapons/
 const swords = JSON.parse(fs.readFileSync(path.join(root, 'assets/game/items/swords.json'), 'utf8')).swords;
 const ARMOR = ['leather_cap', 'iron_helm', 'great_helm', 'crown_helm', 'padded_jerkin', 'pilgrim_mail', 'knight_plate', 'royal_plate', 'wool_cloak', 'night_cloak', 'royal_mantle', 'iron_ring', 'silver_ring', 'gold_ring', 'signet_ring'];
 const LEGACY = ['pilgrim_blade', 'short_sword', 'knight_sword', 'kite_shield', 'dawnstar_kite', 'iron_maul_2h'];
-const UNIQUES = ['gravesong', 'vespertine', 'cinderfall', 'rimeheart', 'stormcall', 'thornkiss', 'kingsgrief', 'moonsickle', 'widowmaker', 'seraphwing', 'homeward', 'lionheart_aegis', 'worldtree', 'dragonspine', 'bonecrown', 'krakenmaw', 'redthirst', 'sunsplitter', 'hollowsun', 'lastlight'];
+const UNIQUES = ['gravesong', 'vespertine', 'cinderfall', 'rimeheart', 'stormcall', 'thornkiss', 'kingsgrief', 'moonsickle', 'widowmaker', 'seraphwing', 'homeward', 'lionheart_aegis', 'worldtree', 'dragonspine', 'bonecrown', 'krakenmaw', 'redthirst', 'sunsplitter', 'hollowsun', 'lastlight', 'vespers_needle', 'pale_reaper', 'tidecaller'];
 const GEMS = ['ruby', 'sapphire', 'topaz', 'emerald', 'skull', 'onyx', 'diamond', 'amethyst'];
-const baseOk = id => !!weapons[id] || (swords[id] && swords[id].hands !== 3 && swords[id].file) || ARMOR.includes(id) || LEGACY.includes(id);
+const baseOk = id => !!weapons[id] || (swords[id] && swords[id].file) || ARMOR.includes(id) || LEGACY.includes(id);
 
 const errors = [], warns = [];
 const areaFilter = opt('area');

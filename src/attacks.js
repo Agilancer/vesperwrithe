@@ -10,7 +10,10 @@ export const ATTACK_KEY = 'vesperwrithe_attacks';
 export const KINDS = {
   unarmed:    { label: 'Unarmed (fists)', style: 'punch' },
   sword:      { label: 'Sword', style: 'slash1h' },
-  dagger:     { label: 'Dagger', style: 'stab' },
+  dagger:     { label: 'Dagger (paired)', style: 'flurry' },
+  rapier:     { label: 'Rapier', style: 'needle' },
+  staff:      { label: 'Staff', style: 'whirl' },
+  scythe:     { label: 'Scythe', style: 'reap' },
   axe:        { label: 'Axe (one hand)', style: 'chop' },
   mace:       { label: 'Mace (one hand)', style: 'smash' },
   great_axe:  { label: 'Greataxe', style: 'slash2h' },
