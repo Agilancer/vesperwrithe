@@ -70,6 +70,7 @@ class FX {
   burst(x, y, col, n = 12, sp = 3) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = sp * (0.4 + Math.random()); this.spawn(x, y, 0.6, Math.cos(a) * v, Math.sin(a) * v, col, 0.35 + Math.random() * 0.3, 0.18 + Math.random() * 0.2); } }
   dust(x, y, col = 0x5a5046) { for (let i = 0; i < 8; i++) this.spawn(x + (Math.random() - 0.5) * 0.6, y + 0.1, 0.4, (Math.random() - 0.5) * 2.5, Math.random() * 0.8, col, 0.5, 0.35, -0.5, false); }
   glint(x, y, col) { this.spawn(x, y, 0.8, 0, 0, col, 0.25, 0.9, 0); }
+  puff(x, y, col = 0x6a4a30) { for (let i = 0; i < 4; i++) this.spawn(x + (Math.random() - 0.5) * 0.8, y + 0.2 + Math.random() * 0.4, 0.5, (Math.random() - 0.5) * 1.2, 0.8 + Math.random() * 0.8, col, 0.32 + Math.random() * 0.12, 0.5 + Math.random() * 0.4, -1.5, true); } // soft warm dust, gone in a breath
   ring(x, y, col, r = 6, flat = false) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     if (flat) m.rotation.x = -Math.PI / 2; m.position.set(x, y, flat ? 0 : 0.8); this.scene.add(m);

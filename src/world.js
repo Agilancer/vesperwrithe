@@ -382,9 +382,9 @@ export class World {
     if (wallD && indoors) for (let x = b.x0 + rr(3, 7); x < b.x1 - 3; x += rr(6, 11)) for (let y = b.y0 + FLOOR + 2.4; y < b.y1 - 2.5; y += SH) if (rs() < 0.75) { const sz = rr(3, 5); add(plane(decal(rs() < 0.6 ? wallD[0] : wallD[1], wallD[2], rr(0.45, 0.8)), sz, sz, x, y + rr(-0.6, 0.8), zw + 0.02)); }
     const floorD = { aqueduct: ['puddles', 0x7ab0c0], cistern: ['puddles', 0x6aa8c0], courtyard: ['puddles', 0x8090b0], rampart: ['puddles', 0x8a98b8], forge: ['ash_dust', 0xd0c8c0], magma: ['ash_dust', 0x1a1210], mine: ['ash_dust', 0x8a8478], catacomb: ['ash_dust', 0xb0a890], crypt: ['puddles', 0x6a8a90], prison: ['puddles', 0x7a6a50], garden: ['ash_dust', 0x1a2410], menagerie: ['torn_rags', 0x8a7a5a], servants: ['torn_rags', 0x9a8a6a] }[th];
     if (floorD) for (let x = b.x0 + rr(3, 8); x < b.x1 - 3; x += rr(7, 13)) { const p = plane(decal(floorD[0], floorD[1], floorD[0] === 'puddles' ? 0.4 : 0.5), rr(2.4, 4), 2.6, x, b.y0 + FLOOR + 0.016, rr(-1.4, 0.6)); p.rotation.x = -Math.PI / 2; add(p); }
-    if (T.heat && indoors) for (let x = b.x0 + 9; x < b.x1 - 3; x += 13.3) { const hx = this.findWall(room, x, 1.3, b.y0 + FLOOR, b.y0 + FLOOR + 2.0, [0, 3, -3]); if (hx === null) continue;
-      const mz = room.arcade ? ZB + 0.55 : ZB + 0.04, mouth = new THREE.Mesh(new THREE.ShapeGeometry(archShape(2.2, 1.0, 12, 0.9)), new THREE.MeshBasicMaterial({ map: lavaTex(), color: 0xffa060 })); mouth.position.set(hx, b.y0 + FLOOR + 0.9, mz); add(mouth);
-      add(wbox(tm(['pv_hearth_brick', X]), hx - 1.5, b.y0 + FLOOR + 2.0, hx + 1.5, b.y0 + FLOOR + 2.35, mz - 0.04, mz + 0.5)); add(sprite(glowTex(), 0xff6a20, 4.5, 2.4, hx, b.y0 + FLOOR + 0.6, mz + 0.4, 0.4)); this.light(room, hx, b.y0 + FLOOR + 0.5, mz + 1.4, 0xff7a30, 12, 9); }
+    if (T.heat && indoors) for (let x = b.x0 + 9; x < b.x1 - 3; x += 9) { let hx = null, gy = 0; for (const dx of [0, 3, -3]) { const gx = x + dx; if (gx < b.x0 + 2 || gx > b.x1 - 2) continue; gy = Math.max(this.groundAt(room, gx - 1.2, b.y1), this.groundAt(room, gx + 1.2, b.y1)); if (gy > b.y0 + FLOOR + 4) continue; if (this.clearWall(room, gx - 1.4, gx + 1.4, gy + 0.3, gy + 2.2, 0.2)) { hx = gx; room.wallRects.push({ x0: gx - 1.5, x1: gx + 1.5, y0: gy, y1: gy + 2.4 }); break; } } if (hx === null) continue;
+      const mz = room.arcade ? ZB + 0.55 : ZB + 0.04, mouth = new THREE.Mesh(new THREE.ShapeGeometry(archShape(2.2, 1.0, 12, 0.9)), new THREE.MeshBasicMaterial({ map: lavaTex(), color: 0xffa060 })); mouth.position.set(hx, gy + 0.9, mz); add(mouth);
+      add(wbox(tm(['pv_hearth_brick', X]), hx - 1.5, gy + 2.0, hx + 1.5, gy + 2.35, mz - 0.04, mz + 0.5)); add(sprite(glowTex(), 0xff6a20, 4.5, 2.4, hx, gy + 0.6, mz + 0.4, 0.4)); this.light(room, hx, gy + 0.5, mz + 1.4, 0xff7a30, 12, 9); }
     if (/aqueduct|prison/.test(th)) for (let x = b.x0 + 6; x < b.x1 - 4; x += 13.3) { const p = plane(new THREE.MeshStandardMaterial({ map: tex('drain_cover'), metalness: 0.6, roughness: 0.6 }), 1.3, 1.3, x, b.y0 + FLOOR + 0.02, -1.6); p.rotation.x = -Math.PI / 2; add(p); add(plane(stripM('gutter_strip', 4), 12, 0.5, x, b.y0 + FLOOR + 0.25, zw + 0.03)); }
     if (th === 'servants') for (let x = b.x0 + rr(5, 9); x < b.x1 - 4; x += rr(9, 14)) { const hx = hang(x, 1.7, b.y0 + FLOOR); if (hx !== null) add(plane(new THREE.MeshStandardMaterial({ map: tex('jar_shelves'), roughness: 0.85 }), 3.2, 3.2, hx, b.y0 + FLOOR + 3.2, zw + 0.03)); }
     // boss arenas: braziers at the wings, war banners behind, a pool of light on the floor
@@ -472,7 +472,7 @@ export class World {
           landed.push(c); room._imp = (room._imp || []).concat([[c - 3.333, sp2], [c + 3.333, sp2]]);
         } else if (sy3 >= 0.22 && clear(sp3, sp3 + 3.6 * sy3 + 0.2)) {
           for (const cc of [c - 1.667, c + 1.667]) {
-            for (const part of ['_spandrel', '_arch', '_hood']) kitPiece(room, KIT, 'bay_low' + part, part === '_spandrel' ? S : P, cc, sp3, ZB, 0.5, sy3, 1);
+            for (const part of ['_spandrel', '_arch']) kitPiece(room, KIT, 'bay_low' + part, part === '_spandrel' ? S : P, cc, sp3, ZB, 0.5, sy3, 1);
             const rc = new THREE.Mesh(new THREE.ShapeGeometry(archShape(2.8, 3.6 * sy3, 12, sp3 - lb)), RECESS); rc.position.set(cc, sp3, ZB + 0.04); g.add(rc);
           }
           if (sp3 - lb > 1.0) this.kitPier(room, c, lb, sp3, 0.36, Z); else this.respond(room, c, sp3, 0.36, Z); // the colonnette between the two
@@ -535,13 +535,13 @@ export class World {
   // a dark arcade gets a sconce on every other pier with no fire near it (after the room's own torches are placed)
   // transverse ribs: a chamfered, roll-moulded stone rib across the vault on each pier line, springing from a corbel on the wall
   ribs(room) {
-    const I = room.pierInfo; if (!I) return; const m = tm(room.theme.dress || DRESS, false, 0.6), b = room.b, cy = b.y1 - FLOOR;
+    const I = room.pierInfo; if (!I) return; const m = room.theme.dress ? tm(room.theme.dress, false, 0.6) : tm(['dressed_b', P3, 0xb8b2a8], false, 0.6), b = room.b, cy = b.y1 - FLOOR, lip = std(0x8a8478, { emissive: 0x18140e, roughness: 0.7 });
     if (!room.solids.some(s => s.kind === 'ceil')) return;
     const sec = new THREE.Shape([[-0.24, 0], [0.24, 0], [0.24, -0.12], [0.12, -0.26], [-0.12, -0.26], [-0.24, -0.12]].map(([a, c]) => new THREE.Vector2(a, c)));
     for (const x of I.piers) {
       if (room.solids.some(s => s.kind === 'ceil' && x > s.x0 && x < s.x1) === false) continue;
       const g = new THREE.ExtrudeGeometry(sec, { depth: FRONT - ZB, bevelEnabled: false }); g.translate(x, cy, ZB); worldUV(g); const rb = new THREE.Mesh(g, m); rb.receiveShadow = true; room.group.add(rb);
-      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, FRONT - ZB, 8), m); roll.rotation.x = Math.PI / 2; roll.position.set(x, cy - 0.27, (ZB + FRONT) / 2); room.group.add(roll);
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, FRONT - ZB, 8), lip); roll.rotation.x = Math.PI / 2; roll.position.set(x, cy - 0.27, (ZB + FRONT) / 2); room.group.add(roll);
       kitPiece(room, room.kit, 'pier_cap', { ...room.slots, stone: room.slots.trim }, x, cy - 0.85, ZB + 0.45, 0.42, 0.6, 0.42); // the rib springs from a corbel
     }
   }
@@ -577,7 +577,10 @@ export class World {
     if (src) {
       const sk = src.clone(true), mats = {
         stone: new THREE.MeshStandardMaterial({ color: storm ? 0x0c0e16 : 0x10142a, roughness: 1, vertexColors: true, fog: false }),
-        stonelit: new THREE.MeshStandardMaterial({ color: storm ? 0x262c3c : 0x2c3656, emissive: storm ? 0x0a0c14 : 0x0c1222, roughness: 1, vertexColors: true, fog: false }),
+        stonelit: (() => { const m = new THREE.MeshStandardMaterial({ color: storm ? 0x262c3c : 0x2c3656, emissive: storm ? 0x0a0c14 : 0x0c1222, roughness: 1, vertexColors: true, fog: false }), base = new THREE.Color(storm ? 0x0c0e16 : 0x10142a);
+          m.onBeforeCompile = sh => { sh.uniforms.baseCol = { value: base }; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vLy;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLy = position.y;');
+            sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vLy; uniform vec3 baseCol;').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat lk = smoothstep(34.0, 60.0, vLy); diffuseColor.rgb = mix(baseCol, diffuseColor.rgb, lk); totalEmissiveRadiance *= lk;'); };
+          m.customProgramCacheKey = () => 'stonelit'; return m; })(), // the moon edge lights the upper castle only: nothing pale floats in the mist
         roof: new THREE.MeshStandardMaterial({ color: storm ? 0x080a10 : 0x0a0d1c, roughness: 1, metalness: 0, vertexColors: true, fog: false }),
         glow: new THREE.MeshBasicMaterial({ color: 0xa8743c, fog: false }), roseglow: new THREE.MeshBasicMaterial({ color: 0x2a1418, fog: false }), dark: new THREE.MeshBasicMaterial({ color: 0x04050a, fog: false }) };
       sk.traverse(o => { if (o.isMesh) { o.material = mats[(o.material.name || 'stone').replace(/\.\d+$/, '')] || mats.stone; o.castShadow = o.receiveShadow = false; o.frustumCulled = false; } });
@@ -593,8 +596,9 @@ export class World {
     const fogM = new THREE.MeshBasicMaterial({ map: cloudTex(), color: storm ? 0x39405a : 0x6a7aa8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), cards = [];
     for (let i = 0; i < 5; i++) { const c = plane(fogM, rnd(50, 90), rnd(8, 14), b.x0 + rnd(-20, b.x1 - b.x0 + 20), b.y0 + rnd(-4, 6) - drop * 0.3, -40 - i * 5); g.add(c); cards.push(c); }
     room.anim.push((t, dt) => { for (const c of cards) { c.position.x += dt * 0.6; if (c.position.x > b.x1 + 70) c.position.x = b.x0 - 70; } });
-    const mtn = new THREE.MeshBasicMaterial({ color: 0x141a2c, fog: false });
-    for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.ConeGeometry(rnd(18, 32), rnd(26, 46), 5), mtn); m.position.set(b.x0 - 20 + i * 14, b.y0 + 2 - drop, -130); g.add(m); }
+    const mtn = new THREE.MeshBasicMaterial({ color: storm ? 0x10141e : 0x141a2c, fog: false }), ridge = new THREE.Shape(), rw = b.x1 - b.x0 + 260; ridge.moveTo(-rw / 2, -40);
+    for (let i = 0, xx = -rw / 2, hh = 10; xx < rw / 2; i++) { xx += rnd(4, 11); hh = THREE.MathUtils.clamp(hh + rnd(-7, 7) + (i % 7 === 3 ? 9 : 0), 2, 30); ridge.lineTo(Math.min(xx, rw / 2), hh); }
+    ridge.lineTo(rw / 2, -40); const rm = new THREE.Mesh(new THREE.ShapeGeometry(ridge), mtn); rm.position.set((b.x0 + b.x1) / 2, b.y0 - 4 - drop, -130); g.add(rm); // a broken mountain ridge behind the castle
     const mist = plane(new THREE.MeshBasicMaterial({ map: canvasTex(4, 64, x => { const v = x.createLinearGradient(0, 0, 0, 64); v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.6, 'rgba(255,255,255,.9)'); v.addColorStop(1, 'rgba(255,255,255,1)'); x.fillStyle = v; x.fillRect(0, 0, 4, 64); }), color: 0x5a6a8c, transparent: true, opacity: 0.2, depthWrite: false }), b.x1 - b.x0 + 120, 14, (b.x0 + b.x1) / 2, b.y0 - 6, -30); g.add(mist);
     if (storm) { // racing cloud bank and lightning
       const cm = new THREE.MeshBasicMaterial({ map: cloudTex(), color: 0x39405a, transparent: true, opacity: 0.85, depthWrite: false, fog: false });
