@@ -20,8 +20,9 @@ export default [
     lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' }] },
 
   { id: 'shaft', name: 'Blackthorn Shaft', area: '02', col: 13, row: -4, w: 1, h: 5, theme: 'shaft',
-    doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }, { side: 'W', row: -4 }, { side: 'E', row: -4 }],
-    platforms: zig([[1.5, 2.7, 4.5], [7.5, 4.9, 3], [3.5, 7.1, 2.6], [8, 9.3, 4], [3.2, 11.5, 3], [7.6, 13.7, 2.4], [10.2, 15.9, 2.6], [4.2, 18.1, 5.2], [0.8, 20.3, 2.6], [5, 22.5, 2.6], [8.6, 24.7, 4.2], [4, 26.9, 3], [7.5, 28.7, 3], [3.2, 28.7, 2.4]]),
+    doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }, { side: 'W', row: -4 }, { side: 'E', row: -4 }, { side: 'E', row: -1 }],
+    cracks: [{ x: 12.33, y: 8.0, w: 1.0, h: 3.8, hp: 3, glow: 0xffc070 }], // a walled-up doorway: mortar weeps dust, the stone rings hollow
+    platforms: zig([[1.5, 2.7, 4.5], [7.5, 4.9, 3], [3.5, 7.1, 2.6], [6.4, 9.3, 3.6], [3.2, 11.5, 3], [7.6, 13.7, 2.4], [10.2, 15.9, 2.6], [4.2, 18.1, 5.2], [0.8, 20.3, 2.6], [5, 22.5, 2.6], [8.6, 24.7, 4.2], [4, 26.9, 3], [7.5, 28.7, 3], [3.2, 28.7, 2.4]]),
     enemies: [{ t: 'knight', x: 10.5, y: 24.7 }, { t: 'zombie', x: 6.6, y: 18.1 }, { t: 'child', x: 10, y: 9.3 }],
     chests: [{ x: 1.6, y: 20.3, gem: 'topaz' }],
     breakables: [{ x: 6.8, y: 18.1 }, { x: 9.8, y: 9.3 }],
@@ -63,13 +64,40 @@ export default [
     lore: [{ x: 56, text: 'The floor has given way. Something paces in the hall below.' }] },
 
   { id: 'undercroft', name: 'Undercroft Well', area: '02', col: 15, row: 1, w: 1, h: 4, theme: 'crypt',
-    doors: [{ side: 'N', col: 15 }, { side: 'S', col: 15 }],
-    platforms: zig([[0.8, 2.7, 3.4], [6.0, 4.9, 3.0], [9.6, 7.1, 3.0], [4.4, 9.3, 3.0], [0.6, 11.5, 3.0], [5.0, 13.7, 2.8], [9.4, 15.9, 3.2], [4.6, 18.1, 3], [0.6, 20.3, 3.2], [5.2, 22.5, 2.6], [9.2, 24.7, 3.4], [5.3, 26.5, 2.8], [5.3, 28.3, 2.8]]),
-    cracks: [{ x: 4.9, y: 0, w: 3.6, h: 0.5, by: 'dive' }],
+    doors: [{ side: 'N', col: 15 }, { side: 'S', col: 15 }, { side: 'E', row: 1 }],
+    platforms: zig([[0.8, 2.7, 3.4], [6.0, 4.9, 3.0], [9.6, 7.1, 3.0], [4.4, 9.3, 3.0], [0.6, 11.5, 3.0], [5.0, 13.7, 2.8], [9.4, 15.9, 3.2], [4.6, 18.1, 3], [0.6, 20.3, 3.2], [5.2, 22.5, 2.6], [7.3, 24.7, 2.8], [5.3, 26.5, 2.8], [5.3, 28.3, 2.8]]),
+    cracks: [{ x: 4.9, y: 0, w: 3.6, h: 0.5, by: 'dive' }, { x: 12.33, y: 23.0, w: 1.0, h: 3.8, hp: 3, glow: 0x9aff9a }],
     items: [{ x: 10.5, y: 0.5, pedestal: true, gem: 'sapphire' }, { x: 2.0, y: 20.3, base: 'iron_spear', rarity: 'magic', sockets: 2 }],
     enemies: [{ t: 'zombie', x: 2.5, rise: true }, { t: 'child', x: 10.6, y: 7.1 }],
     props: [{ t: 'candles', x: 12 }, { t: 'torch', x: 1, y: 7.1 }, { t: 'torch', x: 12.3, y: 15.9 }, { t: 'bones', x: 3 }, { t: 'web', x: 11, y: 22.5 }],
     lore: [{ x: 6.6, text: 'The flagstones here are cracked through. Cold air rises from far below.' }] },
+
+  // Secret: walled up behind the Blackthorn Shaft. The Oathbreaker's men bricked in the chapel of the one knight who would
+  // not swear; her needle-sword still lies on the altar. Entered by breaking the hollow wall high on the shaft's east side.
+  { id: 'forsworn_reliquary', name: 'The Forsworn Reliquary', area: '02', col: 14, row: -3, w: 3, h: 3, theme: 'chapel', secret: true, vista: 15,
+    doors: [{ side: 'W', row: -1 }],
+    blocks: [{ x: 29, y: 0.5, w: 11, h: 0.7 }], // the sanctuary step
+    platforms: zig([[23.5, 2.9, 3], [18.5, 5.1, 3], [23.5, 7.3, 3], [29, 9.5, 3], [33.5, 11.7, 6.5]]), // up to the singers' loft
+    items: [{ x: 35, y: 1.2, unique: 'vespers_needle', altar: true, glow: 0xffd8a0 }],
+    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 1.5, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }],
+    chests: [{ x: 37.5, y: 11.7, tier: 2, rarity: 'rare' }],
+    breakables: [{ x: 8.5 }, { x: 26 }, { x: 35, y: 11.7 }],
+    props: [{ t: 'window', x: 35, big: true }, { t: 'rosewindow', x: 18, y: 15 }, { t: 'altar', x: 35, y: 1.2, steps: 1 }, { t: 'pews', x: 7, face: 1 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 17, face: 1 },
+      { t: 'statue', x: 30 }, { t: 'statue', x: 39.4 }, { t: 'candles', x: 32.4, y: 1.2 }, { t: 'candles', x: 37.6, y: 1.2 }, { t: 'chandelier', x: 15, y: 11 }, { t: 'banner', x: 10, house: 'tess' }, { t: 'banner', x: 24, house: 'tess' },
+      { t: 'rubble', x: 2.2 }, { t: 'web', x: 1.5, y: 6 }, { t: 'rug', x: 12 }, { t: 'candles', x: 36, y: 11.7 }],
+    lore: [{ x: 5, text: 'Bricked up from the outside. On the inner face, scratched again and again: I KEPT MINE.' }] },
+
+  // Secret: an ossuary sealed off the Undercroft Well. A reaper's crook-blade lies across the bone altar.
+  { id: 'reapers_ossuary', name: 'Ossuary of the Pale Reaper', area: '02', col: 16, row: 1, w: 2, h: 1, theme: 'ossuary', secret: true,
+    doors: [{ side: 'W', row: 1 }],
+    platforms: zig([[8.5, 2.7, 4], [14, 4.4, 4.2]]),
+    blocks: [{ x: 5.2, y: 0.5, w: 1.3, h: 2.0 }, { x: 15.8, y: 0.5, w: 1.3, h: 1.9 }], // piers of burial niches
+    items: [{ x: 21.2, unique: 'pale_reaper', altar: true, glow: 0x9aff9a, rise: [8.5, 13, 18.5] }, { x: 16.1, y: 4.4, up: 'life' }],
+    enemies: [{ t: 'zombie', x: 11, rise: true }, { t: 'zombie', x: 18, rise: true }, { t: 'knight', x: 20 }],
+    breakables: [{ x: 5 }, { x: 13.5 }],
+    props: [{ t: 'altar', x: 21.2, steps: 1, style: 'bone' }, { t: 'coffin', x: 3.2 }, { t: 'sarcophagus', x: 25.2 }, { t: 'bones', x: 9 }, { t: 'bones', x: 16 },
+      { t: 'candles', x: 19.4 }, { t: 'candles', x: 22.9 }, { t: 'torch', x: 1, y: 2.5 }, { t: 'web', x: 25.5, y: 6 }],
+    lore: [{ x: 3.6, text: 'The bones are stacked with care, every skull turned outward. Whoever set them wanted the reaper watched.' }] },
 
   { id: 'chapel', name: 'Chapel of Cinders', area: '07', col: 9, row: -5, w: 3, h: 3, theme: 'chapel', vista: 16,
     doors: [{ side: 'E', row: -4 }],

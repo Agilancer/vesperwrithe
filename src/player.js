@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { loadGLTF, weaponModel, audio, addRim, LOW_MEM } from './assets.js';
 const RIM_K = LOW_MEM ? 0.42 : 0.38; // phones are often viewed dim: a touch more edge
-import { BASES, STYLES, GEMS, itemStats, isRanged } from './items.js';
+import { BASES, STYLES, GEMS, itemStats, isRanged, staffElem } from './items.js';
 import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
 import { loadMoves, strideSpeed, Grip } from './moves.js';
+const STREAK = { fire: 0xff8a40, ice: 0x9fe4ff, lightning: 0xfff07a, poison: 0x9aff6a, shadow: 0xc090ff }; // a flurry's stab flash takes the blade's element
 
 // Movement tuned from Symphony of the Night frame data (docs/research), converted at 1 SotN px ≈ 3.35 cm, 60 fps:
 // walk 1.5 px/f → 4.7 m/s · jump 4.9 px/f → 9.85 m/s · double jump 4.1 px/f → 8.25 m/s · fall cap 7 px/f → 14 m/s
@@ -185,7 +186,8 @@ export class Player {
     if (slot !== 'weapon' && slot !== 'offhand') return;
     const sock = slot === 'weapon' ? this.socketR : this.socketL;
     if (this[slot + 'Mesh']) { sock.remove(this[slot + 'Mesh']); this[slot + 'Mesh'] = null; }
-    const it = this.equip[slot]; if (!it) return;
+    if (this.pairMesh) { this.pairMesh.parent?.remove(this.pairMesh); this.pairMesh = null; }
+    const it = this.equip[slot]; if (!it) { if (slot === 'offhand' && this.equip.weapon) return this.attachVisual('weapon'); return; } // a freed off hand takes up a dagger's twin again
     const base = BASES[it.base]; if (!base?.model) return;
     // Socket lives under a 1.8× scaled rig; weapons are authored at true metres, so divide that scale out.
     const m = await weaponModel(base.model, base.scale / 1.8);
@@ -197,10 +199,14 @@ export class Player {
       if (gr === 'reverse') m.rotation.z = Math.PI; else if (gr === 'forward') m.rotation.x = Math.PI / 2;
     }
     sock.add(m); this[slot + 'Mesh'] = m;
+    if (this.pairMesh && (slot === 'weapon' || slot === 'offhand')) { this.pairMesh.parent?.remove(this.pairMesh); this.pairMesh = null; }
+    if (slot === 'weapon' && base.kind === 'dagger' && !this.equip.offhand) { const p = m.clone(true); p.rotation.z += Math.PI; p.userData.len = m.userData.len; p.userData.q0 = p.quaternion.clone(); this.socketL.add(p); this.pairMesh = p; } // daggers come in pairs: the free hand carries the twin, point down
     if (slot === 'weapon') this.setupTwoHand(base, grip || attackFor(base).grip);
     // a faint cold edge-light so the blade reads against dark armour and dark rooms (element FX override it)
     if (slot === 'weapon') m.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.emissive.setHex(0x8fb4c8); o.material.emissiveIntensity = 0.16; } });
     if (slot === 'weapon') this.applyElementFX(m, itemStats(it).elems);
+    if (slot === 'weapon' && base.kind === 'scythe') m.rotation.y += Math.PI / 2; /* the hook lies in the screen plane, so the silhouette reads as a scythe */
+    if (slot === 'weapon') { m.userData.q0 = m.quaternion.clone(); this.trailElem = base.kind === 'staff' ? staffElem(base.model) : it.base === 'pale_crescent' ? 'reaper' : null; } // a staff's arc burns its own colour
   }
 
   // Two-handed weapons: the clips are one-handed, so the left hand is pulled onto the shaft each frame (two-bone IK on the
@@ -320,7 +326,7 @@ export class Player {
       if (this.kickT > 0) { this.kickT -= dt; dir = 0; }
       const canTurn = !(attacking && this.onGround);
       if (dir && canTurn) this.facing = Math.sign(dir);
-      let speed = P.walk;
+      let speed = P.walk; if (this.snareT > 0) { this.snareT -= dt; speed *= 0.3; if (Math.random() < dt * 8) this.g.fx.spawn(this.pos.x + (Math.random() - 0.5) * 0.6, this.pos.y + 0.3 + Math.random() * 0.5, 0.6, 0, 0.3, 0xe8e8f8, 0.4, 0.14, 0, false); } // a net binds the legs
       if (this.crouch || this.blocking && this.onGround) speed = 0;
       if (attacking && this.onGround) speed = heavy ? 0 : P.walk * 0.55;
       if (this.kickT > 0) { /* carried by the wall kick */ } else { // a few frames of acceleration and braking: weight without losing SotN precision
@@ -453,13 +459,15 @@ export class Player {
     if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
     if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
     A.active = f >= st.hit[0] && f <= st.hit[1]; A.pastHit = f > st.hit[1];
+    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (st.boxes?.[wi]?.pull) this.g.fx.crescent(this.pos.x + this.facing * 1.4, this.pos.y + 0.5, this.facing, 0xd8f0c8, 1.3); /* the reap leaves a pale crescent */ if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); A.streak = wi; } } // a flurry: every drive is its own hit
     const pad = st.cancel !== undefined ? 1 : 3; // authored clips: the ribbon belongs to the cut, not the wind-up
     if (f >= st.hit[0] - pad && f <= st.hit[1] + pad - 1) this.trailOn = true;
-    if (A.active && st.ranged) { if (!A.shot) { A.shot = true; this.g.playerShoot(this, st.ranged); } }
+    if (st.ranged) { if (!A.shot && f >= (st.shotAt ?? st.hit[0])) { A.shot = true; this.g.playerShoot(this, st.ranged); } }
     else if (A.active) { if (!A.proc) { A.proc = true; this.g.onSwing(this, A); if (A.art) this.g.castArt(this); } this.g.playerHits(this.hitbox()); }
     // a planted swing steps into the cut (eased out); chains flow on a buffered press; holding a direction walks out of the recovery
     if (st.cancel !== undefined) {
-      if (A.mode === 'idle' && this.onGround && !st.upperOnly && f >= st.hit[0] - 2 && f <= st.hit[1]) { const u = (f - st.hit[0] + 2) / (st.hit[1] - st.hit[0] + 2); this.vel.x = this.facing * (A.heavy ? 1.8 : 2.8) * (1 - u) * (1 - u); }
+      const w = st.hits ? st.hits[Math.max(0, A.wi ?? 0)] : st.hit; // a flurry steps in again with each drive
+      if (A.mode === 'idle' && this.onGround && !st.upperOnly && f >= w[0] - 2 && f <= w[1]) { const u = (f - w[0] + 2) / (w[1] - w[0] + 2); this.vel.x = this.facing * (st.lunge || (A.heavy ? 1.8 : 2.8)) * (1 - u) * (1 - u); }
       if (f >= st.cancel) {
         if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(A.ci + 1); return; }
         if (A.queued && (A.chain ? f >= st.cancel + 1 : f >= st.cancel)) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(0); return; } // a press during the last cut starts the chain again
@@ -469,11 +477,27 @@ export class Player {
     if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
   }
 
+  // A thrust drives the point dead ahead: around each drive the blade is turned onto the facing line (the mocap fist
+  // punches true, but the wrist carried the blade up and behind), and the stab flash leaves from the real tip.
+  aimThrust(m) {
+    const A = this.attack, st = A.st, f = st.from + (st.to - st.from) * Math.min(1, A.t / A.dur); let w = 0;
+    for (const [a, b] of st.hits) if (f >= a - 2.5 && f <= b + 2.5) w = Math.max(w, Math.min(1, (f - (a - 2.5)) / 2, (b + 2.5 - f) / 2));
+    if (w <= 0) return;
+    const cur = m.getWorldQuaternion(new THREE.Quaternion()), axis = new THREE.Vector3(0, 1, 0).applyQuaternion(cur), drop = [0.1, -0.02, -0.12][Math.max(0, A.wi ?? 0)] || 0;
+    const tq = new THREE.Quaternion().setFromUnitVectors(axis, new THREE.Vector3(this.facing, drop, 0.05).normalize()).multiply(cur);
+    setWorldQuat(m, cur.slerp(tq, w));
+    if (A.streak !== undefined && A.streakDone !== A.streak && w > 0.6) { A.streakDone = A.streak; const col = STREAK[this.fx?.userData.elem] || 0xdfe8ff, needle = st.lunge > 6;
+      const twin = !needle && A.streak === 1 && this.pairMesh; let src = m; if (twin) { const p = this.pairMesh, cq = p.getWorldQuaternion(new THREE.Quaternion()), ax = new THREE.Vector3(0, 1, 0).applyQuaternion(cq); setWorldQuat(p, new THREE.Quaternion().setFromUnitVectors(ax, new THREE.Vector3(this.facing, -0.35, 0.05).normalize()).multiply(cq)); src = p; } /* the second drive is the off-hand twin, a low hooked flick */
+      const len = src.userData.len / src.scale.x, tip = src.localToWorld(new THREE.Vector3(0, len, 0));
+      if (needle) { this.g.fx.streak(tip.x - this.facing * 0.1, tip.y, this.facing, (A.reach || st.reach) * 1.05, col, 0.05); this.g.fx.star(tip.x + this.facing * 0.2, tip.y, 0xffffff, 0.55); } /* a rapier: one needle of light and a star at the point */
+      else { this.g.fx.streak(tip.x - this.facing * 0.15, twin ? tip.y - 0.2 : tip.y, this.facing, (A.reach || st.reach) * (A.streak === 2 ? 1.0 : 0.75), col, twin ? 0.1 : 0.13, 1, twin ? -this.facing * 0.25 : 0); this.g.fx.spawn(tip.x, tip.y, 0.9, 0, 0, 0xffffff, 0.1, 0.22, 0); } }
+  }
   hitbox() {
     const st = this.attack.st, f = this.facing;
-    const yb = this.pos.y + (this.crouch ? st.yOff * 0.55 : st.yOff);
-    const x0 = this.pos.x + f * 0.15, x1 = this.pos.x + f * (0.15 + (this.attack.reach || st.reach));
-    return { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: yb - st.height / 2, y1: yb + st.height / 2, attack: this.attack };
+    const A = this.attack, bx = st.boxes?.[Math.max(0, A.wi ?? 0)] || {}, both = bx.both ?? st.both, yo = this.pos.y + (this.crouch ? (bx.yOff ?? st.yOff) * 0.55 : (bx.yOff ?? st.yOff)), ht = bx.height ?? st.height;
+    const r = bx.reach ?? (A.reach || st.reach), x0 = bx.back ? this.pos.x - f * 0.15 : both ? this.pos.x - f * r * 0.8 : this.pos.x + f * 0.15, x1 = bx.back ? this.pos.x - f * r : this.pos.x + f * (0.15 + r); // a turning strike cuts behind as well; a 'back' box only behind
+    const flurry = !!st.hits && !st.boxes, last = !st.hits || (A.wi ?? 0) === st.hits.length - 1;
+    return { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: yo - ht / 2, y1: yo + ht / 2, attack: A, mul: bx.mul ?? st.hitMul, both, pull: bx.pull ?? (st.boxes ? false : st.pull), flurry, last };
   }
 
   rollDamage() {
@@ -485,6 +509,7 @@ export class Player {
     return { dmg, crit, elem };
   }
 
+  ensnare(t) { this.snareT = Math.max(this.snareT || 0, t); this.g.ui.dmg(this.pos.x, this.pos.y + 2.2, 'SNARED', 'crit'); } // jumping and dashing still work: struggle free
   takeHit(amount, fromX, elem, src, env) {
     if (this.inv > 0 || this.state === 'dead' || this.state === 'dash' || this.g.cine) return false;
     const front = Math.sign(fromX - this.pos.x) === this.facing;
@@ -610,8 +635,9 @@ export class Player {
       }
     }
     if (this.landT > 0) this.landT -= dt;
-    this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand); this.root.updateMatrixWorld(true);
-    this.groundFeet(dt); this.jfGround = this.onGround; this.twoHandIK(); if (this.trailOn) { this.trail.push(this.weaponMesh, this.fx?.userData.elem); this.trailOn = false; } this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
+    this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
+    this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); if (this.pairMesh?.userData.q0 && !(this.attack?.st.thrust && (this.attack.wi ?? 0) === 1)) this.pairMesh.quaternion.copy(this.pairMesh.userData.q0); this.twoHandIK(); if (this.attack?.st.thrust && wm) this.aimThrust(wm);
+    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
@@ -629,15 +655,15 @@ export class Player {
     this.hurtRim ||= { col: new THREE.Color(0xa4acc0), k: RIM_K, p: 3.4 };
     if (this._rimmed !== this.gearVer) { this._rimmed = this.gearVer; this.model.traverse(o => { if (o.isMesh && !o.userData.xray) for (const m of [].concat(o.material)) if (!m.userData.rim) { m.userData.rim = 1; addRim(m, this.hurtRim); } }); }
     const blink = this.inv > 0.3 && this.inv < 1.05 && this.state !== 'block' && this.state !== 'dead', on = blink && Math.floor(this.inv * 12) % 2 === 0;
-    if (on) { this.hurtRim.col.setHex(0xe02848); this.hurtRim.k = 0.85; } else { this.hurtRim.col.setHex(0xa4acc0); this.hurtRim.k = RIM_K; } // a cool edge always; hurt flickers it crimson
+    if (on) { this.hurtRim.col.setHex(0xe02848); this.hurtRim.k = 0.85; } else { this.hurtRim.col.setHex(0xa4acc0); this.hurtRim.k = RIM_K + (this.g.darken || 0) * 0.9; } // a cool edge always (brighter in an eclipse, so you never lose yourself); hurt flickers it crimson
     this.model.visible = true; if (this.scarf) this.scarf.mesh.visible = true;
     if (this.fx) for (const p of this.fx.userData.parts) { p.userData.t += dt * 2.2; const u = p.userData.t % 1; p.position.set((Math.random() - 0.5) * 0.04, this.fx.userData.len * p.userData.along, (Math.random() - 0.5) * 0.04 + (this.fx.userData.elem === 'fire' ? u * 0.0 : 0)); p.position.y += this.fx.userData.elem === 'fire' ? u * 0.25 : 0; p.material.opacity = 1 - u; const sc = (this.fx.userData.elem === 'lightning' ? (Math.random() < 0.3 ? 0.25 : 0.08) : 0.16) * (1 - u * 0.5); p.scale.setScalar(sc); }
   }
 }
 
 // Swing ribbon: samples the blade's base and tip each frame of a strike so attacks read clearly from the side view.
-const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a };
-class Trail {
+const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a, shadow: 0xb080ff, foe: 0xff4a30, reaper: 0xd8f0c8 }; // foe: an enemy's cut, so its blows read as clearly as yours
+export class Trail {
   constructor(scene) {
     this.max = 28; this.pts = [];
     this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.max * 2 * 3); this.alpha = new Float32Array(this.max * 2);

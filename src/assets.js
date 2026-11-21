@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { initBases } from './items.js';
+import { initBases, swordKind } from './items.js';
 
 const gltfLoader = new GLTFLoader();
 const texLoader = new THREE.TextureLoader();
@@ -106,7 +106,8 @@ export async function loadMeta() {
   GRIPS = g; WEAPONS = w;
   // the hand-made swords and greatswords: blade along +Y from the grip at the origin
   const sw = (await fetch('assets/game/items/swords.json').then(r => r.json())).swords;
-  for (const [id, s] of Object.entries(sw)) { if (s.hands === 3 || !s.file || WEAPONS[id]) continue; WEAPONS[id] = { id, file: s.file, kind: s.hands === 2 ? 'great_sword' : 'sword' }; GRIPS[id] = { kind: WEAPONS[id].kind, grip: [0, 0, 0], dir: [0, 1, 0], len: s.frame?.y?.[1] || 1 }; }
+  // staves (hands 3) have no hilt: the hand takes the shaft a little above its middle (a scythe low, so the blade swings wide)
+  for (const [id, s] of Object.entries(sw)) { if (!s.file || WEAPONS[id]) continue; const kind = swordKind(id, s), y = s.frame?.y || [0, 1], gy = s.hands === 3 ? y[0] + (y[1] - y[0]) * (kind === 'scythe' ? 0.34 : 0.56) : 0; WEAPONS[id] = { id, file: s.file, kind }; GRIPS[id] = { kind, grip: [0, gy, 0], dir: [0, 1, 0], len: y[1] - gy }; }
   initBases(w, sw);
 }
 

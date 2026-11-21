@@ -64,19 +64,19 @@ export default [
   // bottom is cracked (Dive). Under it: three flooded screens; the door west at the very bottom is under water and
   // is the only link to the catacombs.
   { id: 'weeping_shaft', name: 'The Weeping Shaft', area: '06', col: 21, row: 1, w: 1, h: 7, theme: 'aqueduct',
-    doors: [{ side: 'E', row: 1 }, { side: 'E', row: 4 }, { side: 'W', row: 7 }],
+    doors: [{ side: 'E', row: 1 }, { side: 'E', row: 4 }, { side: 'W', row: 7 }, { side: 'E', row: 2 }],
     blocks: [{ x: 0, y: 22, w: 4.9, h: 1 }, { x: 8.5, y: 22, w: 4.833, h: 1 }], // floor of the upper shaft
-    cracks: [{ x: 4.9, y: 22, w: 3.6, h: 1, by: 'dive' }],
+    cracks: [{ x: 4.9, y: 22, w: 3.6, h: 1, by: 'dive' }, { x: 12.33, y: 38.0, w: 1.0, h: 3.8, hp: 3, glow: 0x8ad0ff }], // a sealed choir-loft door off the upper shaft
     platforms: zig([
       // upper shaft: 2 m steps, climbable with one jump
-      [5.5, 43.4, 3.2], [1, 41.4, 3.4], [5.2, 39.3, 3], [9.4, 37.3, 3.2], [5, 35.2, 3], [0.8, 33.2, 3.2], [4.8, 31.1, 3], [9.2, 29.1, 3.4], [5.4, 27.0, 3], [1.2, 25.0, 3.2],
+      [5.5, 43.4, 3.2], [1, 41.4, 3.4], [5.2, 39.3, 3], [7.0, 37.3, 3.0], [5, 35.2, 3], [0.8, 33.2, 3.2], [4.8, 31.1, 3], [9.2, 29.1, 3.4], [5.4, 27.0, 3], [1.2, 25.0, 3.2],
       // drowned shaft: double-jump steps from the water back up through the broken floor
       [5.2, 19.9, 3], [1.5, 17.9, 3.2], [8, 14.5, 3.4], [2, 11.0, 3.4], [8.5, 7.5, 3.2]]),
     water: [{ x: 0, y: 0.5, w: 13.333, h: 4 }],
     enemies: [{ t: 'spider', x: 2.6, y: 41.4 }, { t: 'harpy', x: 7, y: 36.4 }, { t: 'spider', x: 6.3, y: 31.1 }, { t: 'kobold_armored', x: 2.6, y: 23 },
       { t: 'werebat', x: 6.5, y: 12.5 }, { t: 'spider_red', x: 9.7, y: 14.5 }],
     chests: [{ x: 1.7, y: 33.2, gem: 'sapphire' }, { x: 9.8, y: 0.5, tier: 4, rarity: 'rare' }],
-    breakables: [{ x: 6.5, y: 35.2 }, { x: 10.6, y: 37.3 }, { x: 11.5, y: 23 }, { x: 3.4, y: 11.0 }],
+    breakables: [{ x: 6.5, y: 35.2 }, { x: 8.6, y: 37.3 }, { x: 11.5, y: 23 }, { x: 3.4, y: 11.0 }],
     props: [{ t: 'waterfall', x: 12, y: 30 }, { t: 'waterfall', x: 1.2, y: 8 }, { t: 'chain', x: 6.7, y: 44 }, { t: 'chain', x: 6.7, y: 16 },
       { t: 'torch', x: 12.3, y: 45.5 }, { t: 'torch', x: 1, y: 41.4 }, { t: 'torch', x: 12.3, y: 37.3 }, { t: 'torch', x: 1, y: 33.2 }, { t: 'torch', x: 12.3, y: 29.1 }, { t: 'torch', x: 1, y: 25 },
       { t: 'torch', x: 12.3, y: 23 }, { t: 'torch', x: 12.3, y: 14.5 }, { t: 'torch', x: 1, y: 11 }, { t: 'pipe', x: 3, y: 39.3 }, { t: 'pipe', x: 10, y: 27 }, { t: 'ivy', x: 0.8, y: 30 },
@@ -293,4 +293,17 @@ export default [
     props: [{ t: 'sarcophagus', x: 9.5, y: 1.7 }, { t: 'sarcophagus', x: 25.5, y: 1.7 }, { t: 'statue', x: 1.5 }, { t: 'statue', x: 17 }, { t: 'column', x: 6.5 }, { t: 'column', x: 29 },
       { t: 'candles', x: 32.5, y: 5 }, { t: 'candles', x: 39, y: 5 }, { t: 'torch', x: 34.5, y: 5 }, { t: 'altar', x: 36.5, y: 5 }, { t: 'bones', x: 12 }, { t: 'bones', x: 20.5 }, { t: 'chain', x: 20 }, { t: 'skullwall', x: 36, y: 5 }],
     lore: [{ x: 20, text: 'The reliquary drowned with its saints. They did not let go of their gold.' }] },
+
+  // Secret: a choir chapel the cisterns drowned and the masons sealed. The organ still drips; the tide-staff waits on the altar.
+  { id: 'drowned_choir', name: 'The Drowned Choir', area: '06', col: 22, row: 2, w: 3, h: 1, theme: 'cistern', secret: true,
+    doors: [{ side: 'W', row: 2 }],
+    platforms: zig([[13, 2.7, 4], [20, 4.6, 5], [28, 2.7, 4]]),
+    shallow: [{ x: 0, w: 40 }],
+    items: [{ x: 35.5, unique: 'tidecaller', altar: true, glow: 0x8ad0ff }, { x: 22.5, y: 4.6, up: 'mana' }],
+    enemies: [{ t: 'harpy', x: 16, y: 5 }, { t: 'spider_red', x: 24 }, { t: 'harpy', x: 30, y: 5.5 }],
+    chests: [{ x: 6, tier: 4, rarity: 'rare' }],
+    breakables: [{ x: 10 }, { x: 26 }],
+    props: [{ t: 'organ', x: 4 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 18, face: 1 }, { t: 'pews', x: 24, face: 1 }, { t: 'altar', x: 35.5, steps: 1, style: 'drowned' },
+      { t: 'waterfall', x: 9 }, { t: 'waterfall', x: 31 }, { t: 'chandelier', x: 20, y: 6.4 }, { t: 'web', x: 39, y: 6 }],
+    lore: [{ x: 8, text: 'The hymn-boards still list tonight\'s psalms. The water came up during the third.' }] },
 ];

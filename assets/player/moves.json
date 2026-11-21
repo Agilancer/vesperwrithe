@@ -44,6 +44,52 @@
    ],
    "cancel": 24
   },
+  "vw_whirl": {
+   "frames": 31,
+   "hit": [
+    7,
+    20
+   ],
+   "cancel": 22
+  },
+  "vw_cast": {
+   "frames": 32,
+   "hit": [
+    8,
+    19
+   ],
+   "cancel": 22
+  },
+  "vw_reap": {
+   "frames": 37,
+   "hit": [
+    8,
+    24
+   ],
+   "cancel": 27
+  },
+  "vw_flurry": {
+   "frames": 27,
+   "hit": [
+    5,
+    18
+   ],
+   "hits": [
+    [
+     5,
+     7
+    ],
+    [
+     10,
+     12
+    ],
+    [
+     15,
+     18
+    ]
+   ],
+   "cancel": 19
+  },
   "vw_grip": {
    "frames": 2
   }

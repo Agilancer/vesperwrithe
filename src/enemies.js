@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { glowTex } from './world.js';
-import { cloneGLTF, weaponModel, audio, WEAPONS, addRim } from './assets.js';
+import { cloneGLTF, weaponModel, audio, WEAPONS, addRim, LOW_MEM } from './assets.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { Trail } from './player.js';
 const RIM_COOL = new THREE.Color(0x7c8cb0), RIM_HOT = new THREE.Color(0xff3020), RIM_HIT = new THREE.Color(0xffffff);
 import { fitHeight } from './world.js';
 import { BESTIARY } from './catalog.js';
 
 export const TYPES = BESTIARY;
 export const ELEM_COL = { fire: 0xff6a20, ice: 0x7ad8ff, lightning: 0xfff070, poison: 0x8aff5a, shadow: 0xb070ff };
-const rnd = (a, b) => a + Math.random() * (b - a);
+const rnd = (a, b) => a + Math.random() * (b - a); const _gc = new THREE.Color(), _wc = new THREE.Color();
+// a signature's wind-up glows in its own element, so the answer can be read from the colour (red is everything else)
+const WARN_COL = { hunt: 0x6aff5a, frostnova: 0xa8e8ff, ossuary: 0xd8642a, fissure: 0xffa040, stormcall: 0xb8a8ff, grimoire: 0xb080ff, cyclone: 0xd8e8ff, geyser: 0x6ac8ff, miasma: 0x8aff5a, maw: 0x9a7ad8, eclipse: 0xffa020, forgefall: 0xffe0a0, webnet: 0xe8e8ff, meteor: 0xff8a30 };
 const sgn = x => (x < 0 ? -1 : 1);
 const SHOT_SPEED = { bolt: 11, orb: 6.5, skull: 4.2, feather: 13, gust: 10, book: 9 };
 
@@ -51,6 +55,7 @@ export class Enemy {
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });
+    if (this.spec.tint) { const tc = new THREE.Color(this.spec.tint); for (const m of this.mats) { m.color.lerp(tc, 0.65); m.metalness = 0.35; m.roughness = 0.45; if (m.emissive) { m.emissive.setHex(0x1a2030); m.userData.em = 0x1a2030; } } } /* pale silver that reads indoors */ /* a named knight in pale silver */
     this.rim = { col: RIM_COOL.clone(), k: 0.3 }; for (const m of this.mats) addRim(m, this.rim); this.weaponMats = []; this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
@@ -68,7 +73,7 @@ export class Enemy {
     const T = this.T, ms = this.model.scale.x;
     const attach = async (bone, id, len, q, off) => {
       if (!bone || !WEAPONS[id]) return;
-      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
+      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); this.blade ||= w; w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
       const hs = bone.getWorldScale(new THREE.Vector3()).x || 1; s.scale.setScalar(len / hs); s.quaternion.copy(q); if (off) s.position.copy(off).multiplyScalar(1 / hs); s.add(w);
     };
     if (T.sword) { // UAL rig: blade along the knuckle line, handle across the palm
@@ -156,13 +161,14 @@ export class Enemy {
     const A = this.atk, o = A.o, T = this.T, k = this.t / A.dur, w0 = A.wins[0].a;
     if (k < w0) this.warn = Math.max(this.warn || 0, k / w0);
     if (k > w0 - 0.08 && !A.tele) { A.tele = true; audio.play(this.boss ? 'sword_attack_3' : (T.sword || T.arm) ? 'sword_attack_2' : 'squelching_1', 0.45, this.boss ? 0.7 : 1); }
-    this.vel.x = o.lunge && k > w0 - 0.1 && k < A.wins[0].b ? this.facing * o.lunge : 0;
+    this.vel.x = o.lunge && (o.lungeAll ? A.wins.some(w => k > w.a - 0.1 && k < w.b) : (k > w0 - 0.1 && k < A.wins[0].b)) ? this.facing * o.lunge : 0;
     if (k >= w0 && !A.fired) { A.fired = true; o.fire?.(this, P); }
+    if (A.wins.some(w => k >= w.a - 0.04 && k <= w.b + 0.03) && !o.noHit) this.swingOn = true; // the blade draws its arc
     for (const w of A.wins) if (!w.done && k >= w.a && k <= w.b && !o.noHit) {
       const hb = { x0: this.pos.x + (this.facing > 0 ? -0.2 : -A.reach), x1: this.pos.x + (this.facing > 0 ? A.reach : 0.2), y0: this.pos.y + (o.low ? 0 : 0.2), y1: this.pos.y + (o.low ? 1.0 : T.h + 0.4) };
       const pa = P.aabb;
       if (hb.x0 < pa.x1 && hb.x1 > pa.x0 && hb.y0 < pa.y1 && hb.y1 > pa.y0) {
-        const r = P.takeHit(Math.round(A.dmg), this.pos.x, o.elem || (T.venom ? 'poison' : null), this); if (r) w.done = true;
+        const r = P.takeHit(Math.round(A.dmg), this.pos.x, o.elem || (T.venom ? 'poison' : null), this); if (r) w.done = true; if (r && o.lungeAll) P.inv = Math.min(P.inv, 0.28); /* a flurry's later thrusts can still land */
         if (r === 'block' && !this.boss) { this.state = 'stagger'; this.t = 0; this.vel.x = -this.facing * 2.5; this.play(T.anim.hit, 0.08, { once: true, restart: true }); return; }
       }
     }
@@ -170,6 +176,13 @@ export class Enemy {
   }
 
   // A place this body can actually stand near (x, around height y): on stone, clear of solids, not across a gate.
+  // the open floor a big body can run along: walk out from its home until stone (a block, a step, a wall) stands in the way
+  arenaSpan() {
+    if (this._span) return this._span;
+    const fy = this.arenaFloor ?? this.home.y, hw = this.T.w / 2 + 0.2, sol = this.g.activeSolids().filter(q => !q.oneway && !q.gone && q.y0 < fy + 1.8 && q.y1 > fy + 0.3);
+    const free = x => !sol.some(q => q.x0 < x + hw && q.x1 > x - hw), go = d => { let x = this.home.x; for (let i = 0; i < 200 && free(x + d * 0.4); i++) x += d * 0.4; return x; };
+    return (this._span = [go(-1), go(1)]);
+  }
   safeSpot(x, y) {
     const rb = this.room.b, w = this.T.w / 2 + 0.2, solids = this.room.solids.filter(s => !s.gone && !s.oneway);
     for (const dx of [0, 1.5, -1.5, 3, -3, 5, -5, 8, -8]) {
@@ -197,7 +210,7 @@ export class Enemy {
 
   physics(dt) {
     if (this.state === 'buried' || this.state === 'under' || this.state === 'hang' || this.hidden) return;
-    const flying = this.air && !this.dead;
+    const flying = this.air && !this.dead; if (this.pullT > 0) { this.pullT -= dt; this.vel.x = this.pullV; }
     if (!flying) { this.vel.y -= 20 * dt; if (this.vel.y < -16) this.vel.y = -16; }
     this.pos.x += this.vel.x * dt; this.hitWall = false;
     const a = this.aabb, solids = this.g.activeSolids();
@@ -215,7 +228,26 @@ export class Enemy {
     if (this.pos.y < rb.y0 - 3) { this.pos.copy(this.home); this.vel.set(0, 0); } // fell out of the world: walk it back
   }
 
+  // An afterimage: a ghost of the model frozen in this instant's pose, tinted and fading. A small pool per foe (bosses only
+  // call it), so a charge leaves a trail of its own silhouette without new allocations each frame.
+  ghost(col = 0xff3a20, life = 0.32, op = 0.42) {
+    const n = LOW_MEM ? 2 : 4; this.ghosts ||= []; this.ghostI = (this.ghostI || 0) + 1;
+    let gh = this.ghosts[this.ghostI % n];
+    if (!gh) {
+      const c = SkeletonUtils.clone(this.model), rim = { col: new THREE.Color(col), k: 1.6, p: 1.8 }, mat = addRim(new THREE.MeshStandardMaterial({ color: 0x000000, emissive: col, emissiveIntensity: 0.12, roughness: 1, metalness: 0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }), rim);
+      c.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = false; o.frustumCulled = false; o.renderOrder = 1; } if (o.isSprite || o.isLight) o.visible = false; });
+      const src = [], dst = []; this.model.traverse(o => src.push(o)); c.traverse(o => dst.push(o));
+      gh = this.ghosts[this.ghostI % n] = { c, mat, rim, src, dst, t: 0, life }; this.room.group.add(c);
+    }
+    for (let i = 0; i < gh.src.length && i < gh.dst.length; i++) { const a = gh.src[i], b = gh.dst[i]; b.position.copy(a.position); b.quaternion.copy(a.quaternion); b.scale.copy(a.scale); }
+    this.model.updateWorldMatrix(true, false); gh.c.matrix.copy(this.model.matrixWorld); gh.c.matrix.decompose(gh.c.position, gh.c.quaternion, gh.c.scale); gh.c.position.z -= 0.55; // set back behind the body, so it trails rather than washing the live model out
+    gh.mat.emissive.setHex(col); gh.col = col; gh.t = 0; gh.life = life; gh.op = op; gh.c.visible = true;
+  }
+  tickGhosts(dt) { for (const g of this.ghosts || []) if (g?.c.visible) { g.t += dt; const k = Math.min(1, g.t / g.life); g.mat.opacity = Math.min(1, g.op * 2.4) * (1 - k) ** 1.3; g.rim.col.setHex(0xfff2e0).lerp(_gc.setHex(g.col), Math.min(1, k * 1.6)); if (k >= 1) g.c.visible = false; } } // warm-white when fresh, cooling into its tint
+
   sync(dt) {
+    if (this.ghosts) this.tickGhosts(dt);
+    if (this.blade && (this.swingOn || this.trail?.life > 0)) { this.trail ||= new Trail(this.room.group); if (this.swingOn) { this.model.updateMatrixWorld(true); this.trail.push(this.blade, 'foe'); } else this.trail.end(); this.trail.update(dt); } this.swingOn = false;
     this.mixer.update(dt);
     const T = this.T, target = this.facing * (T.quad ? Math.PI / 2 - 0.22 : Math.PI / 2 - 0.42);
     this.yaw += (target - this.yaw) * Math.min(1, dt * (T.quad ? 6 : 10));
@@ -226,9 +258,9 @@ export class Enemy {
     // with a flare at the hand for the last moment; a hit flashes the rim white. The body itself only takes a light tint.
     const f = this.flash > 0 ? 1 : 0, st = this.chill > 0 ? 2 : this.burn > 0 ? 3 : this.poison > 0 ? 4 : this.stun > 0 ? 5 : 0, w = f ? 0 : Math.min(1, this.warn || 0), key = f * 10 + st;
     this.warn = 0;
-    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
+    if (f) { this.rim.col.copy(RIM_HIT); this.rim.k = 1.3; } else { this.rim.col.copy(RIM_COOL).lerp(this.warnCol ? _wc.setHex(this.warnCol) : RIM_HOT, Math.min(1, w * 1.3)); this.rim.k = 0.3 + w * 1.2; }
     if (key !== this._fx) { this._fx = key; const col = f ? 0xffffff : [0, 0, 0x2060a0, 0x802000, 0x206010, 0x504010][st]; for (const m of this.mats) if (m.emissive && !m.emissiveMap) { m.emissive.setHex(f || st ? col : m.userData.em); m.emissiveIntensity = f ? 0.25 : st ? 0.45 : m.userData.emI; } }
-    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat) { this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? 0xff3a10 : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
+    const heat = Math.max(0, (w - 0.55) / 0.45); if (heat !== this._heat || this.warnCol !== this._wcol) { this._wcol = this.warnCol; this._heat = heat; for (const m of this.weaponMats) { m.emissive.setHex(heat ? (this.warnCol || 0xff3a10) : m.userData.em); m.emissiveIntensity = heat * 1.4; } }
     if (w > 0.78 || this.flare?.visible) { if (!this.flare) { this.flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff5020, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); this.root.add(this.flare); }
       const fl = this.flare; fl.visible = w > 0.78; if (fl.visible) { const at = this.hand ? this.hand.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(this.mouth.x, this.mouth.y, 0); this.root.worldToLocal(at); fl.position.copy(at); fl.position.z += 0.3; fl.scale.setScalar(0.7 + (w - 0.78) * 2.5); fl.material.opacity = (w - 0.78) / 0.22; } }
   }
@@ -257,7 +289,8 @@ export class Enemy {
       if (e.elem === 'ice') this.chill = 3; if (e.elem === 'poison') { this.poison = 2.5; this.poisonDmg = e.dmg * 0.3; } if (e.elem === 'fire') this.g.fx.burst(this.cx, this.cy, 0xff6a20, 14, 3);
       if (e.elem === 'lightning') this.g.chainLightning(this, e.dmg);
     }
-    this.damage(total, null, false, roll.crit, hb.proj ? 0 : P.facing);
+    this.damage(total, null, false, roll.crit, hb.proj ? 0 : hb.pull && !T.mini ? sgn(P.pos.x - this.pos.x) * 1.9 : hb.both ? sgn(this.pos.x - P.pos.x) || P.facing : P.facing); // a scythe hooks foes in; a turning strike throws them outward
+    if (hb.pull && !this.boss && !this.mini && !this.dead && Math.abs(P.pos.x - this.pos.x) > 1.1) { this.pullT = 0.22; this.pullV = sgn(P.pos.x - this.pos.x) * Math.min(8, (Math.abs(P.pos.x - this.pos.x) - 1) / 0.22); } // dragged in to arm's length, whatever it was doing
     const lp = P.d.leech; if (lp) P.heal(Math.max(1, Math.round(total * lp / 100)), true);
     return true;
   }
@@ -267,7 +300,7 @@ export class Enemy {
     this.hp -= n; this.flash = 0.08; if (pushDir) this.lastPush = pushDir; this.lastMelee = !quiet && !!pushDir;
     if (quiet) this.g.ui.dmg(this.pos.x + rnd(-0.3, 0.3), this.pos.y + Math.min(this.T.h, 3.4) + 0.2, Math.round(n), elem);
     if (!quiet) audio.play('sword_impact_hit_' + (1 + (Math.random() * 3 | 0)), 0.55);
-    this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 4 : 10, 3);
+    this.g.fx.burst(this.cx, this.cy, this.T.ai === 'stalker' ? 0xd0c8b0 : 0x8a0a14, quiet ? 3 : 5, 3); if (!quiet) this.g.fx.sparks(this.cx - (pushDir || 0) * 0.3, this.cy + 0.2, 0xffe8c0, 7, 7); /* steel on flesh throws sparks; a little blood */
     if (this.hp <= 0) return this.die();
     const heavy = this.boss || this.T.ai === 'brute' || this.T.ai === 'worm';
     const light = !this.boss && !this.T.mini && this.T.h <= 2.0 && !this.T.block, winding = this.state === 'attack' && this.atk && this.t / this.atk.dur < this.atk.wins[0].a;
@@ -306,6 +339,7 @@ const BRAIN = {
     if (T.block && c.adx < 3.6 && e.cool <= 0 && Math.random() < 0.012) { e.state = 'guard'; e.t = 0; e.play(T.anim.block, 0.12, { restart: true }); e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + 1.2, 0x8ab0ff); e.g.guardRing?.(e); audio.play('sword_blocked_2', 0.3, 1.3); return; }
     if (c.adx < T.reach + 0.3 && Math.abs(c.dy) < 2 && e.cool <= 0) { const r = Math.random(); return e.attackStart({ anim: r < 0.35 && T.anim.attack2 ? T.anim.attack2 : r < 0.5 && T.anim.attack3 ? T.anim.attack3 : T.anim.attack }); }
     if (T.lunge && c.adx > 2.6 && c.adx < 5.5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.03) return e.attackStart({ anim: T.anim.attack2 || T.anim.attack, lunge: T.lunge, reach: T.reach + 0.4 });
+    if (e.spec.flurry && c.adx > 1.6 && c.adx < 5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.04) { e.ghost(0xe8eef8, 0.3, 0.3); return e.attackStart({ anim: T.anim.attack, hits: [0.32, 0.5, 0.68], dur: 1.25, lunge: 6, lungeAll: true, reach: T.reach + 0.5, dmg: T.dmg * 0.55 }); } /* her three-thrust lunge: the Needle's rhythm */
     if (c.adx > T.reach * 0.8) e.walk(e.facing, T.speed * c.slow, T.anim.walk, 1.1); else { e.vel.x = 0; e.play(T.anim.idle); }
   },
 
@@ -468,7 +502,7 @@ const BRAIN = {
   boss(e, dt, P, c) {
     const T = e.T, rb = e.room.b;
     if (!e.awake) { if (c.sees && c.adx < 14) { e.awake = true; e.state = 'intro'; e.t = 0; e.introT = 2.4; e.facing = sgn(c.dx); e.playFor(e.clipFor(T.anim.roar) || T.anim.idle, 2.2); audio.play('crowd_gasp', 0.4, 0.6); e.g.bossStart(e); } else e.play(T.anim.idle); return; }
-    if (e.mv) { if (MOVE[e.mv.m.k](e, e.mv, dt, P, c)) { e.mv = null; e.state = 'chase'; e.t = 0; e.cool = (0.7 + Math.random() * 0.5) / (1 + (e.phase - 1) * 0.35); if (!e.air) e.vel.x = 0; } return; }
+    if (e.mv) { if (MOVE[e.mv.m.k](e, e.mv, dt, P, c)) { e.mv = null; e.warnCol = null; e.state = 'chase'; e.t = 0; e.cool = (0.7 + Math.random() * 0.5) / (1 + (e.phase - 1) * 0.35); if (!e.air) e.vel.x = 0; } return; }
     e.state = 'chase'; e.facing = sgn(c.dx);
     if (e.air) { // hover in the upper arena, drifting toward a point off the player's shoulder
       const fy = e.arenaFloor ?? (e.arenaFloor = e.home.y), hy = fy + (T.dragon ? 6.2 : 4.6) + Math.sin(e.g.time * 1.6) * 0.5, wantX = THREE.MathUtils.clamp(P.pos.x - sgn(c.dx) * (T.dragon ? 7 : 5), rb.x0 + 3, rb.x1 - 3);
@@ -477,15 +511,15 @@ const BRAIN = {
     } else if (c.adx > T.reach * 0.75) e.walk(e.facing, T.speed * c.slow * (c.adx > 7 ? 1.7 : 1), c.adx > 7 && e.clipFor(T.anim.run) ? T.anim.run : T.anim.walk);
     else { e.vel.x = 0; e.play(T.anim.idle, 0.25); }
     if (e.cool > 0) return;
-    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon'];
+    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon', 'cyclone', 'grimoire', 'eclipse', 'hunt', 'stormcall', 'meteor', 'miasma', 'webnet', 'maw'];
     const ok = T.moves.filter(m => (!e.spec.illusion || m.k === 'volley' || m.k === 'fan') && (!reachUp || UP.includes(m.k) || !T.moves.some(q => UP.includes(q.k) && (q.phase || 1) <= e.phase)) && (m.phase || 1) <= e.phase && (reachUp || ((!m.min || c.adx >= m.min) && (!m.range || c.adx <= m.range))) && (T.dragon && T.fly ? (e.air ? m.air : !m.air) : true) && m !== e.lastMove && !(m.k === 'summon' && e.room.enemies.filter(x => x.summoner === e && !x.dead).length >= m.max));
     if (!ok.length) { e.lastMove = null; return; }
     let tot = ok.reduce((s, m) => s + m.w * ((m.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1), 0), r = Math.random() * tot, m = ok[0];
     for (const o of ok) { r -= o.w * ((o.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1); if (r <= 0) { m = o; break; } }
     e.lastMove = m; const dur = (m.dur || T.atkDur) / (e.phase >= 3 ? 1.15 : 1);
-    e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0;
+    e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0; e.warnCol = WARN_COL[m.k] || null; if (e.flare) e.flare.material.color.setHex(e.warnCol || 0xff5020);
     const anim = e.clipFor(m.anim) || e.clipFor(T.anim.attack);
-    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else e.playFor(anim, dur);
+    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else if (!['hunt', 'frenzy', 'shellspin'].includes(m.k)) e.playFor(anim, dur);
     e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + Math.min(T.h, 3.5) * 0.85, 0xff4040);
   },
 };
@@ -498,6 +532,7 @@ const MOVE = {
     mv.t += dt; const k = mv.t / mv.dur, m = mv.m, [a, b] = m.windup || e.T.windup;
     if (k < a) e.warn = Math.max(e.warn || 0, k / a);
     if (k >= a && !mv.s.snd) { mv.s.snd = 1; audio.play('sword_attack_3', 0.5, 0.7); if (m.shock) { e.g.shockwave(e, e.pos.x + e.facing * 2, e.pos.y, e.facing, e.T.elem); e.g.shake(0.3); } }
+    if (k >= a - 0.04 && k <= b + 0.03) e.swingOn = true;
     if (k >= a && k <= b && !mv.s.hit && frontBox(e, P, (m.range || e.T.reach) - 0.2, m.low, e.T.dmg, e.T.venom ? 'poison' : null)) mv.s.hit = 1;
     return k >= 1;
   },
@@ -510,9 +545,10 @@ const MOVE = {
     mv.t += dt; const m = mv.m, wind = 0.55;
     if (mv.t < wind) { e.vel.x = -e.facing * 0.6; e.warn = mv.t / wind; mv.s.x0 = e.pos.x; return false; }
     if (!mv.s.go) { mv.s.go = 1; audio.play('crowd_gasp', 0.3, 0.5); }
-    e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y, e.boss ? 0x9a8c7a : undefined); // a boss's charge leaves a pale streak
+    e.vel.x = e.facing * m.speed; if (Math.random() < 0.6) { if (e.boss) e.g.fx.puff(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); else e.g.fx.dust(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y); } // a boss's charge throws up soft warm dust
+    if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.07; e.ghost(m.k === 'ram' ? 0xff4020 : 0xffa040, 0.3); e.g.fx.streaks(e, 2, m.k === 'ram' ? 0xff6040 : 0xffa060); } /* and leaves its own silhouette behind */
     const a = e.aabb; if (!mv.s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 1.8), e.T.dmg * 1.25)) mv.s.hit = 1;
-    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); } return true; }
+    if (e.hitWall) { e.g.shake(0.5); audio.play('rock_wall_2', 0.6); e.g.fx.dust(e.pos.x + e.facing, e.pos.y, 0x9a9080); if (m.k === 'ram') { e.stun = 2.6; e.stunStars = true; e.g.ui.dmg(e.pos.x, e.pos.y + e.T.h + 0.4, 'STUNNED', 'crit'); e.play(e.T.anim.idle, 0.2); if (e.boss) { e.g.hitStop(0.1); e.g.shake(0.8); const wx = e.pos.x + e.facing * e.T.w * 0.55; e.g.fx.cracks(wx, e.pos.y + 1.8, 2.4, 0x140e0a, true); for (let i = 0; i < 26; i++) e.g.fx.spawn(wx, e.pos.y + rnd(0.5, 3.5), 0.8, -e.facing * rnd(1, 5), rnd(-1, 3), i % 3 ? 0x8a8070 : 0x5a5248, 0.9, rnd(0.25, 0.6), 4, false); e.g.debris(wx - e.facing * 0.5, e.pos.y + 2.5, 5, 0x6a625a, 1.2); /* the wall bursts where he hits it */ const rb = e.room.b, fy = e.arenaFloor ?? e.home.y; for (let i = 0; i < 5; i++) e.g.rainShot(e, THREE.MathUtils.clamp(e.pos.x - e.facing * (1.5 + i * 2.2 + rnd(-0.6, 0.6)), rb.x0 + 1, rb.x1 - 1), fy, 'rock', null, e.T.dmg * 0.6 * e.dmgMul); } } return true; } // the wall shakes loose its masonry: punish him, but mind the ceiling
     return (m.k !== 'ram' && Math.abs(e.pos.x - mv.s.x0) > (m.range || 14)) || mv.t > (m.k === 'ram' ? 4 : 2.6) || (sgn(P.pos.x - e.pos.x) !== e.facing && Math.abs(P.pos.x - e.pos.x) > 3.5 && m.k !== 'ram'); // a ram runs on to the wall
   },
   ram(e, mv, dt, P, c) { return MOVE.charge(e, mv, dt, P, c); },
@@ -520,7 +556,7 @@ const MOVE = {
     mv.t += dt; const m = mv.m, wind = 0.45, air = 0.95;
     if (mv.t < wind) { e.warn = mv.t / wind; return false; }
     if (!mv.s.go) { mv.s.go = 1; const rb = e.room.b, tx = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2, rb.x1 - 2); e.vel.set((tx - e.pos.x) / air, 20 * air / 2); e.ground = false; mv.s.tx = tx; audio.play('clothing_1', 0.5, 0.6); e.g.erupt({ x: tx, y: e.pos.y, delay: air, w: 4.8, h: 0.3, dmg: 0, col: 0xff4040, src: e, quiet: true }); return false; }
-    if (!e.ground || mv.t < wind + 0.2) { e.vel.x = (mv.s.tx - e.pos.x) > 0 === e.vel.x > 0 ? e.vel.x : 0; return false; }
+    if (!e.ground || mv.t < wind + 0.2) { e.vel.x = (mv.s.tx - e.pos.x) > 0 === e.vel.x > 0 ? e.vel.x : 0; if (e.boss && (mv.s.gt = (mv.s.gt || 0) - dt) <= 0) { mv.s.gt = 0.09; e.ghost(0xff6030, 0.28, 0.32); } return false; }
     if (!mv.s.land) { mv.s.land = mv.t; e.vel.x = 0; e.g.shake(0.45); e.g.fx.dust(e.pos.x, e.pos.y); audio.play('rock_wall_1', 0.6); hitBox(e, P, e.pos.x - 2.4, e.pos.x + 2.4, e.pos.y, e.pos.y + 1.6, e.T.dmg * 1.1); if (m.slamOnLand) { e.g.shockwave(e, e.pos.x + 1.4, e.pos.y, 1, e.T.elem); e.g.shockwave(e, e.pos.x - 1.4, e.pos.y, -1, e.T.elem); } }
     return mv.t - mv.s.land > 0.55;
   },
@@ -600,6 +636,7 @@ const MOVE = {
     mv.t += dt; const k = Math.min(1, mv.t / mv.dur), u = 1 - k, s = mv.s; e.vel.set(0, 0);
     e.pos.set(u * u * s.p0.x + 2 * u * k * s.p1.x + k * k * s.p2.x, u * u * s.p0.y + 2 * u * k * s.p1.y + k * k * s.p2.y);
     const a = e.aabb; if (!s.hit && k > 0.2 && k < 0.8 && hitBox(e, P, a.x0, a.x1, a.y0, a.y1, e.T.dmg)) s.hit = 1;
+    if (e.boss && k > 0.1 && (s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.06; e.ghost(0xb0c8ff, 0.3, 0.35); }
     return k >= 1;
   },
   divebomb(e, mv, dt, P) {
@@ -619,6 +656,146 @@ const MOVE = {
     e.facing = s.dir; e.vel.set(s.dir * 11, (fy + 6.5 - e.pos.y) * 3);
     e.g.flameWall(e, e.pos.x + s.dir * 2.5, fy, mv.m.elem, e.T.dmg * 0.6, dt, 6);
     return (s.dir > 0 ? e.pos.x >= s.x1 : e.pos.x <= s.x1) || mv.t > 5;
+  },
+  // ---- signatures: one per great foe, each with its own telegraph and its own way to be beaten
+  // Caddoc drives his blade into the floor: a fissure of stone teeth races out toward you, then a shorter one behind him
+  fissure(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = 0.5, fy = e.arenaFloor ?? e.home.y;
+    if (k < a) { e.warn = k / a; if (k > 0.15) { e.vel.x = 0; for (let i = 0; i < 2; i++) e.g.fx.spawn(e.pos.x + e.facing * rnd(1.2, 1.8), fy + 0.1, 0.8, e.facing * rnd(1, 4), rnd(1, 4), Math.random() < 0.5 ? 0xffd080 : 0xffffff, 0.3, 0.1, 14); if (!mv.s.dr) { mv.s.dr = 1; audio.play('sword_blocked_2', 0.5, 0.6); } } return false; } // the point drags a furrow of sparks before it bites
+    if (!mv.s.f) { mv.s.f = 1; const rb = e.room.b, d = sgn(P.pos.x - e.pos.x); e.g.shake(0.5); audio.play('rock_wall_2', 0.7, 0.7); e.g.fx.cracks(e.pos.x + d * 1.2, fy, 3);
+      for (const [dir, n, t0] of [[d, mv.m.n || 8, 0.18], [-d, 3, 0.55]]) { let last = e.pos.x; for (let i = 0; i < n; i++) { const x = e.pos.x + dir * (1.8 + i * 1.45); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) { last = x; e.g.erupt({ x, y: fy, delay: t0 + i * 0.075, w: 1.3, h: i % 2 ? 1.9 : 1.6, dmg: e.T.dmg * 0.85 * e.dmgMul, elem: 'stone', src: e, line: true }); } } e.g.fx.crackLine(e.pos.x + dir * 1.2, last + dir * 0.6, fy, 0xff8a40, t0 + n * 0.075, t0 + n * 0.075 + 0.5); } } // teeth a single jump clears
+    return k >= 1;
+  },
+  // Sirelle beats up a feather cyclone that wanders the floor, dragging you toward it and spitting quills
+  cyclone(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.35) { e.warn = k / 0.35; e.vel.set(0, 0); return false; }
+    if (!mv.s.f) { mv.s.f = 1; e.g.cyclone(e, e.pos.x + e.facing * 2, e.arenaFloor ?? e.home.y, sgn(P.pos.x - e.pos.x), 5.5); audio.play('wave_attack_1', 0.7, 0.5); }
+    return k >= 1;
+  },
+  // the Hydra's geysers chase your feet, then the whole cistern heaves a wave across the floor: jump it
+  geyser(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 3, i = Math.floor((k - 0.15) / 0.5 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.15) e.warn = k / 0.15;
+    if (k >= 0.15 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; e.g.erupt({ x: P.pos.x + P.vel.x * 0.25, y: fy, delay: 0.62, w: 1.7, h: 6, dmg: e.T.dmg * 0.8 * e.dmgMul, elem: 'water', src: e }); }
+    if (k >= 0.8 && !mv.s.wt) { mv.s.wt = 1; mv.s.wd = sgn(P.pos.x - e.pos.x); const rb = e.room.b; e.g.fx.crackLine(e.pos.x + mv.s.wd * 2, mv.s.wd > 0 ? rb.x1 - 1 : rb.x0 + 1, fy, 0xd8f4ff, 0.35, 0.9); audio.play('waterspray_1', 0.4, 1.4); } // froth races ahead of the wave
+    if (k >= 0.8 + 0.5 / mv.dur && !mv.s.w) { mv.s.w = 1; e.g.tide(e, mv.s.wd); }
+    return k >= 1;
+  },
+  // Gravehart melts into the mist; two green eyes kindle at the edge of the court, then it comes through like a hunt
+  hunt(e, mv, dt, P, c) {
+    const s = mv.s, rb = e.room.b, fy = e.arenaFloor ?? e.home.y; mv.t += dt;
+    if (!s.ph) { s.ph = 1; s.n = 0; s.t = 0; }
+    s.t += dt;
+    if (s.ph === 1) { e.setAlpha(Math.max(0.02, 1 - s.t / 0.5)); e.vel.x = 0; if (Math.random() < 0.8) e.g.fx.spawn(e.pos.x + rnd(-e.T.w * 0.6, e.T.w * 0.6), e.pos.y + rnd(0.2, e.T.h), 0.9, rnd(-0.5, 0.5), rnd(0, 0.6), 0x1a2a14, 1.2, rnd(0.8, 1.5), -0.3, false); if (s.t > 0.5) { /* it sinks into a dark-green fog */ s.ph = 2; s.t = 0; e.hidden = true; s.side = s.n % 2 ? -s.side : (P.pos.x < (e.arenaSpan()[0] + e.arenaSpan()[1]) / 2 ? 1 : -1); const [a0, a1] = e.arenaSpan(); s.a0 = a0; s.a1 = a1; e.pos.set(s.side > 0 ? Math.min(a1 - 0.3, P.pos.x + 11) : Math.max(a0 + 0.3, P.pos.x - 11), fy); e.facing = -s.side; /* close enough that the eyes are on screen */ e.g.huntEyes(e); audio.play('crowd_gasp', 0.3, 0.4); } return false; }
+    if (s.ph === 2) { const tell = s.n ? 0.75 : 1.0; e.warn = Math.min(1, s.t / tell); if (s.t > tell) { s.ph = 3; s.t = 0; e.hidden = false; e.setAlpha(1); e.play(e.clipFor(mv.m.anim) || e.T.anim.run || e.T.anim.walk, 0.1, { restart: true, speed: 1.3 }); audio.play('crowd_gasp', 0.4, 0.6); } return false; }
+    if (s.ph === 3) { e.vel.x = e.facing * 15; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.05; e.ghost(0x8aff7a, 0.34, 0.4); } const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.3, a.x1 + 0.3, a.y0, Math.min(a.y1, a.y0 + 2), e.T.dmg * 1.2)) s.hit = 1; if (Math.random() < 0.5) e.g.fx.puff(e.pos.x - e.facing, e.pos.y, 0x3a4a2a);
+      if ((e.facing > 0 ? e.pos.x > s.a1 - 0.8 : e.pos.x < s.a0 + 0.8) || e.hitWall || s.t > 2.5) { s.n++; s.hit = 0; e.vel.x = 0; if (s.n >= (mv.m.n || 2)) return true; s.ph = 1; s.t = 0; } return false; }
+    return true;
+  },
+  // Brannoch brings the hammer down on the forge-floor: molten slag arcs out both ways and burns where it lands
+  forgefall(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = Math.max(0.5, (mv.m.windup || e.T.windup)[0]);
+    if (k < a) { e.warn = Math.max(e.warn || 0, k / a); if (e.hand && k > 0.15) { const h = e.hand.getWorldPosition(new THREE.Vector3()); e.g.fx.spawn(h.x, h.y, 0.8, rnd(-0.3, 0.3), rnd(0.2, 1), k > 0.35 ? 0xfff4e0 : 0xffb060, 0.18, 0.5 + k, 0); if (Math.random() < 0.4) e.g.fx.spawn(h.x, h.y, 0.8, rnd(-2, 2), rnd(1, 3), 0xffd080, 0.4, 0.1, 9); } return false; } // the hammer head heats white
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y; e.g.shake(0.7); e.g.hitStop(0.06); audio.play('rock_meteor_swarm_2', 0.7, 0.7); e.g.fx.cracks(e.pos.x + e.facing * 1.6, fy, 2.5, 0xff6a14); frontBox(e, P, e.T.reach, false, e.T.dmg);
+      for (let i = 0; i < (mv.m.n || 8); i++) { const dir = i % 2 ? 1 : -1, sp = 4 + (i >> 1) * 2.2; e.g.shoot({ x: e.pos.x + e.facing * 1.6, y: fy + 1.2, vx: dir * sp, vy: 11 + rnd(-1, 1.5), grav: 22, kind: 'slag', dmg: Math.round(e.T.dmg * 0.6 * e.dmgMul), elem: 'fire', src: e, life: 3, splash: 'fire' }); } }
+    return k >= 1;
+  },
+  // Malgrave opens every book at once: they wheel around him, then fly out in a turning spiral with gaps to slip through
+  grimoire(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s, fy = e.arenaFloor ?? e.home.y;
+    if (!s.o) { s.o = 1; s.book = e.g.openBook(e); audio.play('spell_impact_3', 0.6, 0.6); e.air = true; }
+    e.vel.set(0, k < 0.9 ? (fy + 2 - e.pos.y) * 4 : -4); // he lifts off the floor to read
+    if (k < 0.3) { e.warn = k / 0.3; return false; }
+    s.a = (s.a || 0) + dt * (2 * Math.PI / (mv.dur * 0.55)); s.c = (s.c || 0) - dt; // one full sweep across the casting window
+    if (k < 0.85 && s.c <= 0) { s.c = 0.1; const y0 = e.cy + 0.5, aim = Math.atan2(P.pos.y + 0.9 - y0, Math.max(2, Math.abs(P.pos.x - e.cx))), sw = aim + Math.sin(s.a) * 0.35; for (const ang of [sw, Math.PI - sw]) e.g.shoot({ x: e.cx + Math.cos(ang) * 0.9, y: y0 + Math.sin(ang) * 0.9, vx: Math.cos(ang) * 6.5, vy: Math.sin(ang) * 6.5, kind: 'book', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), src: e, life: 2.6 }); audio.play('clothing_1', 0.25, 1.6); } // two arms swing through your height: read the gaps
+    if (k >= 1) { e.air = false; s.book?.close(); }
+    return k >= 1;
+  },
+  // Vhalgor calls the storm down: rune-lines kindle across the floor in a march, then lightning strikes each one
+  stormcall(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, rb = e.room.b, fy = e.arenaFloor ?? e.home.y, s = mv.s; e.vel.set(0, 0); // he holds the air while the storm answers
+    const march = (t0, dir, gap) => { const n = mv.m.n || 9, c = THREE.MathUtils.clamp(P.pos.x, rb.x0 + 2 + 7.2, rb.x1 - 2 - 7.2); for (let i = 0; i < n; i++) { if (i === gap) continue; const j = dir > 0 ? i : n - 1 - i, x = c + (j - (n - 1) / 2) * 1.8; e.g.erupt({ x, y: fy, delay: t0 + i * 0.11, w: 1.6, h: 14, dmg: e.T.dmg * 0.9 * e.dmgMul, elem: 'lightning', src: e }); } };
+    if (!s.f) { s.f = 1; s.dir = P.pos.x < (rb.x0 + rb.x1) / 2 ? 1 : -1; const n = mv.m.n || 9, mid = (n - 1) / 2; s.g1 = Math.round(mid + rnd(-2, 2)); march(0.75, s.dir, s.dir > 0 ? s.g1 : n - 1 - s.g1); audio.play('spell_impact_2', 0.6, 0.6); } // runes 1.8 m apart across your ground; one stays dark
+    if (!s.f2 && mv.t > 0.75 + 9 * 0.11 + 0.6) { s.f2 = 1; const n = mv.m.n || 9, mid = (n - 1) / 2; let g2 = Math.round(mid + rnd(-2, 2)); if (g2 === s.g1) g2 += g2 < mid ? 2 : -2; march(0.55, -s.dir, -s.dir > 0 ? g2 : n - 1 - g2); audio.play('spell_impact_2', 0.6, 0.7); } // and back again, the gap moved
+    return k >= 1 && s.f2;
+  },
+  // Velscour eclipses his own sun: the hall darkens, the black sun drags you in and wheels fire around itself
+  eclipse(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (!s.f) { s.f = 1; s.sun = e.g.blackSun(e, mv.dur); audio.play('firebuff_2', 0.7, 0.4); audio.play('crowd_gasp', 0.4, 0.4); }
+    e.g.darken = Math.max(e.g.darken || 0, Math.min(1, k * 4, (1 - k) * 4));
+    if (k > 0.2 && k < 0.88) { const sx = s.sun.position.x, sy = s.sun.position.y; P.push = (P.push || 0) + sgn(sx - P.pos.x) * dt * 7; s.a = (s.a ?? 0) + dt * 1.3; s.c = (s.c || 0) - dt;
+      if (s.c <= 0) { s.c = 0.16; for (let j = 0; j < 4; j++) { const ang = s.a + j * Math.PI / 2; e.g.shoot({ x: sx + Math.cos(ang) * 1.2, y: sy + Math.sin(ang) * 1.2, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, kind: 'ember', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), elem: 'fire', src: e, life: 3 }); } } }
+    return k >= 1;
+  },
+  // ---- minibosses
+  // the werewolf's moon-frenzy: three lunging rakes, each re-aimed at you, leaving pale afterimages
+  frenzy(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (k < 0.2) { e.warn = k / 0.2; e.vel.x = 0; return false; }
+    const i = Math.min(2, Math.floor((k - 0.2) / 0.25)), u = ((k - 0.2) / 0.25) % 1;
+    if (s.i !== i) { s.i = i; s.hit = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('sword_attack_3', 0.5, 0.95 + i * 0.12); e.play(e.clipFor(i === 1 ? 'atk3' : 'atk1') || e.T.anim.attack, 0.06, { restart: true, speed: 1.7, once: true }); }
+    if (u < 0.5 && k < 0.95) { e.vel.x = e.facing * 12 * (1 - u / 0.5); if (Math.abs(e.vel.x) > 4 && (s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.05; e.ghost(0x5a74ff, 0.24, 0.28); } if (!s.hit && u > 0.15 && frontBox(e, P, e.T.reach + 0.3, false, e.T.dmg * 0.7)) s.hit = 1; } else e.vel.x = 0;
+    return k >= 1;
+  },
+  // the crab tucks into its shell and spins across the floor, throwing sparks; it rebounds off one wall, then reels
+  shellspin(e, mv, dt, P) {
+    mv.t += dt; const s = mv.s;
+    if (mv.t < 0.5) { e.warn = mv.t / 0.5; e.vel.x = 0; e.tilt.rotation.y += dt * 6 * (mv.t / 0.5); return false; }
+    if (!s.go) { s.go = 1; s.b = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('rock_meteor_throw_1', 0.6, 0.7); }
+    e.vel.x = e.facing * 11; e.tilt.rotation.y += dt * 26; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.08; e.ghost(0xff7a30, 0.2, 0.2); }
+    if (Math.random() < 0.8) e.g.fx.spawn(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y + 0.1, 0.6, -e.facing * rnd(2, 6), rnd(1, 4), Math.random() < 0.5 ? 0xffd080 : 0xffffff, 0.3, 0.12, 14);
+    const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.2, a.x1 + 0.2, a.y0, a.y1, e.T.dmg * 1.1)) s.hit = 1;
+    if (e.hitWall) { e.g.shake(0.4); audio.play('rock_wall_2', 0.6, 1.1); e.g.fx.burst(e.pos.x + e.facing * e.T.w * 0.5, e.pos.y + 0.8, 0xffe0a0, 16, 4); if (++s.b > 1) { e.tilt.rotation.y = 0; e.stun = 1.4; e.stunStars = true; return true; } e.facing *= -1; s.hit = 0; }
+    if (mv.t > 4) { e.tilt.rotation.y = 0; return true; }
+    return false;
+  },
+  // the flesh-spider spits a net: it spreads in flight, and where it lands on you it binds your legs
+  webnet(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.4) { e.warn = k / 0.4; return false; }
+    if (!mv.s.f) { mv.s.f = 1; const dx = P.pos.x - e.pos.x, dy = P.pos.y + 1 - (e.pos.y + 1.2), d = Math.hypot(dx, dy) || 1; e.g.shoot({ x: e.pos.x + sgn(dx) * 1.2, y: e.pos.y + 1.2, vx: dx / d * 11, vy: dy / d * 11 + 2, grav: 6, kind: 'net', dmg: Math.round(e.T.dmg * 0.4 * e.dmgMul), src: e, life: 2, snare: 1.6 }); audio.play('squelching_1', 0.6, 0.7); }
+    return k >= 1;
+  },
+  // the green wyrm coughs miasma: pools of poison that hang over the floor for a while; stay out of them
+  miasma(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 3, i = Math.floor((k - 0.3) / 0.45 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.3) e.warn = k / 0.3;
+    if (k >= 0.3 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(P.pos.x + rnd(-3, 3), a0 - 2, a1 + 2); const T = 0.6, g = 14, mx = e.mouth.x, my = e.mouth.y; e.g.shoot({ x: mx, y: my, vx: (x - mx) / T, vy: (fy + 0.3 - my) / T + 0.5 * g * T, grav: g, kind: 'lob', dmg: Math.round(e.T.dmg * 0.4 * e.dmgMul), elem: 'poison', src: e, life: T + 0.05, splash: 'miasma', cloudDmg: Math.round(e.T.dmg * 0.25 * e.dmgMul) }); audio.play('waterspray_1', 0.5, 0.6); } // a glob of bile arcs out and bursts into a cloud where it lands
+    return k >= 1;
+  },
+  // the bone golem stamps and the ossuary answers: a ring of bone teeth bursts outward on both sides
+  ossuary(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = Math.max(0.5, (mv.m.windup || e.T.windup)[0]), fy = e.arenaFloor ?? e.home.y;
+    if (k < a) { e.warn = k / a; e.vel.x = 0; if (Math.random() < 0.6) e.g.fx.spawn(e.pos.x + rnd(-6, 6), fy + 0.05, 0.7, 0, rnd(0.5, 1.4), 0xe8dcc0, 0.4, rnd(0.08, 0.14), 4, false); if (!mv.s.r) { mv.s.r = 1; audio.play('bone_snap', 0.5, 0.5); } return false; } // the floor rattles: bone shards jump out of the cracks all round him
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.shake(0.5); e.g.fx.cracks(e.pos.x, fy, 3); audio.play('bone_snap', 0.7, 0.7);
+      for (const dir of [1, -1]) { const n = mv.m.n || 6; let last = e.pos.x; for (let i = 0; i < n; i++) { const x = e.pos.x + dir * (1.6 + i * 1.3); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) { last = x; e.g.erupt({ x, y: fy, delay: 0.12 + i * 0.09, w: 1.1, h: i % 2 ? 1.8 : 1.5, dmg: e.T.dmg * 0.8 * e.dmgMul, elem: 'bone', src: e, hold: 2.5, perch: true, line: true }); } } e.g.fx.crackLine(e.pos.x + dir * 1.1, last + dir * 0.5, fy, 0xf0e0c0, 0.12 + n * 0.09, 0.8 + n * 0.09); } } // a palisade of bone: stand on it, or be penned by it
+    return k >= 1;
+  },
+  // the Abyssal Mouth breathes in: everything slides toward its maw, then it snaps shut
+  maw(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (k < 0.7) { e.warn = Math.min(1, k / 0.5); e.facing = sgn(P.pos.x - e.pos.x); const d = P.pos.x - e.pos.x; if (Math.abs(d) < 14 && Math.abs(P.pos.y - e.pos.y) < 5) P.push = (P.push || 0) - sgn(d) * dt * 9;
+      if ((s.st = (s.st || 0) - dt) <= 0) { s.st = 0.035; const mx = e.pos.x + e.facing * e.T.w * 0.4, my = e.cy + 0.3, sx = e.pos.x + e.facing * rnd(3, 8), sy = e.cy + rnd(-2.2, 2.6), ang = Math.atan2(my - sy, mx - sx); e.g.fx.streak(sx, sy, 1, Math.min(3.2, Math.hypot(mx - sx, my - sy) * 0.6), Math.random() < 0.5 ? 0x9a7ad8 : 0xd8c8ff, 0.1, 0.8, ang); if (Math.random() < 0.3) e.g.fx.spawn(e.pos.x + e.facing * rnd(3, 8), e.pos.y + 0.2, 0.7, -e.facing * rnd(5, 9), rnd(0.5, 2), 0xe0d4b8, 0.6, rnd(0.08, 0.14), 2, false); } /* the air, the dust and loose bones all converge on the maw */
+      if (Math.random() < 0.6) e.g.fx.spawn(e.pos.x + e.facing * rnd(2, 9), e.pos.y + 0.15, 0.7, -e.facing * rnd(4, 8), rnd(0, 0.6), 0x5a5048, 0.5, rnd(0.2, 0.4), 0, false); if (!s.snd) { s.snd = 1; audio.play('wave_attack_1', 0.6, 0.35); } return false; }
+    if (!s.f) { s.f = 1; audio.play('squelching_4', 0.7, 0.6); e.g.shake(0.4); e.play(e.T.anim.attack, 0.06, { restart: true, once: true, speed: 1.6 }); if (frontBox(e, P, e.T.reach + 1, false, e.T.dmg * 1.3)) e.g.hitStop(0.08); }
+    return k >= 1;
+  },
+  // the red wyrm calls fire down: burning stones fall on runes across the floor
+  meteor(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 6, i = Math.floor((k - 0.25) / 0.55 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.25) e.warn = k / 0.25;
+    if (k >= 0.25 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(i % 2 ? P.pos.x + P.vel.x * 0.4 : rnd(a0, a1), a0 - 1, a1 + 1); e.g.erupt({ x, y: fy, delay: 0.85, w: 2.2, h: 0.2, dmg: 0, col: 0xff6a20, quiet: true }); setTimeout(() => { if (!e.dead && e.g.room === e.room) e.g.shoot({ x: x - 3, y: fy + 12, vx: 3.6, vy: -14, kind: 'meteor', dmg: Math.round(e.T.dmg * 0.8 * e.dmgMul), elem: 'fire', src: e, life: 2, splash: 'fire' }); }, 0); }
+    return k >= 1;
+  },
+  // the undead wyrm's frost nova: a ring of ice crystals that races outward from it both ways
+  frostnova(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.35) { e.warn = k / 0.35; for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28, r = rnd(2.5, 4); e.g.fx.spawn(e.cx + Math.cos(a) * r, e.cy + Math.sin(a) * r, 0.8, -Math.cos(a) * r * 2, -Math.sin(a) * r * 2, 0xd8f4ff, 0.45, 0.14, 0); } if (!mv.s.ic) { mv.s.ic = 1; audio.play('ice_freeze_2', 0.6, 0.6); } return false; } // frost is drawn in to it from all round: the cold gathering, then the burst
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.fx.ring(e.cx, e.cy, 0x9fe4ff, 10); audio.play('ice_barrage_2', 0.7, 0.7); e.g.shake(0.4);
+      for (const dir of [1, -1]) for (let i = 0; i < (mv.m.n || 7); i++) { const x = e.pos.x + dir * (2 + i * 1.5); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) { e.g.erupt({ x, y: fy, delay: 0.2 + i * 0.07, w: 1.3, h: 1.9, dmg: e.T.dmg * 0.75 * e.dmgMul, elem: 'ice', src: e }); e.g.erupt({ x, y: fy, delay: 1.25 + i * 0.05, w: 1.5, h: 0.8, dmg: e.T.dmg * 0.5 * e.dmgMul, elem: 'ice', src: e, line: true }); } } } // then the crystals burst into low shards: jump again
+    return k >= 1;
   },
   buffet(e, mv, dt, P) { mv.t += dt; const k = mv.t / mv.dur; if (k > 0.35 && k < 0.8) { e.g.windPush(e, 16 * dt * 6); if (!mv.s.f) { mv.s.f = 1; audio.play('wave_attack_1', 0.7, 0.4); for (let i = 0; i < 5; i++) setTimeout(() => { if (!e.dead) e.g.shoot({ x: e.pos.x + e.facing * 2.5, y: e.pos.y + 0.8 + i * 0.8, vx: e.facing * 12, vy: 0, kind: 'gust', dmg: Math.round(e.T.dmg * 0.5), elem: e.T.elem, src: e, life: 2.2 }); }, i * 130); } } return k >= 1; },
 };

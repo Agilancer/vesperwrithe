@@ -15,7 +15,7 @@ os.makedirs(out)
 
 for f in ('index.html', 'viewer.html'):
     shutil.copy2(f, out)
-for d in ('src', 'vendor', 'assets/game/audio', 'assets/game/music', 'assets/game/tex', 'assets/game/interior'):  # room themes name textures indirectly
+for d in ('src', 'vendor', 'assets/ui', 'assets/game/audio', 'assets/game/music', 'assets/game/tex', 'assets/game/interior'):  # room themes name textures indirectly
     shutil.copytree(d, os.path.join(out, d))
 
 # shipped by the folder copies above but never loaded by the game: the old interior kit model and the forest foliage cards
@@ -25,7 +25,7 @@ for junk in [os.path.join(out, 'assets/game/interior/interior.glb')] + glob.glob
         os.remove(junk)
 
 files = set(check_assets.referenced_files())
-files.update(['assets/game/weapons/grips.json', 'assets/game/weapons/weapons.json'])
+files.update(['assets/game/weapons/grips.json', 'assets/game/weapons/weapons.json', 'assets/player/moves.json'])  # JSON the game fetches (the asset scan only finds models and textures)
 for f in sorted(files):
     dst = os.path.join(out, f)
     os.makedirs(os.path.dirname(dst), exist_ok=True)

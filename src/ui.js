@@ -41,6 +41,7 @@ export class UI {
 
   // ------------------------------------------------------------------ map
   drawMap(ctx, cw, ch, cell, cx, cy, big) {
+    const doorTo = (r, d) => { const c = d.side === 'W' ? r.col - 1 : d.side === 'E' ? r.col + r.w : d.col, w = d.side === 'N' ? r.row - 1 : d.side === 'S' ? r.row + r.h : d.row; return ROOMS.find(o => c >= o.col && c < o.col + o.w && w >= o.row && w < o.row + o.h); };
     ctx.clearRect(0, 0, cw, ch);
     const cur = this.g.room?.def, p = this.g.player.pos, flags = this.g.flags;
     const pc = p.x / SW, pr = -(p.y / SH) + 1;
@@ -52,7 +53,7 @@ export class UI {
       ctx.fillStyle = r.save ? '#b8485c' : r.warp ? '#d9c48a' : r.shop ? '#58b98a' : r.secret ? '#8f78d8' : r.id === cur?.id ? '#4fb3aa' : '#1d4f55';
       ctx.fillRect(x + 0.5, y + 0.5, w - 1, h - 1);
       ctx.strokeStyle = 'rgba(214,246,240,.62)'; ctx.lineWidth = big ? 1.2 : 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      for (const d of r.doors) { ctx.fillStyle = '#05050a'; const t = Math.max(2, cell * 0.3); if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 2, oy + d.row * cell + cell * 0.55, 3, t); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 2, t, 3); }
+      for (const d of r.doors) { const nb = doorTo(r, d); if (nb?.secret && !this.g.visited.has(nb.id)) continue; ctx.fillStyle = '#05050a'; /* never give away a hidden room's door */ const t = Math.max(2, cell * 0.3); if (d.side === 'W' || d.side === 'E') ctx.fillRect(d.side === 'W' ? x - 1 : x + w - 2, oy + d.row * cell + cell * 0.55, 3, t); else ctx.fillRect(ox + d.col * cell + cell * 0.35, d.side === 'N' ? y - 1 : y + h - 2, t, 3); }
       if (big && r.boss && !Object.keys(flags).some(k => k.startsWith('boss:' + r.id + ':'))) { ctx.fillStyle = '#ff5040'; ctx.font = `bold ${Math.max(9, cell * 0.7)}px Palatino Linotype, Georgia`; ctx.fillText('☠', x + w / 2 - cell * 0.3, y + h / 2 + cell * 0.25); }
       if (big && r.bell && !this.g.player.has(r.bell.id) && Object.keys(flags).some(k => k.startsWith('boss:' + r.id + ':'))) { ctx.fillStyle = hex(BELLS[r.bell.id].color); ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, cell * 0.3, 0, 7); ctx.fill(); }
     }
@@ -64,7 +65,7 @@ export class UI {
     this.drawMap(ctx, c.width, c.height, cell, (C0 + C1) / 2, (R0 + R1) / 2, true);
     // no opaque backing: the themed chart paper (grid + vignette) behind the canvas shows through
     const pct = Math.round(100 * this.g.visited.size / ROOMS.length), cur = this.g.room?.def;
-    $('mapHint').innerHTML = `M close · Castle Velscour — ${cur ? cur.name : ''} · explored ${pct}% (${this.g.visited.size}/${ROOMS.length} chambers) · <span style="color:#e06a7a">■</span> save <span style="color:#c9a23a">■</span> mirror <span style="color:#3aa06a">■</span> librarian <span style="color:#9a6ae0">■</span> secret`;
+    $('mapHint').innerHTML = `M close · Castle Velscour — ${cur ? cur.name : ''} · explored ${pct}% (${this.g.visited.size}/${ROOMS.length} chambers) · secrets ${ROOMS.filter(r => r.secret && this.g.visited.has(r.id)).length}/${ROOMS.filter(r => r.secret).length} · <span style="color:#e06a7a">■</span> save <span style="color:#c9a23a">■</span> mirror <span style="color:#3aa06a">■</span> librarian <span style="color:#9a6ae0">■</span> secret`;
   }
 
   // ------------------------------------------------------------------ menus
