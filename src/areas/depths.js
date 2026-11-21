@@ -254,6 +254,6 @@ export default [
     items: [{ x: 10, y: 11.5, unique: 'rimebound', altar: true, glow: 0x9fe4ff }, { x: 3.5, y: 9.3, up: 'mana' }],
     enemies: [{ t: 'dragonling_undead', x: 9, y: 7.1 }],
     breakables: [{ x: 3, y: 4.9 }],
-    props: [{ t: 'crystal', x: 2 }, { t: 'crystal', x: 11.5 }, { t: 'crystal', x: 4.5, y: 4.9 }, { t: 'crystal', x: 8, y: 11.5 }, { t: 'stalactite', x: 5, y: 14 }, { t: 'stalactite', x: 9, y: 14 }, { t: 'stalactite', x: 3, y: 8 }],
+    props: [{ t: 'crystal', x: 2 }, { t: 'crystal', x: 11.5 }, { t: 'crystal', x: 4.5, y: 4.9 }, { t: 'stalactite', x: 4, y: 14 }, { t: 'stalactite', x: 3, y: 8 }],
     lore: [{ x: 4.5, text: 'Frost on the walls of a room beside a furnace. Whatever is kept here, the fire was never allowed near it.' }] },
 ];

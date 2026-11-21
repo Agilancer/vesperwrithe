@@ -11,7 +11,7 @@ export const TYPES = BESTIARY;
 export const ELEM_COL = { fire: 0xff6a20, ice: 0x7ad8ff, lightning: 0xfff070, poison: 0x8aff5a, shadow: 0xb070ff };
 const rnd = (a, b) => a + Math.random() * (b - a); const _gc = new THREE.Color(), _wc = new THREE.Color();
 // a signature's wind-up glows in its own element, so the answer can be read from the colour (red is everything else)
-const WARN_COL = { hunt: 0x6aff5a, frostnova: 0xa8e8ff, ossuary: 0xf0e0c0, fissure: 0xffa040, stormcall: 0xb8a8ff, grimoire: 0xb080ff, cyclone: 0xd8e8ff, geyser: 0x6ac8ff, miasma: 0x8aff5a, maw: 0x9a7ad8, eclipse: 0xffa020, forgefall: 0xffe0a0, webnet: 0xe8e8ff, meteor: 0xff8a30 };
+const WARN_COL = { hunt: 0x6aff5a, frostnova: 0xa8e8ff, ossuary: 0xd8642a, fissure: 0xffa040, stormcall: 0xb8a8ff, grimoire: 0xb080ff, cyclone: 0xd8e8ff, geyser: 0x6ac8ff, miasma: 0x8aff5a, maw: 0x9a7ad8, eclipse: 0xffa020, forgefall: 0xffe0a0, webnet: 0xe8e8ff, meteor: 0xff8a30 };
 const sgn = x => (x < 0 ? -1 : 1);
 const SHOT_SPEED = { bolt: 11, orb: 6.5, skull: 4.2, feather: 13, gust: 10, book: 9 };
 
@@ -55,7 +55,7 @@ export class Enemy {
     const lift = this.spec.t === 'knight' ? 1.7 : 1.3;
     this.mats = [];
     this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); const m = o.material; if (m.color) m.color.multiplyScalar(lift); m.envMapIntensity = 1.4; if (m.emissive && !m.emissiveMap) { m.emissive.setHex(0x101420); m.emissiveIntensity = 1; } m.userData.em = m.emissive ? m.emissive.getHex() : 0; m.userData.emI = m.emissiveIntensity; this.mats.push(m); } });
-    if (this.spec.tint) { const tc = new THREE.Color(this.spec.tint); for (const m of this.mats) { m.color.lerp(tc, 0.65); m.metalness = Math.max(m.metalness || 0, 0.75); m.roughness = Math.min(m.roughness ?? 1, 0.35); } } /* a named knight in pale silver */
+    if (this.spec.tint) { const tc = new THREE.Color(this.spec.tint); for (const m of this.mats) { m.color.lerp(tc, 0.65); m.metalness = 0.35; m.roughness = 0.45; if (m.emissive) { m.emissive.setHex(0x1a2030); m.userData.em = 0x1a2030; } } } /* pale silver that reads indoors */ /* a named knight in pale silver */
     this.rim = { col: RIM_COOL.clone(), k: 0.3 }; for (const m of this.mats) addRim(m, this.rim); this.weaponMats = []; this.model.traverse(o => { if (o.isMesh) o.renderOrder = 2; });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
@@ -161,14 +161,14 @@ export class Enemy {
     const A = this.atk, o = A.o, T = this.T, k = this.t / A.dur, w0 = A.wins[0].a;
     if (k < w0) this.warn = Math.max(this.warn || 0, k / w0);
     if (k > w0 - 0.08 && !A.tele) { A.tele = true; audio.play(this.boss ? 'sword_attack_3' : (T.sword || T.arm) ? 'sword_attack_2' : 'squelching_1', 0.45, this.boss ? 0.7 : 1); }
-    this.vel.x = o.lunge && k > w0 - 0.1 && k < A.wins[0].b ? this.facing * o.lunge : 0;
+    this.vel.x = o.lunge && (o.lungeAll ? A.wins.some(w => k > w.a - 0.1 && k < w.b) : (k > w0 - 0.1 && k < A.wins[0].b)) ? this.facing * o.lunge : 0;
     if (k >= w0 && !A.fired) { A.fired = true; o.fire?.(this, P); }
     if (A.wins.some(w => k >= w.a - 0.04 && k <= w.b + 0.03) && !o.noHit) this.swingOn = true; // the blade draws its arc
     for (const w of A.wins) if (!w.done && k >= w.a && k <= w.b && !o.noHit) {
       const hb = { x0: this.pos.x + (this.facing > 0 ? -0.2 : -A.reach), x1: this.pos.x + (this.facing > 0 ? A.reach : 0.2), y0: this.pos.y + (o.low ? 0 : 0.2), y1: this.pos.y + (o.low ? 1.0 : T.h + 0.4) };
       const pa = P.aabb;
       if (hb.x0 < pa.x1 && hb.x1 > pa.x0 && hb.y0 < pa.y1 && hb.y1 > pa.y0) {
-        const r = P.takeHit(Math.round(A.dmg), this.pos.x, o.elem || (T.venom ? 'poison' : null), this); if (r) w.done = true;
+        const r = P.takeHit(Math.round(A.dmg), this.pos.x, o.elem || (T.venom ? 'poison' : null), this); if (r) w.done = true; if (r && o.lungeAll) P.inv = Math.min(P.inv, 0.28); /* a flurry's later thrusts can still land */
         if (r === 'block' && !this.boss) { this.state = 'stagger'; this.t = 0; this.vel.x = -this.facing * 2.5; this.play(T.anim.hit, 0.08, { once: true, restart: true }); return; }
       }
     }
@@ -339,7 +339,7 @@ const BRAIN = {
     if (T.block && c.adx < 3.6 && e.cool <= 0 && Math.random() < 0.012) { e.state = 'guard'; e.t = 0; e.play(T.anim.block, 0.12, { restart: true }); e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + 1.2, 0x8ab0ff); e.g.guardRing?.(e); audio.play('sword_blocked_2', 0.3, 1.3); return; }
     if (c.adx < T.reach + 0.3 && Math.abs(c.dy) < 2 && e.cool <= 0) { const r = Math.random(); return e.attackStart({ anim: r < 0.35 && T.anim.attack2 ? T.anim.attack2 : r < 0.5 && T.anim.attack3 ? T.anim.attack3 : T.anim.attack }); }
     if (T.lunge && c.adx > 2.6 && c.adx < 5.5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.03) return e.attackStart({ anim: T.anim.attack2 || T.anim.attack, lunge: T.lunge, reach: T.reach + 0.4 });
-    if (e.spec.flurry && c.adx > 1.6 && c.adx < 5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.04) { e.ghost(0xe8eef8, 0.3, 0.3); return e.attackStart({ anim: T.anim.attack, hits: [0.32, 0.5, 0.68], dur: 1.25, lunge: 6, reach: T.reach + 0.5, dmg: T.dmg * 0.55 }); } /* her three-thrust lunge: the Needle's rhythm */
+    if (e.spec.flurry && c.adx > 1.6 && c.adx < 5 && Math.abs(c.dy) < 1.5 && e.cool <= 0 && Math.random() < 0.04) { e.ghost(0xe8eef8, 0.3, 0.3); return e.attackStart({ anim: T.anim.attack, hits: [0.32, 0.5, 0.68], dur: 1.25, lunge: 6, lungeAll: true, reach: T.reach + 0.5, dmg: T.dmg * 0.55 }); } /* her three-thrust lunge: the Needle's rhythm */
     if (c.adx > T.reach * 0.8) e.walk(e.facing, T.speed * c.slow, T.anim.walk, 1.1); else { e.vel.x = 0; e.play(T.anim.idle); }
   },
 

@@ -697,6 +697,8 @@ class Game {
   // mortar weeps dust from a walled-up doorway: the tell that a wall is hollow
   crackTells(dt) {
     const P = this.player;
+    const ring = P.equip.ring1?.uniq === 'huntsmans_signet' || P.equip.ring2?.uniq === 'huntsmans_signet';
+    if (ring) for (const s of this.room.cracks) if (!s.gone && s.by !== 'dive' && !(s.ref?.hp > 1) && Math.abs(P.pos.x - (s.x0 + s.x1) / 2) < 10 && Math.abs(P.pos.y - s.y0) < 6) { if (Math.random() < dt * 3) this.fx.spawn(rnd(s.x0, s.x1), rnd(s.y0, s.y1), 1.9, 0, rnd(0.1, 0.4), 0xd8b070, 0.8, rnd(0.08, 0.14), 0); if ((s.humT = (s.humT || 0) - dt) <= 0) { s.humT = 2.2; audio.play('glass_ping_small', 0.15, 0.45); } } /* older cracked stone hums for the Signet too */
     for (const s of this.room.cracks) if (!s.gone && s.ref?.hp > 1) {
       s.dustT = (s.dustT ?? rnd(0, 2)) - dt; if (s.dustT <= 0) { s.dustT = rnd(2, 3); for (let i = 0; i < 7; i++) this.fx.spawn((s.face ?? s.x0) + (s.faceDir || -1) * rnd(0.05, 0.3), s.y1 - rnd(0.05, 0.6), rnd(-0.8, 1.2), (s.faceDir || -1) * rnd(0, 0.15), rnd(-0.6, -0.1), i % 2 ? 0xb0a490 : 0x8a8070, 1.6, rnd(0.12, 0.2), 2.2, false); } /* mortar sifts down through the light under the door */
       const near = Math.abs(P.pos.x - (s.x0 + s.x1) / 2) < 4 && Math.abs(P.pos.y - s.y0) < 3, k = (near ? 1.5 : 1) * (P.has('echo') ? 1.4 : 1) * (1 + (s.dmg || 0) * 0.4); // the Echo bell makes hollow stone sing
@@ -791,7 +793,7 @@ class Game {
     const col = o.col || (o.elem ? EXTRA_COL[o.elem] || ELEM_COL[o.elem] : 0xff5030);
     const m = new THREE.Mesh(new THREE.CircleGeometry(o.w / 2 + 0.15, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(o.x, o.y + 0.05, 0.6); m.scale.set(1, 0.8, 1); this.scene.add(m); if (o.line) m.visible = false; // a line attack draws one running crack instead
-    if ((o.h > 1 || o.dmg) && !o.line) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.sigilTex ||= sigilTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.1; m.add(r); m.userData.rune = r; } // a sigil marks exactly where it will strike, turning as it tightens
+    if ((o.h > 1 || o.dmg || o.quiet) && !o.line) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.sigilTex ||= sigilTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.1; m.add(r); m.userData.rune = r; } // a sigil marks exactly where it will strike, turning as it tightens
     this.erupts.push({ ...o, col, m, t: 0, hitIds: new Set() });
   }
   // the thing that comes out of the floor: flame, water, stone teeth, ice, thorns or a lightning stroke
@@ -807,7 +809,7 @@ class Game {
       if (el === 'lightning') { m.visible = core.visible = false; this.fx.line({ x: x + rnd(-0.5, 0.5), y: y + h }, { x, y: y + 0.2 }, 0xb0c0ff); this.fx.line({ x: x + rnd(-0.8, 0.8), y: y + h * 0.8 }, { x: x + rnd(-0.3, 0.3), y: y + 0.2 }, 0x9ab0ff); this.fx.ring(x, y + 0.1, 0x9ab0ff, 3, true); this.fx.cracks(x, y, 1.4, 0x0a0a10); this.fx.spawn(x, y + 1.2, 0.8, 0, 0, 0xc8d4ff, 0.08, 3.5, 0); } // the stroke itself, a blink of light and a scorch
       if (el === 'water') for (let i = 0; i < 14; i++) this.fx.spawn(x + rnd(-w / 2, w / 2), y + h * rnd(0.8, 1), 0.7, rnd(-2.5, 2.5), rnd(1, 4), Math.random() < 0.6 ? 0xf0faff : 0x9ad4f0, rnd(0.6, 0.9), rnd(0.25, 0.5), 9, false); // a crown of foam bursts and falls
       if (el === 'water') this.fx.ring(x, y + 0.08, 0xc8ecff, 3.5, true); }
-    const hold = e.hold || 0; if (e.perch) { const P = this.player, sol = { x0: x - 0.35, x1: x + 0.35, y0: y, y1: y + h * 0.82, kind: 'block', room: this.room.def.id, temp: true }; if (Math.abs(P.pos.x - x) < 0.6) P.pos.x = x + (P.pos.x < x ? -0.65 : 0.65); this.world.solids.push(sol); setTimeout(() => { const i = this.world.solids.indexOf(sol); if (i >= 0) this.world.solids.splice(i, 1); }, (0.4 + hold) * 1000); } // a solid palisade: penned in by the golem, or climb out over the teeth
+    const hold = e.hold || 0; if (e.perch) { const P = this.player, sol = { x0: x - 0.25, x1: x + 0.25, y0: y, y1: y + h * 0.82, kind: 'block', room: this.room.def.id, temp: true }; if (Math.abs(P.pos.x - x) < 0.55) P.pos.x = x + (P.pos.x < x ? -0.6 : 0.6); this.world.solids.push(sol); setTimeout(() => { const i = this.world.solids.indexOf(sol); if (i >= 0) this.world.solids.splice(i, 1); }, (0.4 + hold) * 1000); } // a solid palisade: penned in by the golem, or climb out over the teeth
     let t = 0; const tick = () => { t += 1 / 60; const up = Math.min(1, t / 0.08), down = t > 0.38 + hold ? Math.max(0, 1 - (t - 0.38 - hold) / 0.22) : 1;
       for (const c of g.children) { c.scale.y = c.userData.h * up * (spikes ? 1 : (0.85 + Math.random() * 0.15)) * (spikes ? Math.sqrt(down) : 1); if (!spikes) c.material.opacity = (c.userData.o0 ??= c.material.opacity) * down; }
       if (!spikes) { const fl = g.children[0]; if (fl?.material.map) fl.material.map.offset.y -= 1.6 / 60; fl && (fl.scale.x = fl.userData.w0 * (1 + Math.sin(t * 22) * 0.1)); } // fire licks upward and breathes
@@ -895,7 +897,7 @@ class Game {
       if (Math.random() < 0.6) this.fx.spawn(c.x + rnd(-1.6, 1.6), c.fy + 0.1, 0.5, rnd(-1, 1), rnd(0.2, 1), 0x8a8070, 0.5, rnd(0.3, 0.5), -0.5, false); // it drags dust off the floor
       const dx = c.x - P.pos.x; if (Math.abs(dx) < 10 && Math.abs(P.pos.y - c.fy) < 6) P.push = (P.push || 0) + Math.sign(dx) * dt * 5;
       c.hitT -= dt; if (c.hitT <= 0 && Math.abs(dx) < 1.1 && P.pos.y < c.fy + 4.2 && P.pos.y > c.fy - 1) { if (P.takeHit(Math.round(c.e.T.dmg * 0.7 * c.e.dmgMul), c.x, null, c.e)) c.hitT = 0.8; }
-      c.c -= dt; if (c.c <= 0 && fade > 0.5) { c.c = 0.45; c.lane = !c.lane; for (const sd of [-1, 1]) this.shoot({ x: c.x + sd * 0.8, y: c.fy + (c.lane ? 0.6 : 1.5), vx: sd * 9, vy: 0, kind: 'feather', dmg: Math.round(c.e.T.dmg * 0.5 * c.e.dmgMul), src: c.e, life: 1.6 }); audio.play('wave_attack_1', 0.2, 1.6); }
+      c.c -= dt; if (c.c <= 0 && fade > 0.5) { c.c = 0.45; c.lane = !c.lane; for (const sd of [-1, 1]) this.shoot({ x: c.x + sd * 0.8, y: c.fy + (c.lane ? 0.6 : 1.6), vx: sd * 9, vy: 0, kind: 'feather', dmg: Math.round(c.e.T.dmg * 0.5 * c.e.dmgMul), src: c.e, life: 1.6 }); audio.play('wave_attack_1', 0.2, 1.6); }
       if (c.t > c.dur || c.e.dead || this.room !== c.room) { c.done = true; c.room.group.remove(c.g); c.g.children.forEach(r => { if (!r.userData.orb) { r.material.dispose(); r.geometry.dispose(); r.userData.tex.dispose(); } }); }
     }
     this.cyclones = this.cyclones.filter(c => !c.done);
