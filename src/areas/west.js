@@ -7,7 +7,7 @@ export default [
   { id: 'causeway', name: 'Pilgrim Causeway', area: '01', col: 8, row: 0, w: 3, h: 1, theme: 'outdoor',
     doors: [{ side: 'E', row: 0 }],
     start: { x: 5, y: 0.5 }, vistaAt: { x: 25, z: 19 }, // the barbican fills the frame on the approach
-    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 1, tutorial: true }],
+    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 2, tutorial: true }], // two: the shaft's Topaz needn't block the Ruby the thorn gate wants
     props: [{ t: 'statue', x: 22 }, { t: 'lamp', x: 15 }, { t: 'lamp', x: 30 }, { t: 'gatearch', x: 38.8 }, { t: 'tree', x: 4 }, { t: 'grave', x: 26 }],
     breakables: [{ x: 18 }, { x: 26 }, { x: 33 }],
     lore: [{ x: 14, text: 'The causeway ends where the castle begins. Nothing behind you remains.' }] },
@@ -38,7 +38,7 @@ export default [
     chests: [{ x: 45.5, y: 2.1, base: 'kite_greenwood', rarity: 'normal', sockets: 1 }],
     breakables: [{ x: 12 }, { x: 28 }, { x: 54 }, { x: 68 }],
     gates: [{ x: 77.5, kind: 'thorn' }],
-    props: [{ t: 'torch', x: 8 }, { t: 'torch', x: 26 }, { t: 'torch', x: 44 }, { t: 'torch', x: 62 }, { t: 'banner', x: 35 }, { t: 'banner', x: 53 }, { t: 'window', x: 14 }, { t: 'window', x: 50 }, { t: 'chandelier', x: 40 }, { t: 'statue', x: 70 }],
+    props: [{ t: 'torch', x: 8 }, { t: 'torch', x: 26 }, { t: 'torch', x: 44 }, { t: 'torch', x: 62 }, { t: 'banner', x: 31 }, { t: 'banner', x: 58 }, { t: 'window', x: 14 }, { t: 'window', x: 50 }, { t: 'chandelier', x: 40 }, { t: 'statue', x: 70 }],
     lore: [{ x: 72, text: 'Blackthorn knots the archway. It recoils from flame.' }] },
 
   { id: 'votive', name: 'Votive Shrine', area: '02', col: 12, row: -4, w: 1, h: 1, theme: 'shrine', save: { x: 6.67 },
@@ -50,18 +50,20 @@ export default [
     chests: [{ x: 10.2, unique: 'gravesong', big: true }],
     props: [{ t: 'candles', x: 2.2 }] },
 
-  { id: 'gallery', name: 'Gallery of Saints', area: '02', col: 14, row: -4, w: 6, h: 1, theme: 'gallery',
+  // the coffin beside the broken floor is the Oathbreaker's save point: a death in his hall puts you a few strides from the drop
+  // (x 58.4-61.6) with no foe between, not back at the west door behind four that rise again (the votive shrine keeps the west coffin)
+  { id: 'gallery', name: 'Gallery of Saints', area: '02', col: 14, row: -4, w: 6, h: 1, theme: 'gallery', save: { x: 56 },
     doors: [{ side: 'W', row: -4 }, { side: 'S', col: 18 }],
     // plinths and a stepped rostrum under the saints, a high walk along the windows, and a walled-up reliquary at the east end
     blocks: [{ x: 14, y: 0.5, w: 3.6, h: 1.1 }, { x: 26.6, y: 0.5, w: 1.6, h: 0.9 }, { x: 28.2, y: 0.5, w: 5.4, h: 1.8 }, { x: 33.6, y: 0.5, w: 1.6, h: 0.9 }, { x: 66, y: 0.5, w: 3, h: 1.0 }],
     platforms: zig([[39.5, 2.8, 4], [45, 4.6, 4.5], [51, 2.8, 3.6]]),
     cracks: [{ x: 73.2, y: 0.5, w: 1.1, h: 6.5, by: 'hit' }],
     items: [{ x: 47.2, y: 4.6, gem: 'skull' }],
-    enemies: [{ t: 'knight', x: 22 }, { t: 'thrall', x: 37 }, { t: 'knight', x: 48 }, { t: 'wizard', x: 30.5, y: 2.3 }, { t: 'child', x: 68 }],
+    enemies: [{ t: 'knight', x: 22 }, { t: 'thrall', x: 37 }, { t: 'knight', x: 44.2 }, { t: 'wizard', x: 30.5, y: 2.3 }, { t: 'child', x: 68 }], // the east knight stands back past his 11 m aggro from the coffin
     breakables: [{ x: 10 }, { x: 24 }, { x: 64 }],
-    chests: [{ x: 76.5, tier: 2, rarity: 'rare' }],
+    chests: [{ x: 76.5, tier: 2, rarity: 'rare', slot: 'weapon' }], // the reliquary always arms you for the Oathbreaker below
     props: [{ t: 'window', x: 8 }, { t: 'window', x: 20 }, { t: 'window', x: 32 }, { t: 'window', x: 44 }, { t: 'window', x: 72 }, { t: 'torch', x: 14 }, { t: 'torch', x: 38 }, { t: 'torch', x: 66 }, { t: 'rubble', x: 71.6 }, { t: 'painting', x: 26 }, { t: 'painting', x: 52 }, { t: 'chandelier', x: 40 }],
-    lore: [{ x: 56, text: 'The floor has given way. Something paces in the hall below.' }] },
+    lore: [{ x: 51, text: 'The floor has given way. Something paces in the hall below.' }] },
 
   { id: 'undercroft', name: 'Undercroft Well', area: '02', col: 15, row: 1, w: 1, h: 4, theme: 'crypt',
     doors: [{ side: 'N', col: 15 }, { side: 'S', col: 15 }, { side: 'E', row: 1 }],
@@ -79,7 +81,7 @@ export default [
     blocks: [{ x: 29, y: 0.5, w: 11, h: 0.7 }], // the sanctuary step
     platforms: zig([[23.5, 2.9, 3], [18.5, 5.1, 3], [23.5, 7.3, 3], [29, 9.5, 3], [33.5, 11.7, 6.5]]), // up to the singers' loft
     items: [{ x: 35, y: 1.2, unique: 'vespers_needle', altar: true, glow: 0xffd8a0 }],
-    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 1.5, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }],
+    enemies: [{ t: 'knight', x: 21, boss: true, mini: true, hpMul: 6, name: 'Ser Aubrine, Who Kept Her Oath', tint: 0xe8eef8, flurry: true }], // 1080 hp: a ~25 s duel on act-1 steel
     chests: [{ x: 37.5, y: 11.7, tier: 2, rarity: 'rare' }],
     breakables: [{ x: 8.5 }, { x: 26 }, { x: 35, y: 11.7 }],
     props: [{ t: 'window', x: 35, big: true }, { t: 'rosewindow', x: 18, y: 15 }, { t: 'altar', x: 35, y: 1.2, steps: 1 }, { t: 'pews', x: 7, face: 1 }, { t: 'pews', x: 12, face: 1 }, { t: 'pews', x: 17, face: 1 },
@@ -116,7 +118,7 @@ export default [
     enemies: [{ t: 'caddoc', x: 34, boss: true }],
     bell: { id: 'slide', x: 41.5, y: 0.5 },
     props: [{ t: 'window', x: 14, big: true }, { t: 'window', x: 40, big: true }, { t: 'torch', x: 2, y: 1.8 }, { t: 'torch', x: 45 }, { t: 'banner', x: 26.7 }, { t: 'banner', x: 30 }, { t: 'throne', x: 44 }, { t: 'chandelier', x: 27 }, { t: 'column', x: 22 }, { t: 'column', x: 37 }],
-    lore: [{ x: 47, text: 'A crawlway gapes beneath the dais — too low to walk.' }] },
+    lore: [{ x: 22, y: 0.5, text: 'The east wall is cracked where his charges struck.' }, { x: 47, text: 'A crawlway gapes beneath the dais — too low to walk.' }] }, // the first line: lure his ram into the wall
 
   // ---------------------------------------------------------------- beyond the thorns
   { id: 'courtyard', name: 'Moonlit Courtyard', area: '03', col: 21, row: -2, w: 6, h: 3, theme: 'courtyard', vista: 16,

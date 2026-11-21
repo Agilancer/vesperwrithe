@@ -165,7 +165,7 @@ export default [
     chests: [{ x: 75, tier: 3, rarity: 'rare' }],
     items: [{ x: 31.8, y: 9.0, gem: 'amethyst' }],
     breakables: [{ x: 24 }, { x: 42 }, { x: 54 }, { x: 66 }, { x: 8, y: 8.0 }, { x: 70, y: 8.0 }],
-    props: [...pr('painting', 5, 22, 28, 40, 50, 60, 68.4, [12, 8.0], [56, 8.0]), ...pr('statue', 26, 52, 64, [12, 3.9], [16, 3.9]), ...pr('chandelier', [24, 8.3], [31.8, 9.0], [39, 8.3]),
+    props: [...pr('painting', 5, 22, 28, 40, 50, 60, 68.4, [12, 8.0], [56, 8.0], [20.5, 8.0], [28, 8.0], [35.5, 8.0], [47, 8.0], [66, 8.0]), ...pr('statue', 26, 52, 64, [12, 3.9], [16, 3.9]), ...pr('chandelier', [24, 8.3], [31.8, 9.0], [39, 8.3]), // the upper storey is hung too: the balconies and chandeliers are played there
       ...pr('candles', 20, 36, 48, 62, 74, [6, 8.0], [50, 8.0], [66, 8.0], [76, 8.0]), ...pr('rug', 33.3), ...pr('mirror', 3), ...pr('tapestry', 44), ...pr('rubble', 68)],
     lore: [{ x: 56, text: "The portraits' eyes are painted shut. The mannequins' were never painted at all." },
       { x: 67, text: 'One frame hangs crooked. The panel behind it sounds thin.' }] },
@@ -230,7 +230,7 @@ export default [
     blocks: [{ x: 3.5, y: 4.5, w: 16.5, h: 3.5 }, { x: 20, y: 7, w: 3.667, h: 1 }],   // the reading floor: only the well reaches it
     platforms: zig([[6, 11.8, 4], [0.8, 15.4, 2.8], [13, 11.4, 4], [19, 14.6, 4], [12.5, 17.8, 4]]),
     enemies: [{ t: 'silver', x: 13 }, { t: 'dragonling_undead', x: 7.5 }, { t: 'night_demon', x: 12, y: 8.0 }, { t: 'witch', x: 8, y: 11.8 }, { t: 'witch', x: 21, y: 14.6 }],
-    chests: [{ x: 14.5, y: 17.8, tier: 6, rarity: 'rare' }],
+    chests: [{ x: 14.5, y: 17.8, unique: 'gravelantern', big: true }], // the lich's lantern, shelved where the scribes climbed the stone
     items: [{ x: 2, y: 15.4, gem: 'skull' }],
     breakables: [{ x: 18 }, { x: 4.5 }, { x: 16.5, y: 8.0 }, { x: 5, y: 8.0 }],
     props: [...pr('bookshelf', 6, 16, [8, 8.0], [15, 8.0], [14, 11.4]), ...pr('candles', 2, 22, [21.6, 8.0], [10, 8.0]), ...pr('chandelier', [13, 8.0]), ...pr('table', 10), ...pr('chain', 1.8),

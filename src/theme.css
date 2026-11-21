@@ -190,7 +190,7 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .dmg{font-size:23px;font-weight:700;color:#fff3e2;-webkit-text-stroke:.6px rgba(20,8,4,.9);paint-order:stroke fill;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(255,170,90,.35);animation:dmgPop .85s cubic-bezier(.2,.8,.2,1) forwards}
 .dmg.crit{font-size:36px;color:#ffd27a;letter-spacing:.06em;-webkit-text-stroke:1px rgba(40,12,0,.95);text-shadow:0 3px 0 rgba(0,0,0,.85),0 0 18px rgba(255,150,50,.85),0 0 40px rgba(255,120,40,.4);animation:critPop .95s cubic-bezier(.2,.8,.2,1) forwards}
 .dmg.player{color:#ff8a9c;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(255,60,90,.5)}.dmg.heal{color:#a4ffd9;text-shadow:0 2px 0 rgba(0,0,0,.85),0 0 10px rgba(100,255,190,.4)}
-.dmg.fire{color:#ffa35c}.dmg.ice{color:#a6e4ff}.dmg.lightning{color:#fff08a}.dmg.poison{color:#a8ff7a}.dmg.shadow{color:#cfaaff}
+.dmg.gold{color:#ffd76a;font-size:17px;-webkit-text-stroke:.5px rgba(50,30,0,.9);text-shadow:0 2px 0 rgba(0,0,0,.8),0 0 10px rgba(255,200,80,.55)}.dmg.fire{color:#ffa35c}.dmg.ice{color:#a6e4ff}.dmg.lightning{color:#fff08a}.dmg.poison{color:#a8ff7a}.dmg.shadow{color:#cfaaff}
 @keyframes dmgPop{0%{transform:translate(-50%,6px) scale(1.5);opacity:1}14%{transform:translate(-50%,-8px) scale(1);opacity:1}70%{opacity:1}100%{transform:translate(-50%,-58px) scale(.92);opacity:0}}
 @keyframes critPop{0%{transform:translate(-50%,10px) scale(1.9) rotate(-5deg);opacity:1}16%{transform:translate(-50%,-12px) scale(1) rotate(0);opacity:1}26%{transform:translate(-50%,-12px) scale(1.12)}74%{opacity:1}100%{transform:translate(-50%,-72px) scale(.95);opacity:0}}
 /* map: a titled chart on gridded paper rather than a black void */
@@ -217,7 +217,7 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 .frame::before{content:"";position:absolute;left:-30px;top:-26px;width:470px;height:150px;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 70% 70% at 30% 40%,rgba(3,8,11,.5),rgba(3,8,11,.22) 55%,transparent 100%)}
 .frame{isolation:isolate}
 #bells i{background:rgba(196,240,233,.14);border-color:rgba(196,240,233,.45)}
-@media (max-height:520px){#prompt{bottom:auto}}
+@media (max-height:520px){#prompt{bottom:auto;top:104px;font-size:11px;padding:8px 18px;max-width:300px}} /* on a phone the prompt sits under the HUD block (gold ends ~108px): at the very top it covered the life numbers */
 .bellrow{flex:none;margin-top:8px;padding-top:12px;border-top:1px solid var(--hair);gap:5px 6px}
 .bellrow::before{content:"Bells of Velscour";flex-basis:100%;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
 .bellrow span{font-size:11px;padding:3px 8px;color:var(--dim);border-color:var(--hair)}
@@ -239,3 +239,26 @@ kbd{border:1px solid var(--hair2);border-radius:2px;padding:1px 6px;font-size:10
 
 /* touch: spend attribute points with a tap */
 .stats button.plus{margin-left:6px;min-width:30px;min-height:26px;padding:0 6px;font:inherit;font-size:16px;line-height:24px;color:var(--teal);background:rgba(116,230,216,.12);border:1px solid var(--hair2);border-radius:3px;cursor:pointer}
+/* ------------------------------------------------------------------ round 1 (critic fixes): flasks, mana ticks, phase notches, tooltips */
+/* flasks: a pip per potion you can carry, under the life bar, so supply reads at a glance beside the life it buys */
+#flasks{display:flex;align-items:center;gap:6px;height:7px;margin:-2px 0 -1px 3px}
+/* a flask slot is a diamond 12px tip to tip (an 8.5px square turned 45deg; 10px under max-height:520px): filled ◆ while it holds a
+   draught, hollow ◇ once drunk. The row keeps its 7px box (the diamonds overhang it into the bar gaps), so the stack below, and the
+   gold line under the bells (top 94px on a phone), do not move */
+#flasks i{flex:none;box-sizing:border-box;width:8.5px;height:8.5px;transform:rotate(45deg);border:1.5px solid rgba(255,200,210,.62);background:transparent;box-shadow:0 0 0 1px rgba(0,0,0,.45),inset 0 0 0 1px rgba(0,0,0,.35)}
+#flasks i.on{background:linear-gradient(135deg,#ffd0d7,var(--blood) 60%,#7c2236);border-color:rgba(255,222,228,.9);box-shadow:0 0 0 1px rgba(0,0,0,.45),0 0 6px rgba(217,89,109,.75)}
+@media (max-height:520px){#flasks{gap:5px}#flasks i{width:7px;height:7px;border-width:1.25px}}
+#flasks small{margin-left:6px;font-size:11px;letter-spacing:.16em;color:var(--mist);text-shadow:0 1px 3px #000}
+#flasks .pg{font-size:8px}
+/* mana: a hairline every 10 MP (one mana art), --tick set by ui.js from the pool size */
+.bar.mp u.ticks{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(var(--tick,100%) - 1px),rgba(4,9,12,.85) calc(var(--tick,100%) - 1px) var(--tick,100%))}
+/* boss bar: notches where the foe turns (60%, and 33% for a foe with a last phase) */
+#bossBar u.notch{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:rgba(241,248,246,.8);box-shadow:0 0 0 1px rgba(4,9,12,.7),0 0 6px rgba(255,255,255,.35);z-index:2}
+/* the flask row adds 11px to the bar stack: the gold line steps down with it */
+#hud #gold{top:98px}
+@media (max-height:520px){#hud #gold{top:94px}} /* below the bell row (it ends at 89px on a 375px-tall phone) */
+/* tooltips: DPS leads a weapon; the mana art and gem notes speak quieter */
+.detail .line.dps{font-size:1.15em;letter-spacing:.06em;color:var(--moon);margin-bottom:4px}
+.detail .line.art{color:var(--violet);font-size:.92em}
+.stats small.str{font-size:.78em;color:var(--dim);letter-spacing:.04em}
+#menuList li.svc{color:var(--teal)}#menuList li.svc.off{opacity:.45}
