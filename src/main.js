@@ -651,9 +651,9 @@ class Game {
   // a telegraphed eruption from the floor: a warning disc, then a column
   erupt(o) {
     const col = o.col || (o.elem ? EXTRA_COL[o.elem] || ELEM_COL[o.elem] : 0xff5030);
-    const m = new THREE.Mesh(new THREE.CircleGeometry(o.w / 2 + 0.3, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const m = new THREE.Mesh(new THREE.CircleGeometry(o.w / 2 + 0.15, 24), new THREE.MeshBasicMaterial({ map: glowTex(), color: col, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(o.x, o.y + 0.05, 0.2); m.scale.set(1, 2.4, 1); this.scene.add(m);
-    if (o.h > 1 || o.dmg) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.ringTex ||= ringTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.3; m.add(r); m.userData.rune = r; } // a crisp rim marks exactly where it will strike
+    if (o.h > 1 || o.dmg) { const r = new THREE.Mesh(FX.ringGeo ||= new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: FX.ringTex ||= ringTex(), color: col, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); r.position.set(0, 0, 0.002); r.userData.R = o.w / 2 + 0.1; m.add(r); m.userData.rune = r; } // a crisp rim marks exactly where it will strike
     this.erupts.push({ ...o, col, m, t: 0, hitIds: new Set() });
   }
   // the thing that comes out of the floor: flame, water, stone teeth, ice, thorns or a lightning stroke
