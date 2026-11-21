@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { glowTex } from './world.js';
 import { cloneGLTF, weaponModel, audio, WEAPONS, addRim, LOW_MEM } from './assets.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { Trail } from './player.js';
 const RIM_COOL = new THREE.Color(0x7c8cb0), RIM_HOT = new THREE.Color(0xff3020), RIM_HIT = new THREE.Color(0xffffff);
 import { fitHeight } from './world.js';
 import { BESTIARY } from './catalog.js';
@@ -69,7 +70,7 @@ export class Enemy {
     const T = this.T, ms = this.model.scale.x;
     const attach = async (bone, id, len, q, off) => {
       if (!bone || !WEAPONS[id]) return;
-      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
+      const w = await weaponModel(id, 1), s = new THREE.Group(); bone.add(s); this.blade ||= w; w.traverse(o => { if (o.isMesh && o.material.emissive) { o.material.userData.em = o.material.emissive.getHex(); this.weaponMats.push(o.material); } }); this.hand ||= s;
       const hs = bone.getWorldScale(new THREE.Vector3()).x || 1; s.scale.setScalar(len / hs); s.quaternion.copy(q); if (off) s.position.copy(off).multiplyScalar(1 / hs); s.add(w);
     };
     if (T.sword) { // UAL rig: blade along the knuckle line, handle across the palm
@@ -159,6 +160,7 @@ export class Enemy {
     if (k > w0 - 0.08 && !A.tele) { A.tele = true; audio.play(this.boss ? 'sword_attack_3' : (T.sword || T.arm) ? 'sword_attack_2' : 'squelching_1', 0.45, this.boss ? 0.7 : 1); }
     this.vel.x = o.lunge && k > w0 - 0.1 && k < A.wins[0].b ? this.facing * o.lunge : 0;
     if (k >= w0 && !A.fired) { A.fired = true; o.fire?.(this, P); }
+    if (A.wins.some(w => k >= w.a - 0.04 && k <= w.b + 0.03) && !o.noHit) this.swingOn = true; // the blade draws its arc
     for (const w of A.wins) if (!w.done && k >= w.a && k <= w.b && !o.noHit) {
       const hb = { x0: this.pos.x + (this.facing > 0 ? -0.2 : -A.reach), x1: this.pos.x + (this.facing > 0 ? A.reach : 0.2), y0: this.pos.y + (o.low ? 0 : 0.2), y1: this.pos.y + (o.low ? 1.0 : T.h + 0.4) };
       const pa = P.aabb;
@@ -242,6 +244,7 @@ export class Enemy {
 
   sync(dt) {
     if (this.ghosts) this.tickGhosts(dt);
+    if (this.blade && (this.swingOn || this.trail?.life > 0)) { this.trail ||= new Trail(this.room.group); if (this.swingOn) { this.model.updateMatrixWorld(true); this.trail.push(this.blade, 'foe'); } else this.trail.end(); this.trail.update(dt); } this.swingOn = false;
     this.mixer.update(dt);
     const T = this.T, target = this.facing * (T.quad ? Math.PI / 2 - 0.22 : Math.PI / 2 - 0.42);
     this.yaw += (target - this.yaw) * Math.min(1, dt * (T.quad ? 6 : 10));
@@ -503,7 +506,7 @@ const BRAIN = {
     } else if (c.adx > T.reach * 0.75) e.walk(e.facing, T.speed * c.slow * (c.adx > 7 ? 1.7 : 1), c.adx > 7 && e.clipFor(T.anim.run) ? T.anim.run : T.anim.walk);
     else { e.vel.x = 0; e.play(T.anim.idle, 0.25); }
     if (e.cool > 0) return;
-    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon', 'cyclone', 'grimoire', 'eclipse', 'hunt', 'stormcall'];
+    e.aboveT = (P.pos.y > e.pos.y + Math.max(2.2, T.h * 0.8) && !e.air) ? (e.aboveT || 0) + dt + Math.max(0, e.cool) * 0 : 0; const reachUp = e.aboveT > 1.2, UP = ['leap', 'volley', 'fan', 'rain', 'pillars', 'roots', 'wave', 'blink', 'suns', 'takeoff', 'summon', 'cyclone', 'grimoire', 'eclipse', 'hunt', 'stormcall', 'meteor', 'miasma', 'webnet', 'maw'];
     const ok = T.moves.filter(m => (!e.spec.illusion || m.k === 'volley' || m.k === 'fan') && (!reachUp || UP.includes(m.k) || !T.moves.some(q => UP.includes(q.k) && (q.phase || 1) <= e.phase)) && (m.phase || 1) <= e.phase && (reachUp || ((!m.min || c.adx >= m.min) && (!m.range || c.adx <= m.range))) && (T.dragon && T.fly ? (e.air ? m.air : !m.air) : true) && m !== e.lastMove && !(m.k === 'summon' && e.room.enemies.filter(x => x.summoner === e && !x.dead).length >= m.max));
     if (!ok.length) { e.lastMove = null; return; }
     let tot = ok.reduce((s, m) => s + m.w * ((m.phase || 1) === e.phase && e.phase > 1 ? 1.6 : 1), 0), r = Math.random() * tot, m = ok[0];
@@ -511,7 +514,7 @@ const BRAIN = {
     e.lastMove = m; const dur = (m.dur || T.atkDur) / (e.phase >= 3 ? 1.15 : 1);
     e.mv = { m, t: 0, dur, s: {} }; e.state = 'move'; e.vel.x = 0;
     const anim = e.clipFor(m.anim) || e.clipFor(T.anim.attack);
-    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else if (m.k !== 'hunt') e.playFor(anim, dur);
+    if (['charge', 'ram', 'strafe'].includes(m.k)) e.play(anim, 0.15, { restart: true, speed: 1.3 }); else if (!['hunt', 'frenzy', 'shellspin'].includes(m.k)) e.playFor(anim, dur);
     e.g.fx.glint(e.pos.x + e.facing * 0.5, e.pos.y + Math.min(T.h, 3.5) * 0.85, 0xff4040);
   },
 };
@@ -524,6 +527,7 @@ const MOVE = {
     mv.t += dt; const k = mv.t / mv.dur, m = mv.m, [a, b] = m.windup || e.T.windup;
     if (k < a) e.warn = Math.max(e.warn || 0, k / a);
     if (k >= a && !mv.s.snd) { mv.s.snd = 1; audio.play('sword_attack_3', 0.5, 0.7); if (m.shock) { e.g.shockwave(e, e.pos.x + e.facing * 2, e.pos.y, e.facing, e.T.elem); e.g.shake(0.3); } }
+    if (k >= a - 0.04 && k <= b + 0.03) e.swingOn = true;
     if (k >= a && k <= b && !mv.s.hit && frontBox(e, P, (m.range || e.T.reach) - 0.2, m.low, e.T.dmg, e.T.venom ? 'poison' : null)) mv.s.hit = 1;
     return k >= 1;
   },
@@ -712,6 +716,73 @@ const MOVE = {
     e.g.darken = Math.max(e.g.darken || 0, Math.min(1, k * 4, (1 - k) * 4));
     if (k > 0.2 && k < 0.88) { const sx = s.sun.position.x, sy = s.sun.position.y; P.push = (P.push || 0) + sgn(sx - P.pos.x) * dt * 7; s.a = (s.a ?? 0) + dt * 1.3; s.c = (s.c || 0) - dt;
       if (s.c <= 0) { s.c = 0.16; for (let j = 0; j < 4; j++) { const ang = s.a + j * Math.PI / 2; e.g.shoot({ x: sx + Math.cos(ang) * 1.2, y: sy + Math.sin(ang) * 1.2, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, kind: 'ember', dmg: Math.round(e.T.dmg * 0.55 * e.dmgMul), elem: 'fire', src: e, life: 3 }); } } }
+    return k >= 1;
+  },
+  // ---- minibosses
+  // the werewolf's moon-frenzy: three lunging rakes, each re-aimed at you, leaving pale afterimages
+  frenzy(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (k < 0.2) { e.warn = k / 0.2; e.vel.x = 0; return false; }
+    const i = Math.min(2, Math.floor((k - 0.2) / 0.25)), u = ((k - 0.2) / 0.25) % 1;
+    if (s.i !== i) { s.i = i; s.hit = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('sword_attack_3', 0.5, 0.95 + i * 0.12); e.play(e.clipFor(i === 1 ? 'atk3' : 'atk1') || e.T.anim.attack, 0.06, { restart: true, speed: 1.7, once: true }); }
+    if (u < 0.5 && k < 0.95) { e.vel.x = e.facing * 12 * (1 - u / 0.5); if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.045; e.ghost(0xb8c8ff, 0.26, 0.38); } if (!s.hit && u > 0.15 && frontBox(e, P, e.T.reach + 0.3, false, e.T.dmg * 0.7)) s.hit = 1; } else e.vel.x = 0;
+    return k >= 1;
+  },
+  // the crab tucks into its shell and spins across the floor, throwing sparks; it rebounds off one wall, then reels
+  shellspin(e, mv, dt, P) {
+    mv.t += dt; const s = mv.s;
+    if (mv.t < 0.5) { e.warn = mv.t / 0.5; e.vel.x = 0; e.tilt.rotation.y += dt * 6 * (mv.t / 0.5); return false; }
+    if (!s.go) { s.go = 1; s.b = 0; e.facing = sgn(P.pos.x - e.pos.x); audio.play('rock_meteor_throw_1', 0.6, 0.7); }
+    e.vel.x = e.facing * 11; e.tilt.rotation.y += dt * 26; if ((s.gt = (s.gt || 0) - dt) <= 0) { s.gt = 0.06; e.ghost(0xffd0a0, 0.22, 0.3); }
+    if (Math.random() < 0.8) e.g.fx.spawn(e.pos.x - e.facing * e.T.w * 0.4, e.pos.y + 0.1, 0.6, -e.facing * rnd(2, 6), rnd(1, 4), Math.random() < 0.5 ? 0xffd080 : 0xffffff, 0.3, 0.12, 14);
+    const a = e.aabb; if (!s.hit && hitBox(e, P, a.x0 - 0.2, a.x1 + 0.2, a.y0, a.y1, e.T.dmg * 1.1)) s.hit = 1;
+    if (e.hitWall) { e.g.shake(0.4); audio.play('rock_wall_2', 0.6, 1.1); e.g.fx.burst(e.pos.x + e.facing * e.T.w * 0.5, e.pos.y + 0.8, 0xffe0a0, 16, 4); if (++s.b > 1) { e.tilt.rotation.y = 0; e.stun = 1.4; e.stunStars = true; return true; } e.facing *= -1; s.hit = 0; }
+    if (mv.t > 4) { e.tilt.rotation.y = 0; return true; }
+    return false;
+  },
+  // the flesh-spider spits a net: it spreads in flight, and where it lands on you it binds your legs
+  webnet(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.4) { e.warn = k / 0.4; return false; }
+    if (!mv.s.f) { mv.s.f = 1; const dx = P.pos.x - e.pos.x, dy = P.pos.y + 1 - (e.pos.y + 1.2), d = Math.hypot(dx, dy) || 1; e.g.shoot({ x: e.pos.x + sgn(dx) * 1.2, y: e.pos.y + 1.2, vx: dx / d * 11, vy: dy / d * 11 + 2, grav: 6, kind: 'net', dmg: Math.round(e.T.dmg * 0.4 * e.dmgMul), src: e, life: 2, snare: 1.6 }); audio.play('squelching_1', 0.6, 0.7); }
+    return k >= 1;
+  },
+  // the green wyrm coughs miasma: pools of poison that hang over the floor for a while; stay out of them
+  miasma(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 3, i = Math.floor((k - 0.3) / 0.45 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.3) e.warn = k / 0.3;
+    if (k >= 0.3 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(P.pos.x + rnd(-3, 3), a0 - 2, a1 + 2); e.g.cloud(x, fy, 2.6, 5, 'poison', Math.round(e.T.dmg * 0.25 * e.dmgMul), e); e.g.fx.line({ x: e.mouth.x, y: e.mouth.y }, { x, y: fy + 0.6 }, 0x8aff5a); audio.play('waterspray_1', 0.5, 0.6); }
+    return k >= 1;
+  },
+  // the bone golem stamps and the ossuary answers: a ring of bone teeth bursts outward on both sides
+  ossuary(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, a = (mv.m.windup || e.T.windup)[0];
+    if (k < a) { e.warn = k / a; return false; }
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.shake(0.5); e.g.fx.cracks(e.pos.x, fy, 3); audio.play('bone_snap', 0.7, 0.7);
+      for (const dir of [1, -1]) for (let i = 0; i < (mv.m.n || 6); i++) { const x = e.pos.x + dir * (1.6 + i * 1.3); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) e.g.erupt({ x, y: fy, delay: 0.12 + i * 0.09, w: 1.1, h: 1.9 + (i % 2) * 0.6, dmg: e.T.dmg * 0.8 * e.dmgMul, elem: 'bone', src: e }); } }
+    return k >= 1;
+  },
+  // the Abyssal Mouth breathes in: everything slides toward its maw, then it snaps shut
+  maw(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, s = mv.s;
+    if (k < 0.7) { e.warn = Math.min(1, k / 0.5); e.facing = sgn(P.pos.x - e.pos.x); const d = P.pos.x - e.pos.x; if (Math.abs(d) < 14 && Math.abs(P.pos.y - e.pos.y) < 5) P.push = (P.push || 0) - sgn(d) * dt * 9;
+      for (let i = 0; i < 2; i++) { const r = rnd(3, 7), y = e.cy + rnd(-2, 2); e.g.fx.spawn(e.pos.x + e.facing * r, y, 0.7, -e.facing * r * 2.2, (e.cy - y) * 2, 0x6a4aa0, 0.45, rnd(0.15, 0.3), 0, false); } if (!s.snd) { s.snd = 1; audio.play('wave_attack_1', 0.6, 0.35); } return false; }
+    if (!s.f) { s.f = 1; audio.play('squelching_4', 0.7, 0.6); e.g.shake(0.4); e.play(e.T.anim.attack, 0.06, { restart: true, once: true, speed: 1.6 }); if (frontBox(e, P, e.T.reach + 1, false, e.T.dmg * 1.3)) e.g.hitStop(0.08); }
+    return k >= 1;
+  },
+  // the red wyrm calls fire down: burning stones fall on runes across the floor
+  meteor(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur, n = mv.m.n || 6, i = Math.floor((k - 0.25) / 0.55 * n), fy = e.arenaFloor ?? e.home.y;
+    if (k < 0.25) e.warn = k / 0.25;
+    if (k >= 0.25 && i >= (mv.s.i ?? 0) && (mv.s.i ?? 0) < n) { mv.s.i = (mv.s.i ?? 0) + 1; const [a0, a1] = e.arenaSpan(), x = THREE.MathUtils.clamp(i % 2 ? P.pos.x + P.vel.x * 0.4 : rnd(a0, a1), a0 - 1, a1 + 1); e.g.erupt({ x, y: fy, delay: 0.85, w: 2.2, h: 0.2, dmg: 0, col: 0xff6a20, quiet: true }); setTimeout(() => { if (!e.dead && e.g.room === e.room) e.g.shoot({ x: x - 3, y: fy + 12, vx: 3.6, vy: -14, kind: 'fireball', dmg: Math.round(e.T.dmg * 0.8 * e.dmgMul), elem: 'fire', src: e, life: 2, splash: 'fire' }); }, 0); }
+    return k >= 1;
+  },
+  // the undead wyrm's frost nova: a ring of ice crystals that races outward from it both ways
+  frostnova(e, mv, dt, P) {
+    mv.t += dt; const k = mv.t / mv.dur;
+    if (k < 0.35) { e.warn = k / 0.35; return false; }
+    if (!mv.s.f) { mv.s.f = 1; const fy = e.arenaFloor ?? e.home.y, rb = e.room.b; e.g.fx.ring(e.cx, e.cy, 0x9fe4ff, 10); audio.play('ice_barrage_2', 0.7, 0.7); e.g.shake(0.4);
+      for (const dir of [1, -1]) for (let i = 0; i < (mv.m.n || 7); i++) { const x = e.pos.x + dir * (2 + i * 1.5); if (x > rb.x0 + 0.8 && x < rb.x1 - 0.8) e.g.erupt({ x, y: fy, delay: 0.2 + i * 0.07, w: 1.3, h: 2.4, dmg: e.T.dmg * 0.75 * e.dmgMul, elem: 'ice', src: e }); } }
     return k >= 1;
   },
   buffet(e, mv, dt, P) { mv.t += dt; const k = mv.t / mv.dur; if (k > 0.35 && k < 0.8) { e.g.windPush(e, 16 * dt * 6); if (!mv.s.f) { mv.s.f = 1; audio.play('wave_attack_1', 0.7, 0.4); for (let i = 0; i < 5; i++) setTimeout(() => { if (!e.dead) e.g.shoot({ x: e.pos.x + e.facing * 2.5, y: e.pos.y + 0.8 + i * 0.8, vx: e.facing * 12, vy: 0, kind: 'gust', dmg: Math.round(e.T.dmg * 0.5), elem: e.T.elem, src: e, life: 2.2 }); }, i * 130); } } return k >= 1; },

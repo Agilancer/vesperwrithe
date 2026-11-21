@@ -65,7 +65,7 @@ export class UI {
     this.drawMap(ctx, c.width, c.height, cell, (C0 + C1) / 2, (R0 + R1) / 2, true);
     // no opaque backing: the themed chart paper (grid + vignette) behind the canvas shows through
     const pct = Math.round(100 * this.g.visited.size / ROOMS.length), cur = this.g.room?.def;
-    $('mapHint').innerHTML = `M close · Castle Velscour — ${cur ? cur.name : ''} · explored ${pct}% (${this.g.visited.size}/${ROOMS.length} chambers) · <span style="color:#e06a7a">■</span> save <span style="color:#c9a23a">■</span> mirror <span style="color:#3aa06a">■</span> librarian <span style="color:#9a6ae0">■</span> secret`;
+    $('mapHint').innerHTML = `M close · Castle Velscour — ${cur ? cur.name : ''} · explored ${pct}% (${this.g.visited.size}/${ROOMS.length} chambers) · secrets ${ROOMS.filter(r => r.secret && this.g.visited.has(r.id)).length}/${ROOMS.filter(r => r.secret).length} · <span style="color:#e06a7a">■</span> save <span style="color:#c9a23a">■</span> mirror <span style="color:#3aa06a">■</span> librarian <span style="color:#9a6ae0">■</span> secret`;
   }
 
   // ------------------------------------------------------------------ menus

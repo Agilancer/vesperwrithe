@@ -324,7 +324,7 @@ export class Player {
       if (this.kickT > 0) { this.kickT -= dt; dir = 0; }
       const canTurn = !(attacking && this.onGround);
       if (dir && canTurn) this.facing = Math.sign(dir);
-      let speed = P.walk;
+      let speed = P.walk; if (this.snareT > 0) { this.snareT -= dt; speed *= 0.3; if (Math.random() < dt * 8) this.g.fx.spawn(this.pos.x + (Math.random() - 0.5) * 0.6, this.pos.y + 0.3 + Math.random() * 0.5, 0.6, 0, 0.3, 0xe8e8f8, 0.4, 0.14, 0, false); } // a net binds the legs
       if (this.crouch || this.blocking && this.onGround) speed = 0;
       if (attacking && this.onGround) speed = heavy ? 0 : P.walk * 0.55;
       if (this.kickT > 0) { /* carried by the wall kick */ } else { // a few frames of acceleration and braking: weight without losing SotN precision
@@ -491,6 +491,7 @@ export class Player {
     return { dmg, crit, elem };
   }
 
+  ensnare(t) { this.snareT = Math.max(this.snareT || 0, t); this.g.ui.dmg(this.pos.x, this.pos.y + 2.2, 'SNARED', 'crit'); } // jumping and dashing still work: struggle free
   takeHit(amount, fromX, elem, src, env) {
     if (this.inv > 0 || this.state === 'dead' || this.state === 'dash' || this.g.cine) return false;
     const front = Math.sign(fromX - this.pos.x) === this.facing;
@@ -642,8 +643,8 @@ export class Player {
 }
 
 // Swing ribbon: samples the blade's base and tip each frame of a strike so attacks read clearly from the side view.
-const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a };
-class Trail {
+const TRAIL_COL = { fire: 0xff7a30, ice: 0x8ad8ff, lightning: 0xfff070, poison: 0x8aff6a, foe: 0xff4a30 }; // foe: an enemy's cut, so its blows read as clearly as yours
+export class Trail {
   constructor(scene) {
     this.max = 28; this.pts = [];
     this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.max * 2 * 3); this.alpha = new Float32Array(this.max * 2);
