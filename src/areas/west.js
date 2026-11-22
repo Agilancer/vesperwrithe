@@ -14,10 +14,18 @@ export default [
 
   { id: 'gatehouse', name: 'Blackthorn Gatehouse', area: '02', col: 11, row: 0, w: 2, h: 1, theme: 'hall',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }],
-    enemies: [{ t: 'zombie', x: 17, rise: true, drop: 'potion' }],
-    breakables: [{ x: 9 }],
-    props: [{ t: 'torch', x: 4 }, { t: 'torch', x: 22 }, { t: 'banner', x: 13.3 }, { t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'windlass', x: 6.6 }, { t: 'barrel', x: 7 }, { t: 'crate', x: 20.5 }],
-    lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' }] },
+    // the killing passage: two stepped guard daises, a sunken lane between them where the dead claw up, and a timber
+    // wall-walk over the lane. Low road = swing practice on zombies; high road = step, dais, gallery (the jump lesson) past a bone-thrower.
+    blocks: [{ x: 6, y: 0.5, w: 1.5, h: 0.8 }, { x: 7.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 19.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 23, y: 0.5, w: 1.5, h: 0.8 }],
+    platforms: [{ x: 12, y: 3.9, w: 5.5 }],
+    enemies: [{ t: 'zombie', x: 13.2, rise: true }, { t: 'zombie', x: 17.4, rise: true, drop: 'potion' }, { t: 'kobold', x: 16.4, y: 3.9 }, { t: 'zombie', x: 20.6, y: 2.1 }],
+    items: [{ x: 13.4, y: 3.9, gold: 50 }],
+    breakables: [{ x: 4.8 }, { x: 10.2, y: 2.1 }, { x: 15.4 }],
+    props: [{ t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'torch', x: 3.2 }, { t: 'torch', x: 23.6 },
+      { t: 'windlass', x: 9, y: 2.1 }, { t: 'banner', x: 14.75, y: 3.9 }, { t: 'torch', x: 12.5, y: 3.9 }, { t: 'torch', x: 17, y: 3.9 },
+      { t: 'bones', x: 14.4 }, { t: 'rubble', x: 16.6 }, { t: 'crate', x: 21.5, y: 2.1 }, { t: 'barrel', x: 22.3, y: 2.1 }],
+    lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' },
+      { x: 15, text: 'The gate-wardens dug this lane to trap the living. The dead have kept it.' }] },
 
   { id: 'shaft', name: 'Blackthorn Shaft', area: '02', col: 13, row: -4, w: 1, h: 5, theme: 'shaft',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }, { side: 'W', row: -4 }, { side: 'E', row: -4 }, { side: 'E', row: -1 }],

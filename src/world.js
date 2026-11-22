@@ -469,6 +469,9 @@ export class World {
     if (def.stairs?.length) await this.stairs(room);
     // back wall, or open sky
     if (T.back) add(wplane(tm(S_.back), W, H + 3, b.x0 + W / 2, b.y0 + H / 2, ZB));
+    // the back wall sits a stop darker and cooler than the stone you walk on, so the play plane reads first (the strongest contrast
+    // on screen must be collision against backdrop: docs/research/design_rules_2026.md B9)
+    if (T.back) { const veil = plane(new THREE.MeshBasicMaterial({ color: 0x04060c, transparent: true, opacity: T.veil ?? 0.36, depthWrite: false }), W, H + 3, b.x0 + W / 2, b.y0 + H / 2, ZB + 0.012); veil.renderOrder = -1; add(veil); }
     room.hung = []; // wall pieces already placed: { x0, x1, y }
     if (T.sky) await this.sky(room, T.sky, KIT);
     const br = BREACH[def.id], gp = room.gap = br ? [b.x0 + br[0] - br[1], b.x0 + br[0] + br[1]] : null, inGap = (x0, x1, m = 0) => gp && x1 > gp[0] - m && x0 < gp[1] + m;
