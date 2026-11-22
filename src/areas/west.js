@@ -7,10 +7,20 @@ export default [
   { id: 'causeway', name: 'Pilgrim Causeway', area: '01', col: 8, row: 0, w: 3, h: 1, theme: 'outdoor',
     doors: [{ side: 'E', row: 0 }],
     start: { x: 5, y: 0.5 }, vistaAt: { x: 25, z: 19 }, // the barbican fills the frame on the approach
-    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 2, tutorial: true }], // two: the shaft's Topaz needn't block the Ruby the thorn gate wants
-    props: [{ t: 'statue', x: 22 }, { t: 'lamp', x: 15 }, { t: 'lamp', x: 30 }, { t: 'gatearch', x: 38.8 }, { t: 'tree', x: 4 }, { t: 'grave', x: 26 }],
-    breakables: [{ x: 18 }, { x: 26 }, { x: 33 }],
-    lore: [{ x: 14, text: 'The causeway ends where the castle begins. Nothing behind you remains.' }] },
+    // the blade has two sockets: the shaft's Topaz needn't block the Ruby the thorn gate wants
+    // the pilgrims' road: take the blade, climb the toll-shrine that humps the bridge (first dead, alone, on a wide flat),
+    // then either walk down its far stair into two more, or hop the broken wall-walk over them (coin = the jump lesson).
+    stairs: [{ x: 13, steps: 3, dir: 1, rise: 0.5, run: 1, y: 0.5 }, { x: 26, steps: 3, dir: -1, rise: 0.5, run: 1, y: 0.5 }],
+    blocks: [{ x: 16, y: 0.5, w: 7, h: 1.5 }],
+    platforms: [{ x: 23.2, y: 3.8, w: 3.2 }],
+    enemies: [{ t: 'zombie', x: 21.6, y: 2.0 }, { t: 'zombie', x: 30.5 }, { t: 'zombie', x: 33.2, rise: true }],
+    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 2, tutorial: true }, { x: 24.8, y: 3.8, gold: 50 }],
+    props: [{ t: 'grave', x: 1.7 }, { t: 'tree', x: 3.4 }, { t: 'grave', x: 6.7 }, { t: 'lamp', x: 12.2 },
+      { t: 'brazier', x: 16.6, y: 2.0 }, { t: 'statue', x: 19.5, y: 2.0 }, { t: 'brazier', x: 22.4, y: 2.0 },
+      { t: 'rubble', x: 27.4 }, { t: 'lamp', x: 28.6 }, { t: 'bones', x: 32 }, { t: 'grave', x: 34.3 }, { t: 'lamp', x: 36.4 }, { t: 'gatearch', x: 38.8 }],
+    breakables: [{ x: 11.3 }, { x: 18 , y: 2.0 }, { x: 29.6 }, { x: 35.3 }],
+    lore: [{ x: 14, text: 'The causeway ends where the castle begins. Nothing behind you remains.' },
+      { x: 19.5, y: 2.0, text: 'Pilgrims paid their toll here and left their dead by the road. The dead did not stay left.' }] },
 
   { id: 'gatehouse', name: 'Blackthorn Gatehouse', area: '02', col: 11, row: 0, w: 2, h: 1, theme: 'hall',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }],
