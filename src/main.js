@@ -27,7 +27,7 @@ const HUE = { // [interior ambient, shadow lift (rgb)]: each wing keeps its own 
   prison: [0x3a3430, [0.016, 0.012, 0.01]], mine: [0x2a2c38, [0.01, 0.012, 0.026]], sanctum: [0x2c2650, [0.016, 0.008, 0.04]], observatory: [0x24304e, [0.006, 0.014, 0.04]],
   belfry: [0x323a4c, [0.01, 0.014, 0.03]], menagerie: [0x3c3a28, [0.018, 0.016, 0.006]], forge: [0x4c2818, [0.034, 0.01, 0.002]], magma: [0x4c2014, [0.036, 0.008, 0.002]],
 };
-const CAMZ = 12.2, SAVE_KEY = 'vesperwrithe_save2';
+const CAMZ = 14.2, SAVE_KEY = 'vesperwrithe_save2';
 const $ = id => document.getElementById(id);
 const rnd = (a, b) => a + Math.random() * (b - a);
 // one-shot effects tick on the game clock (not the display's refresh): same speed at 60/120/144 Hz, frozen by hit-stop and the pack, slowed by slow-mo
@@ -809,7 +809,7 @@ class Game {
   }
   // A staff's cast (its second chain link): no mana, three-quarter strength, and a voice of its own per element
   staffBolt(P) {
-    const base = BASES[P.equip.weapon.base], el = staffElem(base.model), r = P.rollDamage(), f = P.facing, x = P.pos.x + f * 1.1, y = P.pos.y + (P.crouch ? 0.8 : 1.4), col = el === 'lightning' ? 0xc8b8ff : el ? ELEM_COL[el] : 0x9ab0ff;
+    const base = BASES[P.equip.weapon.base], el = staffElem(base.model), r = P.rollDamage(), f = P.facing, mz = P.muzzle(), x = mz.x, y = mz.y, col = el === 'lightning' ? 0xc8b8ff : el ? ELEM_COL[el] : 0x9ab0ff;
     const dry = P.stats.mp < 2; if (!dry) P.stats.mp -= 2; r.dmg = Math.max(1, Math.round(r.dmg * (dry ? 0.4 : 0.75) * (1 + Math.max(0, (P.d.int || 8) - 8) * 0.025))); const add = k => ({ ...r, elem: [...r.elem, { elem: el, dmg: Math.max(1, Math.round(r.dmg * k)) }] }); // Intellect feeds the bolt: 2.5% a point
     this.fx.burst(x, y, col, 10, 3.5); this.fx.glint(x, y, col); /* a glint, no bubble ring */
     if (el === 'fire') { this.shoot({ x, y, vx: f * 12, vy: 0, kind: 'fireball', roll: add(0.25), dmg: Math.round(r.dmg * 0.75), friendly: true, life: 0.62, blast: 1.7 }); audio.play('fireball_2', 0.45, 1.1); } // dmg: what its burst deals (without it the blast rolled NaN and made a foe unkillable)
@@ -827,12 +827,12 @@ class Game {
   }
   playerShoot(P, kind) {
     if (kind === 'staff') return this.staffBolt(P);
-    const base = BASES[P.equip.weapon.base], echo = P.d.echo, y = P.pos.y + (P.crouch ? 0.7 : 1.25), n = echo === 'multishot' ? 3 : 1, free = kind === 'arrow', dry = !free && P.stats.mp < 2; // plain arrows are free (the bow is tuned as a steady weapon); a boomerang throw still costs 2 MP
+    const base = BASES[P.equip.weapon.base], echo = P.d.echo, mz = P.muzzle(), y = mz.y, n = echo === 'multishot' ? 3 : 1, free = kind === 'arrow', dry = !free && P.stats.mp < 2; // plain arrows are free (the bow is tuned as a steady weapon); a boomerang throw still costs 2 MP
     if (!free) { if (!dry) P.stats.mp -= 2; else if (!this.flags.dryHint) { this.flags.dryHint = 1; this.ui.toast('Out of mana: your throws fly at half strength.', 'magic'); } }
     for (let i = 0; i < n; i++) {
       const a = (i - (n - 1) / 2) * 0.16, r = P.rollDamage(); if (n > 1 && i !== (n - 1) / 2) r.dmg = Math.round(r.dmg * 0.5); if (dry) r.dmg = Math.max(1, Math.round(r.dmg * 0.5));
-      if (kind === 'arrow') this.shoot({ x: P.pos.x + P.facing * 0.6, y, vx: P.facing * 24 * Math.cos(a), vy: 24 * Math.sin(a) + 0.6, grav: 3, kind: 'arrow', roll: r, friendly: true, pierce: echo === 'pierce', life: 1.6 });
-      else this.shoot({ x: P.pos.x + P.facing * 0.6, y, vx: P.facing * 16 * Math.cos(a), vy: 16 * Math.sin(a), kind: 'boomerang', roll: r, friendly: true, pierce: true, boom: P.facing, life: 1.7, model: base.model });
+      if (kind === 'arrow') this.shoot({ x: mz.x, y, vx: P.facing * 24 * Math.cos(a), vy: 24 * Math.sin(a) + 0.6, grav: 3, kind: 'arrow', roll: r, friendly: true, pierce: echo === 'pierce', life: 1.6 });
+      else this.shoot({ x: mz.x, y, vx: P.facing * 16 * Math.cos(a), vy: 16 * Math.sin(a), kind: 'boomerang', roll: r, friendly: true, pierce: true, boom: P.facing, life: 1.7, model: base.model });
     }
     if (echo === 'orbit' && !this.shots.some(s => s.kind === 'orbit')) this.shoot({ x: P.pos.x, y, vx: 0, vy: 0, kind: 'orbit', roll: P.rollDamage(), friendly: true, pierce: true, life: 4, orbit: 0, mul: 0.5 });
     audio.play(kind === 'arrow' ? 'bow_attack_' + (1 + (Math.random() * 2 | 0)) : 'wave_attack_1', 0.5, 1.1);
