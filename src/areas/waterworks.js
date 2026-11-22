@@ -15,19 +15,29 @@ export default [
   // reservoir attic (a dead end until Dive). East: a spirit gate guards Rimeheart (Shade Dash).
   { id: 'sluice_gate', name: 'The Fallen Sluice', area: '06', col: 28, row: 1, w: 3, h: 1, theme: 'aqueduct',
     doors: [{ side: 'N', col: 29 }, { side: 'W', row: 1 }, { side: 'S', col: 28 }],
-    platforms: zig([[18.5, 5.7, 3], [17.5, 3.8, 5]]),
-    blocks: [{ x: 11.5, y: 1.7, w: 4, h: 5.3 },             // the fallen gate: slide under it
-      { x: 23, y: 0.5, w: 2.5, h: 1.4 },                     // step up to the planks
+    platforms: zig([[18.5, 5.7, 3], [17.5, 3.8, 5],          // the way back up to the Vestibule
+      [4.8, 0.5, 3.8],                                       // hatch planks over the attic hole (Down+Jump drops through)
+      [8.5, 2.4, 3], [4.2, 4.2, 5],                          // west bay: corbel on the gate face, then the inspection gallery (cache)
+      [25, 3.9, 3], [30, 3.9, 3.5]]),                        // high catwalk over the quay: bone-thrower first, chest at the end
+    blocks: [{ x: 11.5, y: 1.7, w: 4, h: 4.5 },             // the fallen gate (a dark slot above it): slide under it
+      { x: 23, y: 0.5, w: 4, h: 1.4 },                       // the quay: step up to the planks, step down to the dais
       { x: 27, y: 0.5, w: 13, h: 0.8 },                      // dais of the spirit gate
       { x: 33.2, y: 5.6, w: 1.6, h: 1.4 }],                  // lintel over the gate
     gates: [{ x: 34, y: 1.3, kind: 'ghost' }],
-    chests: [{ x: 37.3, y: 1.3, unique: 'rimeheart', big: true }],
-    enemies: [{ t: 'goblin', x: 27.6, y: 1.3 }, { t: 'zombie', x: 29.4, y: 1.3, rise: true }, { t: 'kobold', x: 31.6, y: 1.3 }],
-    breakables: [{ x: 2.5 }, { x: 16.8 }, { x: 28.6, y: 1.3 }, { x: 31, y: 1.3 }],
-    props: [{ t: 'portcullis', x: 13.5 }, { t: 'chain', x: 12 }, { t: 'chain', x: 15 }, { t: 'pipe', x: 6.6 }, { t: 'pipe', x: 24.5 }, { t: 'waterfall', x: 39 },
-      { t: 'torch', x: 3 }, { t: 'torch', x: 16.6 }, { t: 'torch', x: 27.5, y: 1.3 }, { t: 'brazier', x: 32.4, y: 1.3 }, { t: 'brazier', x: 35.7, y: 1.3 }, { t: 'statue', x: 38.8, y: 1.3 },
-      { t: 'rubble', x: 10 }, { t: 'ivy', x: 9 }, { t: 'barrel', x: 30, y: 1.3 }, { t: 'crate', x: 22.2 }, { t: 'arch', x: 34, y: 1.3 }],
-    lore: [{ x: 16.5, text: 'The sluice gate fell an age ago. A body could pass beneath it lying down, if it knew how.' },
+    chests: [{ x: 5.2, y: 4.2, tier: 1 }, { x: 32.8, y: 3.9, tier: 2 }, { x: 36.6, y: 1.3, unique: 'rimeheart', big: true }],
+    enemies: [{ t: 'skitter', x: 7.4, y: 4.2 },                                                   // circles the pipe: first foe, seen from safe ground
+      { t: 'zombie', x: 19.4, rise: true }, { t: 'zombie', x: 22, rise: true },                  // the lane between the crawl and the quay
+      { t: 'kobold', x: 26.6, y: 3.9 },                                                           // lobs down at the lane and the quay from the catwalk
+      { t: 'werebat', x: 28.6, y: 1.3 }, { t: 'werebat', x: 29.4, y: 1.3 },                      // roost over the catwalk gap
+      { t: 'knight', x: 31.2, y: 1.3 }],                                                          // duel alone on the dais
+    breakables: [{ x: 2.5 }, { x: 10.3, y: 2.4 }, { x: 18.3 }, { x: 24, y: 1.9 }],
+    props: [{ t: 'chain', x: 12 }, { t: 'chain', x: 15 }, { t: 'waterfall', x: 39.4 },
+      { t: 'torch', x: 2.8 }, { t: 'candles', x: 3.9 }, { t: 'candles', x: 10.9 }, { t: 'candles', x: 16.1 },{ t: 'torch', x: 23.75, y: 1.9 },
+      { t: 'brazier', x: 32.4, y: 1.3 }, { t: 'brazier', x: 35.7, y: 1.3 }, { t: 'statue', x: 38.8, y: 1.3 },
+      { t: 'rubble', x: 8.8 }, { t: 'rubble', x: 22.2 }, { t: 'ivy', x: 9.8 }, { t: 'barrel', x: 17.6 }, { t: 'crate', x: 17 }],
+    lore: [{ x: 6.7, text: 'Loose planks over a shaft. They would give way to anyone who meant to drop through.' },
+      { x: 9.6, text: 'Candlelight shows under the fallen gate. The gap is low, but it is a gap.' },
+      { x: 17.6, text: 'The sluice gate fell an age ago. A body could pass beneath it lying down, if it knew how.' },
       { x: 31.5, text: 'Pale bars of cold light. Steel passes through them; flesh does not — yet.' }] },
 
   // Wide channel hall: brick piers between water channels, harpies over the gaps, a pipe crawl on the second pier.
@@ -35,24 +45,34 @@ export default [
   { id: 'sunken_aqueduct', name: 'The Sunken Aqueduct', area: '06', col: 23, row: 1, w: 5, h: 1, theme: 'aqueduct',
     doors: [{ side: 'W', row: 1 }, { side: 'E', row: 1 }],
     stairs: [{ x: 6, steps: 4, dir: 1 }, { x: 62, steps: 4, dir: -1 }],
-    blocks: [{ x: 10, y: 0.5, w: 8, h: 2 },                  // pier 1
-      { x: 21.5, y: 0.5, w: 8.5, h: 2 },                     // pier 2
+    // Idea: a channel crossing. Low road = pier tops and leaps over pools the drowned leap from; high road = a line of
+    // inspection ledges (broken only by the great pipe, where both roads meet in a slide) ending at the mana vessel.
+    blocks: [{ x: 10, y: 0.5, w: 6.5, h: 2 },                // pier 1
+      { x: 19.5, y: 0.5, w: 11, h: 2 },                      // pier 2
       { x: 24.5, y: 3.7, w: 3, h: 3.3 },                     // great pipe across pier 2: slide under
-      { x: 35, y: 0.5, w: 4, h: 2 }, { x: 42, y: 0.5, w: 4.5, h: 2 }, // pier 3, hollow in the middle
-      { x: 49.5, y: 0.5, w: 8.5, h: 2 }],                    // pier 4
-    cracks: [{ x: 39, y: 2.0, w: 3, h: 0.5, by: 'dive' }],   // capstone of the hollow pier
-    water: [{ x: 18, y: 0.5, w: 3.5, h: 1.6 }, { x: 30, y: 0.5, w: 5, h: 1.6 }, { x: 46.5, y: 0.5, w: 3, h: 1.6 }],
-    platforms: zig([[31.7, 2.5, 1.6], [12, 4.6, 3.5], [51.5, 5.2, 3]]),
-    enemies: [{ t: 'kobold_armored', x: 14.5, y: 2.5 }, { t: 'harpy', x: 19.7, y: 5 }, { t: 'goblin_armored', x: 29, y: 2.5 }, { t: 'harpy', x: 32.5, y: 5.2 },
-      { t: 'spider', x: 37, y: 2.5 }, { t: 'spider', x: 44.5, y: 2.5 }, { t: 'kobold_armored', x: 54.5, y: 2.5 }],
-    chests: [{ x: 40.5, tier: 3, rarity: 'rare' }],
-    items: [{ x: 53, y: 5.2, up: 'mana' }],
-    breakables: [{ x: 3 }, { x: 13.6, y: 4.6 }, { x: 23, y: 2.5 }, { x: 45, y: 2.5 }, { x: 64.5 }],
-    props: [{ t: 'torch', x: 3.5 }, { t: 'torch', x: 15, y: 2.5 }, { t: 'torch', x: 28.5, y: 2.5 }, { t: 'torch', x: 43.5, y: 2.5 }, { t: 'torch', x: 56, y: 2.5 }, { t: 'torch', x: 64 },
-      { t: 'waterfall', x: 19.7 }, { t: 'waterfall', x: 48 }, { t: 'pipe', x: 26, y: 2.5 }, { t: 'pipe', x: 53, y: 2.5 }, { t: 'pipe', x: 34 }, { t: 'arch', x: 32.5 },
-      { t: 'chain', x: 32.5 }, { t: 'ivy', x: 11 }, { t: 'ivy', x: 50.5 }, { t: 'barrel', x: 16.5, y: 2.5 }, { t: 'crate', x: 22.4, y: 2.5 }, { t: 'web', x: 40.5, y: 2.5 }, { t: 'rubble', x: 40.4, y: 2.5 }],
+      { x: 33.5, y: 0.5, w: 3, h: 3 },                       // mid-channel cutwater, a metre proud of the piers
+      { x: 39.5, y: 0.5, w: 3.5, h: 2 }, { x: 46, y: 0.5, w: 3.5, h: 2 }, // pier 3, hollow in the middle
+      { x: 53, y: 0.5, w: 5, h: 2 }],                        // pier 4 (pool D is the widest leap)
+    cracks: [{ x: 43, y: 2.0, w: 3, h: 0.5, by: 'dive' }],   // capstone of the hollow pier
+    water: [{ x: 16.5, y: 0.5, w: 3, h: 1.6 }, { x: 30.5, y: 0.5, w: 3, h: 1.6 }, { x: 36.5, y: 0.5, w: 3, h: 1.6 }, { x: 49.5, y: 0.5, w: 3.5, h: 1.6 }],
+    platforms: zig([[11.5, 4.3, 3.5], [17, 4.6, 3.5], [28.5, 4.3, 3], [39, 4.3, 4.5], [46.5, 4.7, 3.5], [53, 5.2, 3.5]]),
+    enemies: [{ t: 'kobold_armored', x: 13.5, y: 2.5 }, { t: 'drowned', x: 18, y: 0.5 },
+      { t: 'werebat', x: 28, y: 2.5 }, { t: 'werebat', x: 29, y: 2.5 }, { t: 'werebat', x: 30, y: 2.5 },
+      { t: 'harpy', x: 35, y: 5.8 }, { t: 'drowned', x: 38, y: 0.5 },
+      { t: 'spider', x: 44.5, y: 2.5 }, { t: 'goblin_armored', x: 47.5, y: 2.5 }, { t: 'drowned', x: 51.2, y: 0.5 },
+      { t: 'kobold_armored', x: 56.5, y: 2.5 }],
+    chests: [{ x: 44.5, tier: 3, rarity: 'rare' }],
+    items: [{ x: 55, y: 5.2, up: 'mana' }],
+    breakables: [{ x: 3 }, { x: 13.2, y: 4.3 }, { x: 28.2, y: 2.5 }, { x: 41.2, y: 4.3 }, { x: 48.4, y: 4.7 }, { x: 56, y: 2.5 }, { x: 64.5 }],
+    props: [{ t: 'torch', x: 3.5 }, { t: 'torch', x: 15.6, y: 2.5 }, { t: 'torch', x: 22.6, y: 2.5 }, { t: 'torch', x: 29.4, y: 2.5 }, { t: 'torch', x: 35, y: 3.5 },
+      { t: 'torch', x: 45.2, y: 2.5 }, { t: 'torch', x: 57.4, y: 2.5 }, { t: 'torch', x: 64 },
+      { t: 'waterfall', x: 18 }, { t: 'waterfall', x: 32 }, { t: 'waterfall', x: 38 }, { t: 'waterfall', x: 51.2 },
+      { t: 'pipe', x: 23, y: 2.5 }, { t: 'pipe', x: 26, y: 2.5 }, { t: 'pipe', x: 29, y: 2.5 },
+      { t: 'barrel', x: 4.6 }, { t: 'crate', x: 5.4 }, { t: 'ivy', x: 11 }, { t: 'ivy', x: 53.3, y: 2.5 },
+      { t: 'rubble', x: 44.5, y: 2.5 }, { t: 'web', x: 45.6, y: 2.5 }, { t: 'crate', x: 63 }],
     lore: [{ x: 22.5, text: 'The great pipe still sweats. Whatever it carried to the castle, it was not water.' },
-      { x: 38.5, text: 'The capstone rings hollow underfoot, and is cracked clean across.' }] },
+      { x: 14.5, text: 'The channels are not still. Something keeps pace with you under the green water, and waits for the leap.' },
+      { x: 44.5, text: 'The capstone rings hollow underfoot, and is cracked clean across.' }] },
 
   // The district's warp mirror, between the aqueduct and the shaft.
   { id: 'tide_mirror', name: 'Mirror of the Tides', area: '06', col: 22, row: 1, w: 1, h: 1, theme: 'shrine', warp: { x: 6.67 },
