@@ -22,18 +22,18 @@ const A = (o = {}) => ({ idle: 'idle', walk: 'walk', run: 'run', attack: 'atk1',
 //   heroHit(L)  what one swing of an at-level one-hand sword does (weapon avg (7 + 2.9 L), Strength at two points a level, crits)
 //   heroEHP(L)  the hero's life behind at-level armour (50 + con*4 + lvl*6, mitigation 100 / (100 + def))
 // A regular foe carries `cls` and `hits`: life = hits x heroHit(level). fodder dies to 1-2 swings, common to 2-3, elite to 4-6.
-// Its blow costs a share of heroEHP (fodder 14%, common 22%, elite 28%: 7 / 4-5 / 3-4 blows to fell a careless hero) and its
-// touch less (8 / 10 / 12%). Minibosses and bosses carry `hits` too (30-40 and 65-81 swings) and keep their own dmg / touch / xp.
+// Its blow costs a share of heroEHP (fodder 13%, common 21%, elite 25%: 7-8 / 4-5 / 4 blows to fell a careless hero) and its
+// touch less (7 / 9 / 11%). Minibosses and bosses carry `hits` too (30-40 and 65-81 swings) and keep their own dmg / touch / xp.
 // A regular foe placed in a later room is raised to that room's level (roomLevel): a Shambler in act 6 is still 1-hit fodder there.
 // XP: rooms now hold 1.5-2x as many (weaker) foes, so a kill pays xpBase(level) x class share / 1.75: the pace through an act is kept.
 export const heroHit = L => (7 + 2.9 * L) * (1 + 0.04 * (L - 1)) * 1.03;
 export const heroEHP = L => (82 + 14 * L) * (104 + 2.6 * L) / 100;
 const xpBase = L => 12 + 0.7 * Math.pow(L, 2.05);
-export const CLASS = { fodder: { atk: 0.14, touch: 0.08, xp: 0.55 }, common: { atk: 0.22, touch: 0.10, xp: 1.0 }, elite: { atk: 0.28, touch: 0.12, xp: 1.8 } };
+export const CLASS = { fodder: { atk: 0.13, touch: 0.07, xp: 0.8 }, common: { atk: 0.21, touch: 0.09, xp: 1.0 }, elite: { atk: 0.25, touch: 0.11, xp: 1.7 } };
 export function statsAt(T, L) {
   const hp = Math.max(1, Math.round(T.hits * heroHit(L))); if (!T.cls) return { hp };
   const C = CLASS[T.cls], e = heroEHP(L);
-  return { hp, dmg: Math.round(C.atk * e), touch: T.noTouch ? 0 : Math.round(C.touch * e), xp: Math.max(1, Math.round(xpBase(L) * C.xp * Math.min(1.6, 0.6 + T.hits * 0.2) / 1.75)) };
+  return { hp, dmg: Math.round(C.atk * e), touch: T.noTouch ? 0 : Math.round(C.touch * e), xp: Math.max(1, Math.round(xpBase(L) * C.xp * (T.hits < 1 ? 0.6 : 1) / 1.75)) };
 }
 // The level a room's regular foes are raised to: the act its district opens in (AREA_ACT, from the validator's act listing; a
 // district that spans acts is listed by its earliest) or one act under the room's highest-tier regular foe, whichever is higher.
@@ -82,7 +82,7 @@ export const BESTIARY = {
     anim: A({ attack: 'atk3', attack2: 'atk5', walk: 'run' }), windup: [0.38, 0.62], atkDur: 1.0, arm: ['serpent_dagger', 'venom_dagger'] },
   spider:   { name: 'Crypt Weaver', tier: 2, lvl: 5, ai: 'dropper', cls: 'fodder', hits: 1.4, speed: 2.8, aggro: 9, files: [TR + 'spider_black.glb'], h: 1.3, w: 1.5, reach: 1.6, quad: true,
     anim: A({ attack: 'atk1', attack2: 'atk3' }), windup: [0.35, 0.6], atkDur: 0.9},
-  harpy:    { name: 'Carrion Harpy', tier: 2, lvl: 6, ai: 'sine', cls: 'common', hits: 2, speed: 3.6, aggro: 12, fly: true, files: tr('harpy_warrior'), h: 1.85, w: 0.9, reach: 1.5,
+  harpy:    { noTouch: true, name: 'Carrion Harpy', tier: 2, lvl: 6, ai: 'sine', cls: 'common', hits: 2, speed: 3.6, aggro: 12, fly: true, files: tr('harpy_warrior'), h: 1.85, w: 0.9, reach: 1.5,
     anim: A({ idle: 'fly', walk: 'fly', run: 'fly2', attack: 'atk2', attack2: 'atk4' }), windup: [0.3, 0.65], atkDur: 1.0},
   vknight:  { name: 'Oathsworn Knight', tier: 2, lvl: 7, ai: 'shield', cls: 'elite', hits: 4.5, speed: 1.7, aggro: 10, files: tr('velscour_knight_1', 'velscour_knight_2', 'velscour_knight_3', 'velscour_knight_4', 'velscour_knight_5', 'velscour_knight_6'), h: 2.05, w: 0.8, reach: 1.9, block: 0.4,
     anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk4', block: 'block', bash: 'bash' }), windup: [0.38, 0.62], atkDur: 1.05, arm: ['crossguard_sword', 'bluesteel_sword', 'spiked_longsword', 'lionguard_sword'], shield: ['kite_black_lion', 'kite_red_cross', 'kite_ironthorn'] },
@@ -96,7 +96,7 @@ export const BESTIARY = {
   // ---------------------------------------------------------------- act 3
   mannequin: { name: 'Haunted Mannequin', tier: 3, lvl: 9, ai: 'stalker', cls: 'common', hits: 2.6, speed: 4, aggro: 12, files: tr('mannequin_1', 'mannequin_2', 'mannequin_3'), h: 1.75, w: 0.7, reach: 1.3,
     anim: A({ attack: 'atk2', attack2: 'atk4', walk: 'run' }), windup: [0.3, 0.6], atkDur: 0.7},
-  werebat:  { name: 'Werebat', ai: 'bat', cls: 'fodder', hits: 0.75, speed: 4.2, aggro: 10, fly: true, tier: 1, lvl: 2, h: 1.7, w: 0.8, files: tr('werebat'), reach: 1.6,
+  werebat:  { noTouch: true, name: 'Werebat', ai: 'bat', cls: 'fodder', hits: 0.75, speed: 4.2, aggro: 10, fly: true, tier: 1, lvl: 2, h: 1.7, w: 0.8, files: tr('werebat'), reach: 1.6,
     anim: A({ idle: 'fly', walk: 'fly', run: 'fly2', attack: 'atk1', attack2: 'atk3' }), windup: [0.3, 0.65], atkDur: 0.9},
   spider_red: { name: 'Bloodweaver', tier: 3, lvl: 10, ai: 'webber', cls: 'common', hits: 2.2, speed: 3.2, aggro: 10, files: [TR + 'spider_red.glb'], h: 1.4, w: 1.6, reach: 1.7, quad: true, venom: true,
     anim: A({ attack: 'atk2', attack2: 'atk4' }), windup: [0.35, 0.6], atkDur: 0.8},
@@ -136,7 +136,7 @@ export const BESTIARY = {
     anim: A({ attack: 'atk2', attack2: 'atk4', breath: 'breath' }), windup: [0.35, 0.6], atkDur: 0.9},
   pknight:  { name: 'Possessed Knight', tier: 5, lvl: 18, ai: 'plunger', cls: 'elite', hits: 5, speed: 2, aggro: 11, files: tr('possessed_knight_2', 'possessed_knight_3'), h: 2.15, w: 0.85, reach: 2.1,
     anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk3', bash: 'bash' }), windup: [0.4, 0.64], atkDur: 1.1, arm: ['voidbolt_sword', 'bloodfire_sword', 'dusk_sword'], lunge: 7 },
-  plague_giant: { name: 'Plague Giant', tier: 5, lvl: 19, ai: 'giant', cls: 'elite', hits: 6, speed: 1.4, aggro: 11, files: tr('plague_giant_1', 'plague_giant_2'), h: 3.2, w: 1.5, reach: 2.6,
+  plague_giant: { name: 'Plague Giant', tier: 5, lvl: 19, ai: 'giant', cls: 'elite', hits: 5.5, speed: 1.4, aggro: 11, files: tr('plague_giant_1', 'plague_giant_2'), h: 3.2, w: 1.5, reach: 2.6,
     anim: A({ attack: 'atk1', attack2: 'atk3', attack3: 'atk5' }), windup: [0.4, 0.65], atkDur: 1.5},
   bone_golem: { name: 'The Ossein Colossus', tier: 5, lvl: 20, ai: 'boss', hits: 36, mini: true, files: [TR + 'bone_golem.glb'], h: 3.8, w: 1.9, dmg: 83, touch: 18, speed: 1.6, reach: 3.0, xp: 1500,
     anim: A({ attack: 'atk1', attack2: 'atk2' }), windup: [0.4, 0.62], atkDur: 1.5, aggro: 22, arm: ['great_studded_mace'],
@@ -147,13 +147,13 @@ export const BESTIARY = {
       { k: 'rain', anim: 'roar', w: 3, shot: 'ember', n: 10, phase: 2, dur: 2.4 }, { k: 'leap', anim: 'jump', w: 3, min: 4, range: 13, phase: 2, slamOnLand: true }, { k: 'forgefall', anim: 'atk4', w: 3, range: 14, n: 8 }] },
 
   // ---------------------------------------------------------------- act 6
-  dragonling_undead: { name: 'Bonewhelp', tier: 6, lvl: 21, ai: 'revenant', cls: 'common', hits: 2.2, speed: 2.4, aggro: 10, revive: true, files: tr('dragonling_undead'), h: 1.6, w: 0.9, reach: 1.6, elem: 'ice',
+  dragonling_undead: { name: 'Bonewhelp', tier: 6, lvl: 21, ai: 'revenant', cls: 'common', hits: 1.8, speed: 2.4, aggro: 10, revive: true, files: tr('dragonling_undead'), h: 1.6, w: 0.9, reach: 1.6, elem: 'ice',
     anim: A({ attack: 'atk2', attack2: 'atk4', breath: 'breath' }), windup: [0.35, 0.6], atkDur: 0.9},
   witch:    { name: 'Vesper Witch', tier: 6, lvl: 22, ai: 'blinker', cls: 'common', hits: 2.3, aggro: 12, files: tr('necromancer_f1', 'necromancer_f2'), h: 1.8, w: 0.7, speed: 1.6, reach: 11,
     anim: A({ attack: 'atk2', attack2: 'atk5' }), windup: [0.5, 0.55], atkDur: 1.2},
   night_demon: { name: 'Night Paralysis Demon', tier: 6, lvl: 22, ai: 'lurker', cls: 'elite', hits: 4.5, speed: 3, aggro: 12, files: tr('night_demon_black', 'night_demon_blue', 'night_demon_red'), h: 2.6, w: 0.9, reach: 2.4,
     anim: A({ attack: 'atk1', attack2: 'atk3', attack3: 'atk5', walk: 'walk2' }), windup: [0.35, 0.6], atkDur: 0.9},
-  silver:   { name: 'Silver Paladin', tier: 6, lvl: 23, ai: 'counter', cls: 'elite', hits: 5.5, speed: 2, aggro: 10, files: ['assets/armor/silver_knight.glb'], h: 2.0, w: 0.8, reach: 1.9, sword: 'sunguard_sword', block: 0.5, ual: true,
+  silver:   { name: 'Silver Paladin', tier: 6, lvl: 23, ai: 'counter', cls: 'elite', hits: 5, speed: 2, aggro: 10, files: ['assets/armor/silver_knight.glb'], h: 2.0, w: 0.8, reach: 1.9, sword: 'sunguard_sword', block: 0.5, ual: true,
     anim: { idle: 'Sword_Idle', walk: 'Walk_Loop', attack: 'Sword_Regular_A', attack2: 'Sword_Regular_B', attack3: 'Sword_Regular_C', hit: 'Hit_Chest', death: 'Death01', block: 'Sword_Block' }, windup: [0.38, 0.62], atkDur: 0.9},
   abyssal_mouth: { name: 'The Abyssal Mouth', tier: 6, lvl: 24, ai: 'boss', hits: 37, mini: true, files: [M + 'new_creatures/abyssal_mouth.glb'], h: 3.4, w: 1.6, dmg: 90, touch: 19, speed: 2.2, reach: 3.0, xp: 2400,
     anim: { idle: 'idle', walk: 'walk', run: 'run', attack: 'attack', death: 'death', roar: 'intimidating roar.001' }, windup: [0.4, 0.62], atkDur: 1.3, aggro: 24,
@@ -181,6 +181,13 @@ export const BESTIARY = {
     anim: A({ attack: 'atk1', attack2: 'atk2', attack3: 'atk4', block: 'block', bash: 'bash' }), windup: [0.4, 0.64], atkDur: 1.4, aggro: 40, title: 'THE HOLLOW SUN SETS', arm: ['wheel_greatsword'],
     moves: [{ k: 'melee', anim: 'atk1', w: 3, range: 5 }, { k: 'melee', anim: 'atk2', w: 2, range: 5 }, { k: 'charge', anim: 'bash', w: 2, min: 5, range: 16, speed: 11 }, { k: 'slam', anim: 'atk4', w: 3, range: 12 }, { k: 'wave', anim: 'atk3', w: 3, min: 3, shot: 'crescent', n: 2, dur: 1.5 },
       { k: 'suns', anim: 'roar', w: 4, n: 3, phase: 2, dur: 2.4 }, { k: 'leap', anim: 'jump', w: 3, min: 4, range: 16, phase: 2, slamOnLand: true }, { k: 'rain', anim: 'roar', w: 3, shot: 'ember', n: 14, phase: 3, dur: 2.4 }, { k: 'pillars', anim: 'atk5', w: 3, n: 7, elem: 'fire', phase: 3, dur: 2.0 }, { k: 'blink', anim: 'block', w: 2, phase: 3, dur: 0.8 }, { k: 'eclipse', anim: 'roar', w: 4, dur: 4.6, phase: 3 }] },
+  // ---------------------------------------------------------------- kinds that reuse a model for a new pattern
+  skitter:  { name: 'Skitterling', tier: 2, lvl: 5, ai: 'crawler', cls: 'fodder', hits: 0.75, speed: 2.0, aggro: 9, files: [TR + 'spider_black.glb'], h: 0.62, w: 0.8, reach: 0.8, quad: true,
+    anim: A({ attack: 'atk1', attack2: 'atk3' }), windup: [0.35, 0.6], atkDur: 0.9 },
+  drowned:  { name: 'Drowned Thrall', tier: 2, lvl: 6, ai: 'merman', cls: 'fodder', hits: 1.4, speed: 3, aggro: 10, files: tr('possessed_man_1', 'possessed_woman_1'), h: 1.75, w: 0.7, reach: 1.2, tint: 0x4a9a8a,
+    anim: A({ attack: 'atk2', attack2: 'atk3' }), windup: [0.35, 0.6], atkDur: 1.0 },
+  shade:    { name: 'Pale Shade', tier: 3, lvl: 9, ai: 'ghost', cls: 'fodder', hits: 1.5, speed: 1.5, aggro: 13, fly: true, noTouch: true, files: tr('possessed_woman_2', 'possessed_man_2'), h: 1.7, w: 0.7, reach: 1.2, tint: 0xa8c8ff, alpha: 0.55,
+    anim: A({ attack: 'atk2', attack2: 'atk3' }), windup: [0.35, 0.6], atkDur: 1.0 },
 };
 for (const T of Object.values(BESTIARY)) Object.assign(T, statsAt(T, T.lvl));
 export const ENEMY_IDS = Object.keys(BESTIARY);

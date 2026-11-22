@@ -113,6 +113,7 @@ function wbox(m, x0, y0, x1, y1, z0 = ZB, z1 = ZF) {
 }
 function wplane(m, w, h, x, y, z) { const g = new THREE.PlaneGeometry(w, h); g.translate(x, y, z); worldUV(g); const p = new THREE.Mesh(g, m); p.receiveShadow = true; return p; }
 // a rounded nosing along x: the lit edge of a walkable surface, carved rather than glowing
+const DOOR_DARK = new THREE.MeshBasicMaterial({ color: 0x020203 }), DOOR_GLOW = new THREE.MeshBasicMaterial({ color: 0x8a9ac0, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending });
 function nosing(m, x0, x1, y, z, r = 0.09) { const g = new THREE.CylinderGeometry(r, r, x1 - x0, 8, 1, false, 0, Math.PI); g.rotateZ(Math.PI / 2); g.rotateX(Math.PI / 2); g.translate((x0 + x1) / 2, y - r, z); worldUV(g); const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; return mesh; }
 // a pointed (two-centred) arch outline, springing at (±span/2, 0)
 function archShape(span, rise, n = 18, drop = 0) { const h = span / 2, r = (rise * rise + h * h) / (2 * h), c = r - h, a1 = Math.atan2(rise, -c), sh = new THREE.Shape(); sh.moveTo(-h, -drop); for (let i = 0; i <= n; i++) { const a = Math.PI - (Math.PI - a1) * i / n; sh.lineTo(c + r * Math.cos(a), r * Math.sin(a)); } for (let i = n - 1; i >= 0; i--) { const a = Math.PI - (Math.PI - a1) * i / n; sh.lineTo(-(c + r * Math.cos(a)), r * Math.sin(a)); } sh.lineTo(h, -drop); return sh; }
@@ -486,7 +487,7 @@ export class World {
     if (T.wainscot) for (let wy = b.y0 + FLOOR; wy < b.y1 - 3; wy += SH) add(wplane(tm(S_.wainscot), W, 1.6, b.x0 + W / 2, wy + 0.8, ZB + 0.03));
     if (T.rug) { const c = plane(surface(T.rug[0], Math.max(1, Math.round(W / 3)), 1, { dir: T.rug[1] }), W - 2, 2.2, b.x0 + W / 2, b.y0 + FLOOR + 0.012, -0.4); c.rotation.x = -Math.PI / 2; c.receiveShadow = true; add(c); }
     room.pillarX = []; if (T.arcade) this.arcade(room, KIT, slots);
-    if (T.beams) for (let x = b.x0 + 2.5; x < b.x1 - 1; x += 5) add(box(surface('adzed_beam', 1, 0.5, { dir: X }), x - 0.2, b.y1 - FLOOR - 0.45, x + 0.2, b.y1 - FLOOR, ZB, 1.2));
+    if (false && T.beams) for (let x = b.x0 + 2.5; x < b.x1 - 1; x += 5) add(box(surface('adzed_beam', 1, 0.5, { dir: X }), x - 0.2, b.y1 - FLOOR - 0.45, x + 0.2, b.y1 - FLOOR, ZB, 1.2));
     if (def.theme === 'frost') { const ice = this._ice ||= std(0xd8f2ff, { emissive: 0x2a5a78, roughness: 0.15, transparent: true, opacity: 0.75 }); for (const s of room.solids) if (s.kind === 'plat' || s.kind === 'ledge') { const low = s.y0 - this.groundAt(room, (s.x0 + s.x1) / 2, s.y0 - 0.05) < 3.2; for (let i = 0; i < Math.max(2, (s.x1 - s.x0) * 1.2); i++) { const l = rnd(0.25, 0.8), c = add(new THREE.Mesh(new THREE.ConeGeometry(rnd(0.04, 0.09), l, 5), ice)); c.rotation.x = Math.PI; c.position.set(rnd(s.x0 + 0.1, s.x1 - 0.1), s.y0 - l / 2, low ? rnd(-1.2, 0.1) : rnd(-0.4, 1.2)); } } } /* icicles hang under every ledge (under a low one, behind the hero's head, not in front of it) */
     if (T.damp) for (let x = b.x0 + 4; x < b.x1 - 2; x += rnd(7, 12)) add(plane(decal(Math.random() < 0.5 ? 'damp_rise' : 'soot_streaks', 0x0a1410, 0.75), 6, 5, x, b.y0 + FLOOR + 2.5 + (Math.random() < 0.5 ? 0 : Math.min(H - 6, 3)), ZB + 0.04));
     if (T.heat || def.theme === 'catacomb' || def.theme === 'crypt') for (let x = b.x0 + 5; x < b.x1 - 2; x += rnd(9, 15)) add(plane(decal(T.heat ? 'soot_streaks' : 'blood_splashes', T.heat ? 0x050302 : 0x3a0406, 0.8), 5, 5, x, b.y0 + FLOOR + 3, ZB + 0.04));
@@ -1042,7 +1043,9 @@ export class World {
 
   doorFrame(g, x, y, m) {
     g.add(wbox(m, x - 0.7, y + DOOR_H, x + 0.7, y + DOOR_H + 0.8, ZB, 1.4));
-    for (const dz of [-2.6, 1.0]) g.add(wbox(m, x - 0.75, y - 0.1, x + 0.75, y + DOOR_H, dz, dz + 0.35));
+    // the way through is DARK: the passage's back used to show lit ashlar at the wall's own brightness and read as a bricked-up recess
+    { const dk = plane(DOOR_DARK, 1.5, DOOR_H + 0.1, x, y + DOOR_H / 2, ZB + 0.03); g.add(dk); const th = plane(DOOR_GLOW, 2.6, 1.3, x, y + 0.02, -0.4); th.rotation.x = -Math.PI / 2; g.add(th); } // and a faint pale threshold on the floor marks it as a door
+    g.add(wbox(m, x - 0.75, y - 0.1, x + 0.75, y + DOOR_H, 1.0, 1.35)); // the near jamb only: the far one stood IN the opening and read as brick infill
   }
 
   // materials for the castle kit's slots in this room: the wall stone, dressed stone for mouldings, and the rest
@@ -1167,6 +1170,7 @@ export class World {
   // a dark arcade gets a sconce on every other pier with no fire near it (after the room's own torches are placed)
   // transverse ribs: a chamfered, roll-moulded stone rib across the vault on each pier line, springing from a corbel on the wall
   ribs(room) {
+    return; // (off: seen from the side a rib running toward the camera is a loose plank floating under the ceiling, not a vault rib)
     const I = room.pierInfo; if (!I) return; const m = room.theme.dress ? tm(room.theme.dress, false, 0.6) : tm(['dressed_b', P3, 0xb8b2a8], false, 0.6), b = room.b, cy = b.y1 - FLOOR, lip = std(0x8a8478, { emissive: 0x18140e, roughness: 0.7 });
     if (!room.solids.some(s => s.kind === 'ceil')) return;
     const sec = new THREE.Shape([[-0.24, 0], [0.24, 0], [0.24, -0.12], [0.12, -0.26], [-0.12, -0.26], [-0.24, -0.12]].map(([a, c]) => new THREE.Vector2(a, c)));
@@ -1360,7 +1364,9 @@ export class World {
     { const hw = { window: p.big ? 2.2 : 1.6, rosewindow: 2.6, banner: 1.2, tapestry: 2, painting: 1.5, mirror: 1.3, bookshelf: 1.9, skullwall: 2.2, furnace: 1.9, organ: 2.6, ivy: 2.5, throne: 1.4, statue: 1 }[p.t]; if (hw) (room.hung ||= []).push({ x0: x - hw, x1: x + hw, y, wall: !/throne|statue/.test(p.t) }); }
     const add = o => { g.add(o); return o; }, wood = surface('wood', 1, 1), stone = mat(T.wall, 1, 1), n0 = g.children.length, s0 = room.sources.length;
     switch (p.t) {
-      case 'torch': this.torch(room, x, y + 2.6); break;
+      case 'torch': { // a sconce 2.4 m over its surface, but never up in the vault and never behind a ledge overhead
+        let ty = Math.min(y + 2.4, room.b.y1 - FLOOR - 1.5); for (const sl of room.solids) if ((sl.kind === 'plat' || sl.kind === 'block' || sl.kind === 'ledge') && x > sl.x0 - 0.3 && x < sl.x1 + 0.3 && sl.y0 > y + 1.2 && sl.y0 < ty + 0.6) ty = Math.min(ty, sl.y0 - 0.7);
+        this.torch(room, x, Math.max(y + 1.3, ty)); break; }
       case 'lamp': {
         add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 3.2, 8), IRON)).position.set(x, y + 1.6, -1.8);
         add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.45, 6, 1, true), IRON)).position.set(x, y + 3.4, -1.8);
@@ -1506,7 +1512,7 @@ export class World {
       case 'rubble': for (let i = 0; i < 9; i++) { const s = rnd(0.2, 0.7), r = add(box(stone, 0, 0, s, s * rnd(0.5, 1), 0, s)); r.position.set(x + rnd(-1.4, 1.4), y + s * 0.3, rnd(-3.0, -1.7)); r.rotation.set(rnd(0, 1), rnd(0, 3), rnd(0, 1)); } break;
       case 'altar': { if (p.steps) { const sm = tm(DRESS, false, 0.6); for (let i = 0; i < p.steps; i++) add(wbox(sm, x - 2.6 + i * 0.4, y + i * 0.2 - 0.2, x + 2.6 - i * 0.4, y + (i + 1) * 0.2 - 0.2, -3.3 + i * 0.25, -0.6 - i * 0.25)); } const m = p.style === 'bone' ? tm(['bone_ashlar', P3]) : surface('mausoleum_marble', 1, 1, { dir: X, tint: p.style === 'drowned' ? 0x8a98a0 : undefined }); add(box(m, x - 1.5, y, x + 1.5, y + 1.0, -2.8, -1.6)); add(box(std(p.style === 'bone' ? 0xb8a878 : p.style === 'drowned' ? 0x3a4a58 : 0x7a1018, { roughness: 0.9 }), x - 1.0, y + 1.0, x + 1.0, y + 1.03, -2.85, -1.5)); if (p.style === 'drowned') add(box(std(0x2a4a2a, { roughness: 1 }), x - 1.52, y, x + 1.52, y + 0.22, -2.82, -1.58)); /* yellowed linen for bones; a sodden cloth and an algae line in the choir */ for (const dx of [-1.1, 1.1]) { if (p.style === 'bone') { const bn = std(0xa89c80, { roughness: 0.8 }), sk = add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), bn)); sk.scale.set(0.9, 1, 1.15); sk.position.set(x + dx, y + 1.18, -2.2); for (const ex of [-0.05, 0.05]) add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), std(0x0a0806))).position.set(x + dx + ex, y + 1.2, -2.06); /* eye sockets */ add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.18), bn)).position.set(x + dx, y + 1.05, -2.12); continue; } add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.6, 6), BRASS)).position.set(x + dx, y + 1.3, -2.2); if (p.style !== 'drowned') add(sprite(flameTex(), 0xffb050, 0.14, 0.24, x + dx, y + 1.75, -2.2)); } /* skulls stand watch on a bone altar; the drowned candles are long out */ this.light(room, x, y + 1.9, -1.4, 0xffa860, 7, 8); break; }
       case 'arch': { const h = Math.min(6, top - y - 0.6); for (const dx of [-2.2, 2.2]) add(box(stone, x + dx - 0.35, y, x + dx + 0.35, y + h - 2.2, ZB + 0.05, ZB + 0.8)); const a = add(new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.35, 6, 20, Math.PI), stone)); a.position.set(x, y + h - 2.2, ZB + 0.42); break; }
-      case 'column': if (!(room.pillarX || []).some(px => Math.abs(px - x) < 2.2)) { room.kit ||= await castleKit(); room.slots ||= this.kitSlots(room); this.kitPier(room, x, y, Math.min(top - 0.2, y + 6.5), 0.8); } break;
+      case 'column': if (!(room.pillarX || []).some(px => Math.abs(px - x) < 0.9)) { room.kit ||= await castleKit(); room.slots ||= this.kitSlots(room); this.kitPier(room, x, y, Math.min(top - 0.2, y + 6.5), 0.8); } break;
       case 'waterfall': { const h = Math.min(top - y, 14); add(plane(fxMat(FALL_FS, { uS: { value: new THREE.Vector2(2.2, h) } }, { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 2.2, h, x, y + h / 2, ZB + 0.3));
         add(sprite(glowTex(), 0xe8f6ff, 2.4, 0.9, x, y + 0.25, ZB + 0.6, 0.45)); /* foam where it lands, mist rolling up off the plunge */ const mist = [0, 1, 2].map(i => add(sprite(glowTex(), 0xc8e0ea, 3, 2, x + (i - 1) * 0.8, y + 0.6, ZB + 0.8 + i * 0.3, 0)));
         room.anim.push(t => { for (let i = 0; i < 3; i++) { const m = mist[i], k = (t * 0.3 + i / 3) % 1; m.position.y = y + 0.3 + k * 1.8; m.scale.set(2.4 + k * 2.6, 1.4 + k * 1.6, 1); m.material.opacity = 0.28 * Math.sin(k * Math.PI); } }); this.light(room, x, y + 2, -1, 0x5ab0d0, 7, 9); break; }

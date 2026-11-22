@@ -574,13 +574,14 @@ class Game {
 
   makeChest(room, c, i) {
     const x = room.b.x0 + c.x, y = room.b.y0 + (c.y ?? FLOOR), key = `chest:${room.def.id}:${i}`;
-    const wood = surface('pv_dark_walnut', 1, 1, { dir: 'assets/game/tex2/', tint: c.unique ? 0xffffff : 0x9a8a80 }), iron = new THREE.MeshStandardMaterial({ color: c.unique ? 0xb08a3a : 0x3a3028, metalness: 0.85, roughness: 0.4 });
+    const wood = surface('pv_dark_walnut', 1, 1, { dir: 'assets/game/tex2/', tint: c.unique ? 0xffffff : 0x9a8a80 }), iron = new THREE.MeshStandardMaterial({ color: c.unique ? 0xb08a3a : 0x8a6c38, metalness: 0.85, roughness: 0.4, emissive: c.unique ? 0x7a5a18 : 0x4a3410, emissiveIntensity: 0.7 }); // brass that holds a little light of its own: a chest in a dark alcove still reads as a chest
     const g = new THREE.Group(); g.position.set(x, y, -1.2); if (c.big) g.scale.setScalar(1.35);
     const bodyM = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.8), wood); bodyM.position.y = 0.3; bodyM.castShadow = true;
     const lid = new THREE.Group(); lid.position.set(0, 0.6, -0.4);
     const lidM = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.2, 10, 1, false, 0, Math.PI), wood); lidM.rotation.z = Math.PI / 2; lidM.position.z = 0.4; lid.add(lidM);
     const band = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.08, 0.84), iron); band.position.y = 0.45;
-    g.add(bodyM, lid, band); room.group.add(g);
+    const band2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.84), iron); band2.position.y = 0.3; const lock = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.24, 0.06), iron); lock.position.set(0, 0.42, 0.42);
+    g.add(bodyM, lid, band, band2, lock); room.group.add(g);
     const ch = { room, x, y, key, opened: false, def: c, open: (silent) => { ch.opened = true; lid.rotation.x = -1.9; if (!silent) { audio.play('chest_open_1', 0.6);
       const item = c.unique ? makeUnique(c.unique) : c.gem ? makeGem(c.gem) : c.up ? { up: c.up } : c.gold ? { gold: c.gold } : c.potion ? { potion: true } : c.tier ? tierItem(c.tier, c.rarity, c.slot) : makeItem(c.base, { rarity: c.rarity, sockets: c.sockets });
       this.dropLoot(x, y + 0.8, item, room); if (c.tier) this.dropLoot(x + 0.8, y + 0.8, { gold: 20 * c.tier + (Math.random() * 30 | 0) }, room); this.flags[key] = true; if (c.unique) { this.slowMo(0.6); this.fx.burst(x, y + 1, 0xc88a3a, 40, 5); } } } };
@@ -1183,13 +1184,13 @@ class Game {
 
   onEnemyDeath(e) {
     const P = this.player, T = e.T, echo = P.d.echo;
-    if (e.summoner) { P.gainXP(Math.round(T.xp * 0.15)); return; }
+    if (e.summoner || e.reborn) { P.gainXP(Math.round((e.xp ?? T.xp) * 0.15)); return; } // raised, split or re-risen (enemies.js rerise): a sliver of XP, no spoils
     P.stats.kills++;
-    P.gainXP(Math.max(1, Math.round(T.xp * THREE.MathUtils.clamp(1 + (T.lvl - P.stats.lvl) * 0.12, 0.2, 2.2))));
+    P.gainXP(Math.max(1, Math.round((e.xp ?? T.xp) * THREE.MathUtils.clamp(1 + ((e.lvl ?? T.lvl) - P.stats.lvl) * 0.12, 0.2, 2.2)))); // e.lvl / e.xp: a regular foe raised to its room's level
     if (echo === 'vampire') P.heal(Math.round(P.stats.hpMax * 0.05));
     if (echo === 'harvest') { P.stats.mp = Math.min(P.stats.mpMax, P.stats.mp + 4); this.dropLoot(e.pos.x, e.pos.y + 1, { gold: 4 + T.lvl * 3 }, e.room); }
     if (echo === 'nova') { this.fx.ring(e.cx, e.cy, 0x7ad8ff, 6); audio.play('ice_freeze_2', 0.4); for (const o of this.room.enemies) if (!o.dead && o !== e && Math.hypot(o.cx - e.cx, o.cy - e.cy) < 4.5) { o.chill = 4; o.damage(Math.round(6 + P.stats.lvl * 3), 'ice', true); } }
-    const again = !e.key || this.slain.has(e.key), drop = e.spec.drop === 'potion' && !again ? { potion: true } : rollDrop(Math.max(1, T.lvl), P.d.mf, { respawn: again && !e.boss }); if (e.key) this.slain.add(e.key); // tables: items.js rollDrop; a foe killed before (this.slain) drops lean
+    const again = !e.key || this.slain.has(e.key), drop = e.spec.drop === 'potion' && !again ? { potion: true } : rollDrop(Math.max(1, e.lvl ?? T.lvl), P.d.mf, { respawn: (again || (T.cls === 'fodder' && Math.random() < 0.6)) && !e.boss }) /* fodder comes in crowds now: it mostly rolls the lean table, so loot per room holds */; if (e.key) this.slain.add(e.key); // tables: items.js rollDrop; a foe killed before (this.slain) drops lean
     if (drop) after(0.5, () => this.dropLoot(e.pos.x, e.pos.y + 1, drop, e.room));
     if (e.boss) {
       this.flags[e.key] = true; this.unseal(); $('bossBar').classList.add('hidden'); this.bossE = null;
@@ -1473,7 +1474,7 @@ window.snap = async (name) => { game.render(0); const d = $('view').toDataURL('i
 // visit every room, run it for a moment and report anything that throws
 window.smoke = async (ids) => { const out = []; for (const r of game.world.rooms) { if (ids && !ids.includes(r.def.id)) continue; game._err = 0; try { const d = r.def, sx = d.doors.find(o => o.side === 'W') ? 2 : d.doors.find(o => o.side === 'E') ? d.w * SW - 2 : d.w * SW / 2; await tp(d.id, d.start?.x ?? sx, (d.h - 1) * SH + 0.6, 0); for (const e of game.room.enemies) e.awake = e.awake || false; sim(90); if (game._err) out.push(d.id + ': step error'); } catch (e) { out.push(r.def.id + ': ' + e.message); } } return out; };
 // line monsters up in the long hall for inspection: lineup(['goblin','harpy'], 'attack')
-window.lineup = async (types, pose, gap = 5) => { await tp('lowerhall', 8, 0.5, 5); const r = game.room; for (const e of r.enemies) r.group.remove(e.root); r.enemies = []; let x = 14; const out = []; for (const t of types) { const e = new Enemy(game, { t, x, y: TYPES[t].ai === 'flyer' ? 2.5 : 0.5 }, r); await e.load(); e.update = () => {}; e.facing = -1; if (['hang', 'buried', 'under'].includes(e.state)) { e.state = 'idle'; e.root.visible = true; } e.sync(0); /* frozen foes never run update: a ceiling spider would be drawn flipped on the floor */ r.enemies.push(e); out.push(e); x += Math.max(gap, TYPES[t].w + 2.5); }
+window.lineup = async (types, pose, gap = 5) => { await tp('lowerhall', 8, 0.5, 5); const r = game.room; for (const e of r.enemies) r.group.remove(e.root); r.enemies = []; let x = 14; const out = []; for (const t of types) { const e = new Enemy(game, { t, x, y: TYPES[t].fly ? 2.5 : 0.5 }, r); await e.load(); e.update = () => {}; e.facing = -1; if (['hang', 'buried', 'under'].includes(e.state)) { e.state = 'idle'; e.root.visible = true; } e.sync(0); /* frozen foes never run update: a ceiling spider would be drawn flipped on the floor */ r.enemies.push(e); out.push(e); x += Math.max(gap, TYPES[t].w + 2.5); }
   for (const e of out) { const T = e.T, nm = pose === 'attack' ? (T.moves ? T.moves[0].anim : T.anim.attack) : pose === 'walk' ? T.anim.walk : pose === 'death' ? T.anim.death : T.anim.idle, c = e.clips[nm]; if (c) { e.play(nm, 0, { restart: true }); e.mixer.setTime(c.duration * (pose === 'attack' ? (T.windup[0] + T.windup[1]) / 2 : pose === 'death' ? 0.95 : 0.3)); } e.yaw = e.facing * (T.quad ? Math.PI / 2 - 0.22 : Math.PI / 2 - 0.42); e.model.rotation.y = e.yaw; }
   return out.map(e => e.spec.t + ':' + Object.keys(e.clips).length); };
 window.view = async (x, y, z, name) => { const b = game.room.b; game.camera.position.set(b.x0 + x, b.y0 + y + 0.9, z); game.camera.lookAt(b.x0 + x, b.y0 + y, 0); game.camFill.position.set(b.x0 + x + 3, b.y0 + y + 4, 14); game.camFill.target.position.set(b.x0 + x, b.y0 + y, 0); game.world.update(game.time, 0, game.room, { x: b.x0 + x, y: b.y0 + y }); game.composer.render(); const d = $('view').toDataURL('image/jpeg', 0.85); await fetch('/__shot?name=' + encodeURIComponent(name), { method: 'POST', body: d }); return name; };

@@ -93,17 +93,61 @@ stalactite, pipe, web, telescope, orrery, anvil, furnace, rubble, altar, arch, c
 Use 8–20 props per room and vary them; light every 12–16 m of walkway with a torch/brazier/lamp/candles/chandelier.
 
 ## Bestiary (`enemies: [{ t }]`) — tier = the act it suits
-- Tier 1: `zombie` (rise:true makes it claw out of the floor), `child` (fast, small), `thrall` (lunges), `goblin`, `kobold` (throws bones), `wizard` (bolts), `knight` (blocks). Minibosses: `ogre`, `werewolf`. Boss: `caddoc`.
-- Tier 2: `goblin_armored`, `kobold_armored`, `spider` (drops from above, leaps), `harpy` (flyer; y = hover height), `vknight` (shield knight). Miniboss: `crab`. Boss: `harpy_queen`.
-- Tier 3: `mannequin` (only moves when you look away), `werebat` (flyer, hangs), `spider_red`, `necromancer` (skulls, raises zombies, blinks), `zombie_necro` (lobs), `lancer` (charges). Boss: `hydra`.
-- Tier 4: `goatman` (charges), `harpy_undead` (flyer, shoots), `plague_knight`. Minibosses: `flesh_spider`, `dragon_green`. Boss: `gravehart`.
-- Tier 5: `worm` (burrows, erupts under you), `dragonling` (fire breath), `pknight`, `plague_giant` (slams). Miniboss: `bone_golem`. Boss: `cinder_giant`.
-- Tier 6: `dragonling_undead` (frost breath), `witch` (fans of orbs), `night_demon` (teleports behind you), `silver` (paladin). Minibosses: `abyssal_mouth`, `dragon_red`. Boss: `archivist`.
-- Tier 7–8: `necro_lord`. Boss: `dragon_black` (flying). Miniboss: `dragon_undead`. Final boss: `hollow_king`.
+
+Every regular type has ONE pattern, and a class that says how many swings of an at-level sword it takes:
+**fodder** 1–2 · **common** 2–3 · **elite** 4–6 (with a clear opening). Regular foes are raised to the level of the room
+they stand in (`roomLevel` in `src/catalog.js`: the district's act, or one act under the room's highest-tier regular), so a
+Shambler is 1-hit fodder in act 6 too — use low tiers freely as the crowd. Blows cost about 13 / 21 / 25 % of the hero's life.
+Nothing fires from further than ~7 m (the screen's half-width), so a ranged foe must stand within 7 m of the path it covers.
+
+| id | tier | class | pattern (what it demands) | where to place it |
+|---|---|---|---|---|
+| `zombie` | 1 | fodder 1 | Walks straight at you and rakes. With `rise: true` it claws out of the floor when you come within 6.5 m **on its own level**, and keeps rising near you (3 more times) while you stay within 12 m. | Flat entry corridor ≥ 10 m; 2–4 `rise: true` in a lane. Not under a gallery you want quiet. |
+| `child` | 1 | fodder 1 | Flea: two short erratic hops, then a high pounce onto you. Strike before the pounce. | Cramped, uneven ground, steps and low blocks; 1–3 together. |
+| `werebat` | 1 | fodder 1 | Hangs from the ceiling until you pass within 5.5 m, then the roost wakes in a wave (0.4 s apart) and each swoops through you, again and again. | **Needs a solid ceiling/block 3–9 m above its `y`** (put `y` on the floor under it); rows of 3–5 over gaps, stairs and climbs. No ceiling: it hovers. |
+| `thrall` | 1 | fodder 2 | Runs you down, lunging swing carries it on, then stumbles (0.7 s). | Open halls with 6+ m of run-up; pairs. |
+| `goblin` | 1 | fodder 2 | Darts in, stabs, springs back 3 m and waits. Punish the retreat. | Floors ≥ 8 m wide with room behind it; next to a slow foe. |
+| `kobold` | 1 | fodder 2 | Holds its ledge and lobs bones in a high arc (also down from up to 8 m above); backs off when you close. Bones can be swatted. | **On a ledge above or below the path**, 3–7 m from it horizontally; top of a stair. |
+| `wizard` | 1 | common | Turret: two slow bolts 0.6 s apart, one at ankle height, one at head height (order alternates): jump one, duck the other. Never moves. | End of a flat corridor or landing with ≥ 7 m of clear lane in front; same level as the path. |
+| `knight` | 1 | common | Duel: two cuts, each stepping forward, then 0.9 s spent. | Landings ≥ 4 m; first spacing lesson; bridges. |
+| `goblin_armored` | 2 | common | Bomber: keeps 4–8 m off and lobs a fused bomb at where you stand (floor sigil, bursts 1.3 s after the throw, 2.4 m wide). | Behind a gap, a low block or another foe; needs 4 m of floor to back along. |
+| `kobold_armored` | 2 | common | Sentry: owns 4.5 m either side of its post. Step in and it crouches, then darts 3 m; walks back afterwards. Never leaves its stretch. | **Middle of a stretch of flat floor you must cross** (a bridge, a landing before a door ≥ 5 m away); stacked on stacked platforms. |
+| `spider` | 2 | fodder 2 | Hangs on its thread, shivers 0.4 s and drops on whoever walks beneath; bites on the floor, then reels back up. | **Needs a ceiling 3–9 m above** (`y` = the floor below it); over a path, ladder-top or chest. |
+| `skitter` | 2 | fodder 1 | Crawler: walks round and round the ledge or block it stands on (top, side, underside), faster while you stand on it. | **On a free-standing platform or block ≤ 16 m round with clear space under and beside it** — the stepping stones of a climb. On the room floor it only paces 3 m. |
+| `drowned` | 2 | fodder 2 | Merman: swims the pool bed, the water churns 0.45 s, it leaps clear, spits one clot at the top and falls back. | **Needs water**: `x` inside a `water` pool, `y` = the pool's bed; one per 6–8 m of crossing. |
+| `harpy` | 2 | common | Medusa head: crosses in a slow sine wave through your height, turns 6.5 m past you and returns. Its body is the attack. | Over gaps, small platforms and stairs, `y` = 2–3 m above the path; open air or tall rooms. Show the first one on safe ground. |
+| `vknight` | 2 | elite | Shield knight: every frontal blow is turned until its own swing is thrown; open for 0.9 s after (gold rim); slow to turn. | Narrow bridges and corridors (low ceiling = cannot be jumped), with 3 m behind it. |
+| `mannequin` | 3 | common | A statue while you face it, a sprinter when your back is turned. | Rooms where you must turn away: beside a climb, behind you at a chest, on both sides of a corridor. |
+| `spider_red` | 3 | common | Keeps ~6 m off and spits a slow web (swat it); a web that lands binds your legs and it pounces. | Flat floor ≥ 10 m; across a gap from the path; with a melee foe. |
+| `shade` | 3 | fodder 2 | Ghost: drifts slowly straight at you **through walls and floors**; a hit throws it back. | Platforming shafts and climbs, 2–3 at once, `y` anywhere (inside a wall is fine). |
+| `necromancer` | 3 | common | Raises two Shamblers and keeps raising them; a slow seeking skull between. Backs away. Its dead fall with it. | At the back of a room behind other foes, on the same floor, ≥ 6 m of floor in front of it. |
+| `zombie_necro` | 3 | common | Shuffles in lobbing slow clots; killed, it bursts into two Dead Children. | Open floor (the children need landing room); not on a 2 m ledge. |
+| `lancer` | 3 | elite | Lowers its lance 0.7 s, then charges the length of its floor behind its shield: jump it. Skids open for 1 s; a wall stuns it. | **Flat corridor or bridge ≥ 10 m long**, ceiling ≥ 4 m so it can be jumped; no pit in its lane. |
+| `goatman` | 4 | common | Axe Armor: slow advance, returning axe thrown high or low (glint and stoop show which): duck or jump, twice. | Narrow corridor at the hero's level, 5–9 m of lane; classic with a `harpy`. |
+| `harpy_undead` | 4 | common | Flies a pass 4 m overhead dropping three quills (floor marks), then dips to head height for 1.4 s. | Open rooms ≥ 6 m tall and ≥ 12 m wide; over bridges. `y` = 4 m above the path. |
+| `plague_knight` | 4 | elite | Raises its mace 0.6 s, then advances spinning for 1.5 s (turns blows, bites both sides); dizzy and open 1.2 s after. | Floors ≥ 8 m so you can back away; never in a dead end. |
+| `worm` | 5 | common | Travels under the floor, erupts beneath you (ground heaves 0.45 s), spits one arc, burrows after 3 s. | Wide solid floors (not one-way platforms), ≥ 10 m; mines. |
+| `dragonling` | 5 | common | Bites; at 2–5 m rears and breathes fire along the floor for 1 s (crouch, jump or get behind). | On the hero's level, corridors and landings; pairs facing each other. |
+| `pknight` | 5 | elite | Leaps to where you stand (sigil marks the landing, floor bursts 2.6 m wide); blade stuck 1 s. | Rooms ≥ 4 m tall with ≥ 8 m of floor; arenas. |
+| `plague_giant` | 5 | elite | Fills the lane: slam sends a floor wave at you (jump it), sweeps up close; winded after both. | Corridor gate, ceiling ≥ 4.5 m, ≥ 10 m of flat floor in front. |
+| `dragonling_undead` | 6 | common | As the whelp with frost; struck down it falls apart and rebuilds in 2.4 s unless hit once more. | Narrow paths where you must stay to finish it. |
+| `witch` | 6 | common | Casts a fan of three slow orbs, stands 1 s, then blinks to a violet floor sigil 5–7 m from you. | Multi-level rooms with 3+ landings ≥ 2 m wide on her level. |
+| `night_demon` | 6 | elite | Stalks, sinks away and rises at your back (dark sigil) already winding a claw. | Open floors ≥ 8 m; never beside a pit edge. |
+| `silver` | 6 | elite | Paladin: sets a pale-blue ward for 1.1 s (a blow into it is thrown back as a riposte), then two cuts, then spent. | Bridges and landings ≥ 5 m; duel space, nothing else within 4 m. |
+| `necro_lord` | 7 | elite | Three skulls circle it (they bite; swat them); it looses them to seek you and stands bare 3 s. | Centre of a platform ≥ 6 m with approach from both sides. |
+
+- Minibosses: `ogre`, `werewolf` (1) · `crab` (2) · `flesh_spider`, `dragon_green` (4) · `bone_golem` (5) · `abyssal_mouth`,
+  `dragon_red` (6) · `dragon_undead` (8). Bosses: `caddoc` (1) · `harpy_queen` (2) · `hydra` (3) · `gravehart` (4) ·
+  `cinder_giant` (5) · `archivist` (6) · `dragon_black` (7, flying) · `hollow_king` (8). Minibosses take ~30–37 swings, bosses ~62–77.
 Bosses/minibosses need `boss: true` (and `mini: true` for minibosses) and a flat arena at least 2.5 screens wide
 (big quadrupeds — crab, hydra, gravehart, dragons, flesh_spider — need 3+ screens wide and 2 screens tall). Give boss
-arenas a couple of one-way side platforms. Use lower-tier enemies freely in later rooms (they are scaled up), never
-enemies more than one tier above the act in which the room is first reachable. 3–7 regular enemies per ordinary room.
+arenas a couple of one-way side platforms. Never use enemies more than one tier above the act in which the room is first reachable.
+
+**Density.** An ordinary multi-screen room holds **5–10 regular enemies** (a 1×1 room 2–4): roughly 60 % fodder, 30 % common,
+at most one or two elites. Aim for **1–3 active threats per screen**, one of them the lead, and give two foes on a screen
+different demands (ground + air, melee + ranged). Keep the **first 5 m inside every door clear**, and keep ranged foes out of
+the first 8 m. Introduce a type alone on safe ground before combining it. Flyers (`harpy`, `harpy_undead`, `werebat`, `shade`)
+take `y` as their hover height; everything else must stand on a surface.
 
 ## Items
 - Chests: prefer `{ tier, rarity }` (random weapon/armour of that act). Named bases use ids from
@@ -120,7 +164,7 @@ enemies more than one tier above the act in which the room is first reachable. 3
 1. **Each room has one idea** — a climb, a gauntlet, a hazard puzzle, an arena, a vista — and a shape that expresses it.
    Mix wide halls (4–6 squares), tall shafts (1×4 … 1×8), big multi-screen chambers (3×3, 4×2) and small 1×1 save/treasure rooms.
 2. **It must be fun to move through**: rhythm of jumps, alternate route high/low, landings wide enough to fight on (≥ 3 m),
-   enemies placed where their behaviour bites (flyers over gaps, shield knights on narrow bridges, casters on ledges above).
+   enemies placed where their behaviour bites (see the bestiary's placement column).
 3. **Solid blocks make architecture**: raised daises, stepped floors, pillars you jump between, thick walls with a door-height gap.
    One-way platforms are for ledges and balconies. Avoid long empty flat floors: break every 10–14 m with a block, stair, prop cluster or enemy.
 4. **Tease and gate**: visible-but-unreachable chests and doors for later bells; at least 3 such teasers per district, and

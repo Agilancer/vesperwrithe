@@ -14,16 +14,21 @@ export default [
 
   { id: 'gatehouse', name: 'Blackthorn Gatehouse', area: '02', col: 11, row: 0, w: 2, h: 1, theme: 'hall',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }],
-    // the killing passage: two stepped guard daises, a sunken lane between them where the dead claw up, and a timber
-    // wall-walk over the lane. Low road = swing practice on zombies; high road = step, dais, gallery (the jump lesson) past a bone-thrower.
-    blocks: [{ x: 6, y: 0.5, w: 1.5, h: 0.8 }, { x: 7.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 19.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 23, y: 0.5, w: 1.5, h: 0.8 }],
-    platforms: [{ x: 12, y: 3.9, w: 5.5 }],
-    enemies: [{ t: 'zombie', x: 13.2, rise: true }, { t: 'zombie', x: 17.4, rise: true, drop: 'potion' }, { t: 'kobold', x: 16.4, y: 3.9 }, { t: 'zombie', x: 20.6, y: 2.1 }],
-    items: [{ x: 13.4, y: 3.9, gold: 50 }],
-    breakables: [{ x: 4.8 }, { x: 10.2, y: 2.1 }, { x: 15.4 }],
-    props: [{ t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'torch', x: 3.2 }, { t: 'torch', x: 23.6 },
-      { t: 'windlass', x: 9, y: 2.1 }, { t: 'banner', x: 14.75, y: 3.9 }, { t: 'torch', x: 12.5, y: 3.9 }, { t: 'torch', x: 17, y: 3.9 },
-      { t: 'bones', x: 14.4 }, { t: 'rubble', x: 16.6 }, { t: 'crate', x: 21.5, y: 2.1 }, { t: 'barrel', x: 22.3, y: 2.1 }],
+    // the killing passage: a stepped guard dais, a sunken lane where four dead claw up in turn, a timber wall-walk over it
+    // carried between two piers, and a sheer far dais. Low road = swing practice; high road = step, dais, gallery (the jump
+    // lesson, paid with a potion) past a bone-thrower. A chest on a high ledge by the round window waits for the double jump.
+    blocks: [{ x: 6, y: 0.5, w: 1.5, h: 0.8 }, { x: 7.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 19.5, y: 0.5, w: 4.5, h: 1.6 }],
+    platforms: [{ x: 12, y: 3.4, w: 5.5 }, { x: 23.3, y: 5.2, w: 2.8 }],
+    enemies: [{ t: 'zombie', x: 10.2, y: 2.1 }, { t: 'zombie', x: 13.8, rise: true }, { t: 'zombie', x: 15.6, rise: true }, { t: 'zombie', x: 17.2, rise: true },
+      { t: 'zombie', x: 18.6, rise: true, drop: 'potion' }, { t: 'kobold', x: 16.9, y: 3.4 }, { t: 'zombie', x: 21.1, y: 2.1 }],
+    items: [{ x: 17, y: 3.4, potion: true }],
+    chests: [{ x: 25.0, y: 5.2, gem: 'emerald' }],
+    breakables: [{ x: 4.8 }, { x: 10.7, y: 2.1 }, { x: 15.3 }],
+    props: [{ t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'torch', x: 3.2 }, { t: 'torch', x: 25.2 }, { t: 'barrel', x: 1.7 }, { t: 'crate', x: 2.4 },
+      { t: 'windlass', x: 8.2, y: 2.1 }, { t: 'torch', x: 9.8, y: 2.1 },
+      { t: 'torch', x: 12, y: 3.4 }, { t: 'tapestry', x: 14.3, y: 3.4 }, { t: 'torch', x: 16.6, y: 3.4 }, { t: 'hook', x: 19 }, { t: 'candles', x: 24.0, y: 5.2 },
+      { t: 'bones', x: 12.5 }, { t: 'candles', x: 14.7 }, { t: 'bones', x: 16 }, { t: 'bones', x: 17.6 }, { t: 'rubble', x: 18.9 },
+      { t: 'brazier', x: 19.9, y: 2.1 }],
     lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' },
       { x: 15, text: 'The gate-wardens dug this lane to trap the living. The dead have kept it.' }] },
 
