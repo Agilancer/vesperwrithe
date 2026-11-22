@@ -7,26 +7,71 @@ export default [
   { id: 'causeway', name: 'Pilgrim Causeway', area: '01', col: 8, row: 0, w: 3, h: 1, theme: 'outdoor',
     doors: [{ side: 'E', row: 0 }],
     start: { x: 5, y: 0.5 }, vistaAt: { x: 25, z: 19 }, // the barbican fills the frame on the approach
-    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 2, tutorial: true }], // two: the shaft's Topaz needn't block the Ruby the thorn gate wants
-    props: [{ t: 'statue', x: 22 }, { t: 'lamp', x: 15 }, { t: 'lamp', x: 30 }, { t: 'gatearch', x: 38.8 }, { t: 'tree', x: 4 }, { t: 'grave', x: 26 }],
-    breakables: [{ x: 18 }, { x: 26 }, { x: 33 }],
-    lore: [{ x: 14, text: 'The causeway ends where the castle begins. Nothing behind you remains.' }] },
+    // the blade has two sockets: the shaft's Topaz needn't block the Ruby the thorn gate wants
+    // the pilgrims' road: take the blade, climb the toll-shrine that humps the bridge (first dead, alone, on a wide flat),
+    // then either walk down its far stair into a lane of four that claw up in turn, or hop the three broken spans of the
+    // wall-walk over them (coin on the 2nd, one dead and a potion on the 3rd); a fallen tomb by the gate climbs back up from the east.
+    stairs: [{ x: 13, steps: 3, dir: 1, rise: 0.5, run: 1, y: 0.5 }, { x: 26, steps: 3, dir: -1, rise: 0.5, run: 1, y: 0.5 }],
+    blocks: [{ x: 16, y: 0.5, w: 7, h: 1.5 }, { x: 36.2, y: 0.5, w: 1.4, h: 1.2 }],
+    platforms: [{ x: 23.2, y: 3.8, w: 3.2 }, { x: 28.1, y: 3.8, w: 3.0 }, { x: 32.8, y: 3.3, w: 3.2 }],
+    enemies: [{ t: 'zombie', x: 21.2, y: 2.0 }, { t: 'zombie', x: 28.8, rise: true }, { t: 'zombie', x: 30.5 }, { t: 'zombie', x: 31.6, rise: true },
+      { t: 'zombie', x: 33.4, rise: true }, { t: 'zombie', x: 34.3, y: 3.3 }],
+    items: [{ x: 9.5, y: 0.5, pedestal: true, base: 'pilgrim_blade', rarity: 'normal', sockets: 2, tutorial: true }, { x: 29.6, y: 3.8, gold: 50 }, { x: 35.4, y: 3.3, potion: true }],
+    props: [{ t: 'tree', x: 1.2 }, { t: 'lamp', x: 4.2 }, { t: 'lamp', x: 12.2 },
+      { t: 'brazier', x: 16.6, y: 2.0 }, { t: 'statue', x: 19.5, y: 2.0 }, { t: 'brazier', x: 22.7, y: 2.0 },
+      { t: 'lamp', x: 27.25 }, { t: 'rubble', x: 30.8 }, { t: 'lamp', x: 31.95 }, { t: 'bones', x: 32.6 }, { t: 'bones', x: 34.2 }, { t: 'rubble', x: 35.4 }, { t: 'gatearch', x: 38.8 }],
+    breakables: [{ x: 7.8 }, { x: 11.3 }, { x: 18 , y: 2.0 }, { x: 29.6 }, { x: 34.9 }],
+    lore: [{ x: 14, text: 'The causeway ends where the castle begins. Nothing behind you remains.' },
+      { x: 19.5, y: 2.0, text: 'Pilgrims paid their toll here and left their dead by the road. The dead did not stay left.' }] },
 
   { id: 'gatehouse', name: 'Blackthorn Gatehouse', area: '02', col: 11, row: 0, w: 2, h: 1, theme: 'hall',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }],
-    enemies: [{ t: 'zombie', x: 17, rise: true, drop: 'potion' }],
-    breakables: [{ x: 9 }],
-    props: [{ t: 'torch', x: 4 }, { t: 'torch', x: 22 }, { t: 'banner', x: 13.3 }, { t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'windlass', x: 6.6 }, { t: 'barrel', x: 7 }, { t: 'crate', x: 20.5 }],
-    lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' }] },
+    // the killing passage: a stepped guard dais, a sunken lane where four dead claw up in turn, a timber wall-walk over it
+    // carried between two piers, and a sheer far dais. Low road = swing practice; high road = step, dais, gallery (the jump
+    // lesson, paid with a potion) past a bone-thrower. A chest on a high ledge by the round window waits for the double jump.
+    blocks: [{ x: 6, y: 0.5, w: 1.5, h: 0.8 }, { x: 7.5, y: 0.5, w: 3.5, h: 1.6 }, { x: 19.5, y: 0.5, w: 4.5, h: 1.6 }],
+    platforms: [{ x: 12, y: 3.4, w: 5.5 }, { x: 23.3, y: 5.2, w: 2.8 }],
+    enemies: [{ t: 'zombie', x: 10.2, y: 2.1 }, { t: 'zombie', x: 13.8, rise: true }, { t: 'zombie', x: 15.6, rise: true }, { t: 'zombie', x: 17.2, rise: true },
+      { t: 'zombie', x: 18.6, rise: true, drop: 'potion' }, { t: 'kobold', x: 16.9, y: 3.4 }, { t: 'zombie', x: 21.1, y: 2.1 }],
+    items: [{ x: 17, y: 3.4, potion: true }],
+    chests: [{ x: 25.0, y: 5.2, gem: 'emerald' }],
+    breakables: [{ x: 4.8 }, { x: 10.7, y: 2.1 }, { x: 15.3 }],
+    props: [{ t: 'portcullis', x: 0.4 }, { t: 'portcullis', x: 26.3 }, { t: 'torch', x: 3.2 }, { t: 'torch', x: 25.2 }, { t: 'barrel', x: 1.7 }, { t: 'crate', x: 2.4 },
+      { t: 'windlass', x: 8.2, y: 2.1 }, { t: 'torch', x: 9.8, y: 2.1 },
+      { t: 'torch', x: 12, y: 3.4 }, { t: 'tapestry', x: 14.3, y: 3.4 }, { t: 'torch', x: 16.6, y: 3.4 }, { t: 'hook', x: 19 }, { t: 'candles', x: 24.0, y: 5.2 },
+      { t: 'bones', x: 12.5 }, { t: 'candles', x: 14.7 }, { t: 'bones', x: 16 }, { t: 'bones', x: 17.6 }, { t: 'rubble', x: 18.9 },
+      { t: 'brazier', x: 19.9, y: 2.1 }],
+    lore: [{ x: 3.5, text: '{jump} to leap — hold it to climb higher.  {dash} to slip back from a blow.' },
+      { x: 15, text: 'The gate-wardens dug this lane to trap the living. The dead have kept it.' }] },
 
   { id: 'shaft', name: 'Blackthorn Shaft', area: '02', col: 13, row: -4, w: 1, h: 5, theme: 'shaft',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }, { side: 'W', row: -4 }, { side: 'E', row: -4 }, { side: 'E', row: -1 }],
     cracks: [{ x: 12.33, y: 8.0, w: 1.0, h: 3.8, hp: 3, glow: 0xffc070 }], // a walled-up doorway: mortar weeps dust, the stone rings hollow
-    platforms: zig([[1.5, 2.7, 4.5], [7.5, 4.9, 3], [3.5, 7.1, 2.6], [6.4, 9.3, 3.6], [3.2, 11.5, 3], [7.6, 13.7, 2.4], [10.2, 15.9, 2.6], [4.2, 18.1, 5.2], [0.8, 20.3, 2.6], [5, 22.5, 2.6], [8.6, 24.7, 4.2], [4, 26.9, 3], [7.5, 28.7, 3], [3.2, 28.7, 2.4]]),
-    enemies: [{ t: 'knight', x: 10.5, y: 24.7 }, { t: 'zombie', x: 6.6, y: 18.1 }, { t: 'child', x: 10, y: 9.3 }],
-    chests: [{ x: 1.6, y: 20.3, gem: 'topaz' }],
-    breakables: [{ x: 6.8, y: 18.1 }, { x: 9.8, y: 9.3 }],
-    props: [{ t: 'chain', x: 6.6 }, { t: 'torch', x: 1, y: 11.5 }, { t: 'torch', x: 12.3, y: 15.9 }, { t: 'torch', x: 1, y: 20.3 }, { t: 'torch', x: 12.3, y: 24.7 }, { t: 'web', x: 2, y: 30 }] },
+    // ONE IDEA: a pendulum climb. Solid wall balconies alternate left/right, one-way stones hang in the middle (every rise 1.8 m,
+    // gaps swing unevenly 0.3-2.3 m), each stone hung on a pair of chains; a thick gallery floor halfway is the fighting landing; the stones alone are the double-jump express later.
+    blocks: [{ x: 5, y: 0.5, w: 3.3, h: 1.4 },                                   // plinth at the foot
+      { x: 0.5, y: 4.6, w: 3.2, h: 0.9 }, { x: 0.5, y: 8.2, w: 2.4, h: 0.9 },   // west balconies (5.5, 9.1)
+      { x: 9.63, y: 11.8, w: 3.2, h: 0.9 },                                      // hood over the walled-up doorway (12.7)
+      { x: 0.5, y: 15.4, w: 8, h: 0.9 },                                         // the gallery floor (16.3), open on the east
+      { x: 9.63, y: 19.0, w: 3.2, h: 0.9 }, { x: 0.5, y: 22.6, w: 3.2, h: 0.9 }, { x: 9.63, y: 26.2, w: 3.2, h: 0.9 }], // 19.9, 23.5, 27.1
+    platforms: zig([[5.15, 3.7, 3], [5, 7.3, 3.3], [5, 10.9, 3.3], [9.4, 14.5, 3.2], [5, 18.1, 3.3], [4.0, 21.7, 3.3], [6, 25.3, 3.3], [5.4, 28.9, 2.4], [4.4, 30.5, 4.5],
+      [5.2, 34.1, 3]]), // last: a chained ledge only a double jump reaches
+    enemies: [{ t: 'child', x: 6.6, y: 1.9 }, { t: 'kobold', x: 1.6, y: 9.1 },
+      { t: 'werebat', x: 2.4, y: 9.1 }, { t: 'werebat', x: 6.6, y: 10.9 }, { t: 'werebat', x: 11, y: 8.0 },
+      { t: 'knight', x: 4.8, y: 16.3 }, { t: 'child', x: 11.6, y: 19.9 },
+      { t: 'skitter', x: 5.8, y: 21.7 }, { t: 'skitter', x: 7.6, y: 25.3 }, { t: 'kobold', x: 11.6, y: 27.1 }],
+    chests: [{ x: 1.6, y: 16.3, gem: 'topaz' }, { x: 7.4, y: 34.1, tier: 2, rarity: 'magic' }],
+    items: [{ x: 1.5, y: 5.5, potion: true }],
+    breakables: [{ x: 7.7, y: 1.9 }, { x: 11.7, y: 12.7 }, { x: 6.67, y: 30.5 }],
+    props: [{ t: 'chain', x: 6.0 },
+      { t: 'chain', x: 4.05, y: 21.7 }, { t: 'chain', x: 9.25, y: 25.3 }, // long chains from the roof to the outer ends of two hung stones (a chain stops at the highest solid under it)
+{ t: 'brazier', x: 5.6, y: 1.9 }, { t: 'bones', x: 10, y: 0.5 },
+      { t: 'torch', x: 1, y: 5.5 }, { t: 'torch', x: 1, y: 9.1 }, { t: 'rubble', x: 11.3, y: 8.0 }, { t: 'torch', x: 12.3, y: 12.7 },
+      { t: 'candles', x: 7.6, y: 16.3 }, { t: 'torch', x: 1, y: 16.3 }, { t: 'banner', x: 2.3, y: 16.3 }, { t: 'banner', x: 2.3, y: 23.5 },
+      { t: 'torch', x: 12.3, y: 19.9 }, { t: 'torch', x: 1, y: 23.5 }, { t: 'torch', x: 12.3, y: 27.1 },
+      { t: 'torch', x: 1, y: 30.5 }, { t: 'torch', x: 12.3, y: 30.5 }, { t: 'window', x: 3.4, y: 31.5, big: true }, { t: 'window', x: 10, y: 31.5, big: true }, { t: 'web', x: 2, y: 30.5 }],
+    lore: [{ x: 6.6, y: 0.5, text: 'Thorn took the stair long ago. Only the stones the masons hung still climb.' },
+      { x: 11.4, y: 8.0, text: 'Mortar weeps from one doorway. Stone laid in haste rings hollow under steel.' }] },
 
   { id: 'lowerhall', name: 'Hall of Lost Pilgrims', area: '02', col: 14, row: 0, w: 6, h: 1, theme: 'hall',
     doors: [{ side: 'W', row: 0 }, { side: 'E', row: 0 }, { side: 'S', col: 15 }],

@@ -5,12 +5,13 @@ import { BASES, STYLES, GEMS, itemStats, isRanged, staffElem } from './items.js'
 import { attackFor, FPS } from './attacks.js';
 import { glowTex } from './world.js';
 import { loadMoves, strideSpeed, Grip } from './moves.js';
+import { swingFor, SwingRig } from './swing.js';
 const STREAK = { fire: 0xff8a40, ice: 0x9fe4ff, lightning: 0xfff07a, poison: 0x9aff6a, shadow: 0xc090ff }; // a flurry's stab flash takes the blade's element
 
 // Movement tuned from Symphony of the Night frame data (docs/research), converted at 1 SotN px ≈ 3.35 cm, 60 fps:
 // walk 1.5 px/f → 4.7 m/s · jump 4.9 px/f → 9.85 m/s · double jump 4.1 px/f → 8.25 m/s · fall cap 7 px/f → 14 m/s
 // backdash peak 3.5 px/f → 7 m/s · coyote 7 f → 0.117 s.
-export const PHYS = { walk: 4.7, jumpV: 9.85, djumpV: 8.25, grav: 17.5, fallMax: 14, cutV: 2.5, backdash: 7.4, backdashT: 0.34, coyote: 0.117, buffer: 0.133, dashV: 13, dashT: 0.22, slideV: 9.5, slideT: 0.46, diveV: 24, kickX: 6.8, kickY: 9.4, kickLock: 0.17, wallSlide: 2.6 };
+export const PHYS = { walk: 5.3, jumpV: 9.85, djumpV: 8.25, grav: 17.5, fallMax: 14, cutV: 2.5, backdash: 7.4, backdashT: 0.34, coyote: 0.117, buffer: 0.133, dashV: 13, dashT: 0.22, slideV: 9.5, slideT: 0.46, diveV: 24, kickX: 6.8, kickY: 9.4, kickLock: 0.17, wallSlide: 2.6 };
 const W = 0.62, H_STAND = 1.72, H_CROUCH = 1.08, H_SLIDE = 0.9;
 const UPPER = /Spine|Neck|Head|Shoulder|Arm|Hand/;
 const ELEM_COLOR = { fire: 0xff5a1a, ice: 0x6ad0ff, lightning: 0xffe24a, poison: 0x6aff4a };
@@ -156,7 +157,7 @@ export class Player {
     const skins = []; this.model.traverse(o => { if (o.isSkinnedMesh) skins.push(o); }); this.xrays = [];
     for (const o of skins) { const x = new THREE.SkinnedMesh(o.geometry, XRAY); x.bind(o.skeleton, o.bindMatrix); x.position.copy(o.position); x.quaternion.copy(o.quaternion); x.scale.copy(o.scale); x.frustumCulled = false; x.renderOrder = 1; x.userData.xray = true; o.renderOrder = 3; o.parent.add(x); this.xrays.push(x); }
     this.trail = new Trail(this.g.scene);
-    this.scarf = new Scarf(this.g.scene, this.model.getObjectByName('mixamorigNeck')); this.scarf.mesh.renderOrder = 3; // with the body, after the x-ray: a scarf swinging past the shin is not an occluder
+    this.scarf = new Scarf(this.g.scene, this.model.getObjectByName('mixamorigNeck')); // with the body, after the x-ray: a scarf swinging past the shin is not an occluder
 
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = {};
@@ -169,7 +170,7 @@ export class Player {
     }
     // stride-match the run cycles so the feet do not skate, and keep the fingers closed on whatever is held
     this.stride = {}; for (const n of [ANIM.jog, ANIM.jogArmed]) this.stride[n] = strideSpeed(this.mixer, this.model, this.clips[n].full) || 4;
-    this.grip = new Grip(this.model, this.clips.vw_grip?.full);
+    this.grip = new Grip(this.model, this.clips.vw_grip?.full); this.rig = new SwingRig(this.model);
     this.setLayer('lower', ANIM.idle, 0); this.setLayer('upper', ANIM.idle, 0);
   }
 
@@ -388,11 +389,11 @@ export class Player {
     if (this.state === 'free') {
       this.crouch = (inp.down && this.onGround) || (this.onGround && this.lowCeiling());
       if (this.kickT > 0) { this.kickT -= dt; dir = 0; }
-      const canTurn = !(attacking && this.onGround);
+      const canTurn = !attacking;
       if (dir && canTurn) this.facing = Math.sign(dir);
       let speed = P.walk; if (this.snareT > 0) { this.snareT -= dt; speed *= 0.3; if (Math.random() < dt * 8) this.g.fx.spawn(this.pos.x + (Math.random() - 0.5) * 0.6, this.pos.y + 0.3 + Math.random() * 0.5, 0.6, 0, 0.3, 0xe8e8f8, 0.4, 0.14, 0, false); } // a net binds the legs
       if (this.crouch || this.blocking && this.onGround) speed = 0;
-      if (attacking && this.onGround) speed = heavy ? 0 : P.walk * 0.55;
+      if (attacking && this.onGround) speed = 0; // a planted cut (SotN): the step-in is the swing's own
       if (this.kickT > 0) { /* carried by the wall kick */ } else { // a few frames of acceleration and braking: weight without losing SotN precision
         const tv = dir * speed * (this.inWater ? 0.62 : 1) * (this.inLava ? 0.6 : 1), rev = tv * this.vel.x < 0, acc = (!this.onGround ? 90 : rev ? 130 : tv === 0 ? 80 : 62) * dt;
         if (rev && this.onGround && Math.abs(this.vel.x) > 3 && !this.skidT) { this.skidT = 0.12; this.g.fx.dust(this.pos.x + Math.sign(this.vel.x) * 0.3, this.pos.y); }
@@ -413,7 +414,7 @@ export class Player {
       if (inp.dashP) {
         if (this.onGround && inp.down && abil.has('slide')) { this.state = 'slide'; this.slideT = 0; this.stateT = 0; this.attack = null; this.slideHit = { hitIds: new Set(), st: STYLES.punch }; audio.play('clothing_1', 0.5, 0.8); this.g.feel?.('slide'); }
         else if (abil.has('dash') && (!this.onGround || dir) && !this.dashUsed && !(this.dashCd > 0)) { if (dir) this.facing = Math.sign(dir); this.state = 'dash'; this.dashT = 0; this.dashUsed = !this.onGround; this.dashCd = 0.62; this.attack = null; this.inv = Math.max(this.inv, 0.3); this.g.fx.burst(this.pos.x, this.pos.y + 0.9, 0x9a5aff, 18, 3); audio.play('wave_attack_2', 0.4, 1.3); this.g.feel?.('dash'); }
-        else if (this.onGround && (!attacking || this.attack.pastHit) && !(abil.has('dash') && dir)) { if (attacking) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); } this.state = 'backdash'; this.backdashT = 0; this.stateT = 0; this.crouch = false; /* i-frames: DASH_IFR in takeHit */ audio.play('clothing_1', 0.4); this.g.onBackdash?.(); }
+        else if (this.onGround && (!attacking || this.attack.pastHit) && !(abil.has('dash') && dir)) { if (attacking) this.endAttack(); this.state = 'backdash'; this.backdashT = 0; this.stateT = 0; this.crouch = false; /* i-frames: DASH_IFR in takeHit */ audio.play('clothing_1', 0.4); this.g.onBackdash?.(); }
       }
       // attack / dive
       if (inp.attackP && inp.up && !inp.down && this.armed && !this.d.ranged && !attacking && this.stats.mp >= 10) { this.stats.mp -= 10; this.startAttack(); if (this.attack) this.attack.art = true; }
@@ -439,7 +440,7 @@ export class Player {
     const wasGround = this.onGround, vyBefore = this.vel.y;
     this.move(dt);
     if (this.onGround && this.state === 'dive') { this.state = 'free'; this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; this.g.diveLand(this); this.landT = LAND_T; }
-    else if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { if (this.airAttacked && this.d.echo === 'quake') this.g.quake(this); this.airAttacked = false; this.landT = LAND_T; this.dip = { t: 0, a: Math.min(1, Math.max(0.25, -vyBefore / 13)) }; audio.play('stone_land', 0.3); if (-vyBefore > 11.5) this.g.feel?.('land', Math.min(1.2, -vyBefore / 14)); /* only drops deeper than a jump thud in the hands */ this.g.fx.dust(this.pos.x, this.pos.y); } }
+    else if (this.onGround) { this.jumpsLeft = 1; this.dashUsed = false; this.coyote = P.coyote; if (!wasGround) { if (this.attack?.mode === 'air') this.endAttack(); if (this.airAttacked && this.d.echo === 'quake') this.g.quake(this); this.airAttacked = false; this.landT = LAND_T; this.dip = { t: 0, a: Math.min(1, Math.max(0.25, -vyBefore / 13)) }; audio.play('stone_land', 0.3); if (-vyBefore > 11.5) this.g.feel?.('land', Math.min(1.2, -vyBefore / 14)); /* only drops deeper than a jump thud in the hands */ this.g.fx.dust(this.pos.x, this.pos.y); } }
     else if (wasGround && this.vel.y <= 0) { /* walked off ledge: keep coyote */ } else if (this.coyote > 0) this.coyote -= dt;
 
     // footsteps
@@ -501,52 +502,38 @@ export class Player {
     return false;
   }
 
-  startAttack(ci = 0) {
-    const w = this.equip.weapon, base = w ? BASES[w.base] : null;
-    // a style with a chain plays link `ci` of it (unless the Attack Viewer has swapped the style's clip)
-    const st0 = attackFor(base), chain = st0.chain && st0.anim === st0.chain[0].anim ? st0.chain : null;
-    const st = chain ? { ...st0, ...chain[ci % chain.length] } : st0;
-    if (ci && this.inpX && this.onGround) this.facing = Math.sign(this.inpX); // re-aim between links
+  // One swing per weapon class (src/swing.js), the same cut standing, crouching and in the air. The legs keep their own clip.
+  startAttack() {
+    const w = this.equip.weapon, base = w ? BASES[w.base] : null, S = swingFor(base ? base.kind : 'unarmed');
     const ias = 1 + Math.min(120, this.d?.ias || 0) / 100; this.swings++; if (!this.onGround) this.airAttacked = true;
-    const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : Math.abs(this.vel.x) > 0.5 && !this.backStrike ? 'move' : 'idle'; this.backStrike = false; // a backdash-strike plants its feet
-    this.attack = { st, chain, ci, t: ci ? (st.dur / ias) * 2 / (st.to - st.from) : 0, dur: st.dur / ias, hitIds: new Set(), mode, heavy: base && (base.hands === 2 || /smash/.test(base.style)) && !st.ranged, swung: false, n: this.swings, reach: st.reach * (this.d?.echo === 'long' ? 1.35 : 1) };
-    const fullBody = mode === 'idle' && !st.upperOnly;
-    this.setLayer('upper', st.anim, ci ? 0.1 : 0.06, { manual: true, at: st.from / FPS, restart: true });
-    if (fullBody) this.setLayer('lower', st.anim, ci ? 0.1 : 0.08, { manual: true, at: st.from / FPS, restart: true });
+    const mode = this.crouch ? 'crouch' : !this.onGround ? 'air' : 'idle'; this.backStrike = false;
+    const st = { ...S, hitMul: S.melee, both: false };
+    this.attack = { st, S, ci: 0, t: 0, k: 0, dur: S.dur / ias * (mode === 'air' ? 0.9 : 1), hitIds: new Set(), mode, heavy: !!S.heavy, swung: false, n: this.swings, reach: S.reach * (this.d?.echo === 'long' ? 1.35 : 1) };
+    this.trail.end();
   }
+  endAttack() { this.attack = null; this.trail.end(); }
 
   updateAttack(dt) {
-    const A = this.attack, st = A.st;
-    A.t += dt; const k = Math.min(1, A.t / A.dur);
-    // ease-in on windup, snap through the strike
-    const f = st.from + (st.to - st.from) * k;
-    const t = f / FPS;
-    const up = this.clipAct(st.anim, 'upper'); up.time = t;
-    if (this.layers.lower.cur === st.anim) this.clipAct(st.anim, 'lower').time = t;
-    if (!A.swung && f >= st.hit[0] - 2) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : 1.05); }
-    A.active = f >= st.hit[0] && f <= st.hit[1]; A.pastHit = f > st.hit[1];
-    if (st.hits) { const wi = st.hits.findIndex(([a, b]) => f >= a && f <= b); A.active = wi >= 0; if (wi >= 0 && wi !== A.wi) { A.wi = wi; A.hitIds.clear(); if (st.boxes?.[wi]?.pull) A.crescentDue = true; if (wi) audio.play('sword_attack_' + (1 + (wi & 1)), 0.4, 1.25 + wi * 0.08); A.streak = wi; } } // a flurry: every drive is its own hit
-    // the reap leaves a crescent in steel (or its element), held to 60% value, its belly on the blade's tip; it waits until the
-    // tip is out in front of the hero (spawned at the window's first frame it was drawn behind him, then crossed his thighs)
-    if (A.crescentDue && A.active) { const wm = this.weaponMesh, tip = wm?.userData.len ? wm.localToWorld(new THREE.Vector3(0, wm.userData.len / wm.scale.x, 0)) : null;
-      if (!tip || (tip.x - this.pos.x) * this.facing > 0.55) { A.crescentDue = false; const tx = tip ? tip.x : this.pos.x + this.facing * 1.4, ty = tip ? THREE.MathUtils.clamp(tip.y, this.pos.y + 0.35, this.pos.y + 1.4) : this.pos.y + 0.95;
-        this.g.fx.crescent(tx, ty - 0.45, this.facing, dim60(ELEM_COLOR[this.fx?.userData.elem] || (this.trailElem === 'reaper' ? 0xd8f0c8 : STEEL_ARC)), 1.0); } }
-    const pad = st.cancel !== undefined ? 1 : 3; // authored clips: the ribbon belongs to the cut, not the wind-up
-    if (f >= st.hit[0] - pad && f <= st.hit[1] + pad - 1) this.trailOn = true;
-    if (st.ranged) { if (!A.shot && f >= (st.shotAt ?? st.hit[0])) { A.shot = true; this._spell = st.ranged === 'staff'; try { this.g.playerShoot(this, st.ranged); } finally { this._spell = false; } } } // a staff's bolt is a spell: Intellect feeds it (rollDamage)
-    else if (A.active) { if (!A.proc) { A.proc = true; this.g.onSwing(this, A); if (A.art) this.g.castArt(this); } this.g.playerHits(this.hitbox()); }
-    // a planted swing steps into the cut (eased out); chains flow on a buffered press; holding a direction walks out of the recovery
-    if (st.cancel !== undefined) {
-      const w = st.hits ? st.hits[Math.max(0, A.wi ?? 0)] : st.hit; // a flurry steps in again with each drive
-      if (A.mode === 'idle' && this.onGround && !st.upperOnly && f >= w[0] - 2 && f <= w[1]) { // the step stops once the blade bites, or at a body's edge: never carry on into what you hit
-        if (A.hitIds.size || this.bodyAhead(0.35)) this.vel.x = 0; else { const u = (f - w[0] + 2) / (w[1] - w[0] + 2); this.vel.x = this.facing * (st.lunge || (A.heavy ? 1.8 : 2.8)) * (1 - u) * (1 - u); } }
-      if (f >= st.cancel) {
-        if (A.queued && A.chain && A.ci < A.chain.length - 1) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(A.ci + 1); return; }
-        if (A.queued && (A.chain ? f >= st.cancel + 1 : f >= st.cancel)) { this.trail.end(); this.trail.mesh.visible = false; this.trail.life = 0; this.attack = null; this.startAttack(0); return; } // a press during the last cut starts the chain again
-        if (this.inpX && !A.queued && f >= st.cancel + 2) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); return; }
-      }
-    }
-    if (k >= 1) { this.attack = null; this.layers.upper.manual = false; this.trail.end(); }
+    const A = this.attack, S = A.S;
+    A.t += dt; const k = A.k = Math.min(1, A.t / A.dur);
+    if (!A.swung && k >= S.hit[0] - 0.08) { A.swung = true; audio.play(A.heavy ? 'sword_attack_3' : 'sword_attack_' + (1 + Math.floor(Math.random() * 2)), 0.5, A.heavy ? 0.85 : S.dur < 0.25 ? 1.3 : 1.05); }
+    A.active = k >= S.hit[0] && k <= S.hit[1]; A.pastHit = k > S.hit[1];
+    if (k >= S.hit[0] - 0.05 && k <= S.hit[1] + 0.08 && S.ranged !== 'arrow') this.trailOn = true; // the crescent belongs to the cut, not the wind-up
+    if (S.ranged && !A.shot && k >= S.shot) { A.shot = true; this._spell = S.ranged === 'staff'; try { this.g.playerShoot(this, S.ranged); } finally { this._spell = false; } } // a staff's bolt is a spell: Intellect feeds it (rollDamage)
+    if (A.active && (!S.ranged || S.melee)) { if (!A.proc) { A.proc = true; A.streakDue = !!S.thrust; this.g.onSwing(this, A); if (A.art) this.g.castArt(this); } this.g.playerHits(this.hitbox()); }
+    if (S.slam && !A.slammed && k >= S.slam && this.onGround) { A.slammed = true; this.g.shake(0.3, 0, -1); this.g.fx.dust(this.pos.x + this.facing * (A.reach * 0.8), this.pos.y); audio.play('rock_wall_1', 0.3, 0.8); } // a maul's head lands
+    // a planted swing steps into the cut (eased out); the step stops once the blade bites, or at a body's edge
+    if (this.onGround && A.mode === 'idle' && k >= S.hit[0] - 0.1 && k <= S.hit[1]) {
+      if (A.hitIds.size || this.bodyAhead(0.35)) this.vel.x = 0; else { const u = (k - S.hit[0] + 0.1) / (S.hit[1] - S.hit[0] + 0.1); this.vel.x = this.facing * S.lunge * (1 - u) * (1 - u); } }
+    // the recovery is only for show: a new press swings again, a step walks out of it
+    if (k >= S.cancel) { if (A.queued) { this.attack = null; this.startAttack(); return; } if (this.inpX && this.onGround) { this.endAttack(); return; } }
+    if (k >= 1) this.endAttack();
+  }
+  // where a missile leaves: the staff's head, the bow's grip, the throwing hand
+  muzzle() {
+    const m = this.weaponMesh; if (!m) return { x: this.pos.x + this.facing * 0.6, y: this.pos.y + 1.25 };
+    m.updateWorldMatrix(true, false); const len = m.userData.len / m.scale.x, p = this.weaponKind === 'staff' ? m.localToWorld(new THREE.Vector3(0, len * 0.96, 0)) : m.getWorldPosition(new THREE.Vector3());
+    return { x: this.pos.x + this.facing * Math.max(0.35, (p.x - this.pos.x) * this.facing), y: THREE.MathUtils.clamp(p.y, this.pos.y + 0.4, this.pos.y + 2.0) };
   }
 
   // A spear or lance is longer than the hero is tall: where the hand lowers it (guard, recovery) its point would dip through the
@@ -564,20 +551,12 @@ export class Player {
     setWorldQuat(m, new THREE.Quaternion().setFromUnitVectors(a.normalize(), b.normalize()).multiply(m.getWorldQuaternion(new THREE.Quaternion())));
   }
 
-  // A thrust drives the point dead ahead: around each drive the blade is turned onto the facing line (the mocap fist
-  // punches true, but the wrist carried the blade up and behind), and the stab flash leaves from the real tip.
-  aimThrust(m) {
-    const A = this.attack, st = A.st, f = st.from + (st.to - st.from) * Math.min(1, A.t / A.dur); let w = 0;
-    for (const [a, b] of st.hits) if (f >= a - 2.5 && f <= b + 2.5) w = Math.max(w, Math.min(1, (f - (a - 2.5)) / 2, (b + 2.5 - f) / 2));
-    if (w <= 0) return;
-    const cur = m.getWorldQuaternion(new THREE.Quaternion()), axis = new THREE.Vector3(0, 1, 0).applyQuaternion(cur), drop = [0.1, -0.02, -0.12][Math.max(0, A.wi ?? 0)] || 0;
-    const tq = new THREE.Quaternion().setFromUnitVectors(axis, new THREE.Vector3(this.facing, drop, 0.05).normalize()).multiply(cur);
-    setWorldQuat(m, cur.slerp(tq, w));
-    if (A.streak !== undefined && A.streakDone !== A.streak && w > 0.6) { A.streakDone = A.streak; const col = STREAK[this.fx?.userData.elem] || 0xdfe8ff, needle = st.lunge > 6;
-      const twin = !needle && A.streak === 1 && this.pairMesh; let src = m; if (twin) { const p = this.pairMesh, cq = p.getWorldQuaternion(new THREE.Quaternion()), ax = new THREE.Vector3(0, 1, 0).applyQuaternion(cq); setWorldQuat(p, new THREE.Quaternion().setFromUnitVectors(ax, new THREE.Vector3(this.facing, -0.35, 0.05).normalize()).multiply(cq)); src = p; } /* the second drive is the off-hand twin, a low hooked flick */
-      const len = src.userData.len / src.scale.x, tip = src.localToWorld(new THREE.Vector3(0, len, 0));
-      if (needle) { this.g.fx.streak(tip.x - this.facing * 0.1, tip.y, this.facing, (A.reach || st.reach) * 1.05, col, 0.05); this.g.fx.star(tip.x + this.facing * 0.2, tip.y, 0xffffff, 0.55); } /* a rapier: one needle of light and a star at the point */
-      else { this.g.fx.streak(tip.x - this.facing * 0.15, twin ? tip.y - 0.2 : tip.y, this.facing, (A.reach || st.reach) * (A.streak === 2 ? 1.0 : 0.75), col, twin ? 0.1 : 0.13, 1, twin ? -this.facing * 0.25 : 0); this.g.fx.spawn(tip.x, tip.y, 0.9, 0, 0, 0xffffff, 0.1, 0.22, 0); } }
+  // a thrust leaves a needle of light from the point (a rapier adds a star)
+  thrustFlash(wm) {
+    const A = this.attack; A.streakDue = false; const col = STREAK[this.fx?.userData.elem] || 0xdfe8ff;
+    const tip = wm ? wm.localToWorld(new THREE.Vector3(0, wm.userData.len / wm.scale.x, 0)) : new THREE.Vector3(this.pos.x + this.facing, this.pos.y + 1.2, 0);
+    this.g.fx.streak(tip.x - this.facing * 0.5, tip.y, this.facing, A.reach * 0.8, col, A.S.star ? 0.05 : 0.11);
+    if (A.S.star) this.g.fx.star(tip.x + this.facing * 0.2, tip.y, 0xffffff, 0.55);
   }
   hitbox() {
     const st = this.attack.st, f = this.facing;
@@ -713,10 +692,10 @@ export class Player {
       else if (!this.onGround) base = armed ? ANIM.jumpArmed : ANIM.jump;
       else if (this.landT > 0 && Math.abs(this.vel.x) < 0.5 && !this.crouch && !this.attack) base = armed ? ANIM.jumpArmed : ANIM.jump;
       else if (this.crouch) base = this.blocking ? ANIM.crouchBlock : (armed ? ANIM.crouchArmed : ANIM.crouch);
-      else if (Math.abs(this.vel.x) > 0.4) base = armed ? ANIM.jogArmed : ANIM.jog;
+      else if (Math.abs(this.vel.x) > 0.4 && !this.attack) base = armed ? ANIM.jogArmed : ANIM.jog; // a cut is planted: the step-in slides on a set stance
       else base = armed ? ANIM.idleArmed : ANIM.idle;
       const isRun = base === ANIM.jog || base === ANIM.jogArmed, runScale = isRun ? THREE.MathUtils.clamp(Math.abs(this.vel.x) / this.stride[base], 0.55, 2.8) : 1;
-      const lowerBusy = this.attack && this.layers.lower.cur === this.attack.st.anim;
+      const lowerBusy = false;
       if (!lowerBusy) {
         const opts = {};
         if (JUMP_WIN[base]) opts.manual = true;
@@ -733,7 +712,7 @@ export class Player {
         if (isRun) this.clipAct(lo, 'lower').timeScale = runScale;
         if (JUMP_WIN[lo]) this.clipAct(lo, 'lower').time = this.airFrame(JUMP_WIN[lo], lo + 'L', dt) / FPS;
       }
-      if (!this.attack) {
+      {
         let upper = this.blocking ? (this.crouch ? ANIM.crouchBlock : ANIM.block) : (lowerBusy ? this.layers.lower.cur : base);
         if (upper === base && JUMP_WIN[base] && !armed) upper = this.flip > 0 || this.state === 'dash' ? JUMP_TUCK : 'running'; // arms hug the knees in the somersault, pump otherwise
         const opts = {}; if (JUMP_WIN[upper]) opts.manual = true; if (upper === ANIM.fall) opts.at = 0.2; if (upper === ANIM.backdash) opts.speed = 1.6; if (upper === ANIM.jog || upper === ANIM.jogArmed) opts.speed = runScale; if (upper === ANIM.hurt) opts.once = true;
@@ -744,14 +723,14 @@ export class Player {
       }
     }
     if (this.landT > 0) this.landT -= dt;
-    this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
-    this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); if (this.pairMesh?.userData.q0 && !(this.attack?.st.thrust && (this.attack.wi ?? 0) === 1)) this.pairMesh.quaternion.copy(this.pairMesh.userData.q0); this.twoHandIK(); if (wm && this.weaponKind === 'boomerang') wm.visible = !this.g.shots?.some(s => s.kind === 'boomerang' && s.friendly && s.life > 0); /* the boomerang leaves the hand while it flies */ if (this.attack?.st.thrust && wm) this.aimThrust(wm); if (wm && (this.weaponKind === 'spear' || this.weaponKind === 'lance')) this.liftTip(wm, this.onGround); /* a long point never goes through the floor or out through the stage's front (it did in the recoveries) */
-    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem, this.onGround ? this.pos.y : this.g.floorBelow?.(this.pos.x, this.pos.y + 0.05)); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel);
     // facing: rotate through the camera (3/4 view, Bloodstained-style), with a forward somersault on double jump
     const target = this.facing * (Math.PI / 2 - 0.38);
     this.yaw += (target - this.yaw) * Math.min(1, dt * 16);
     this.root.position.set(this.pos.x, this.pos.y, 0);
     this.model.rotation.set(0, this.yaw, 0);
+    this.mixer.update(dt); this.grip.apply(this.armed, !!this.equip.offhand || !!this.twoHand || !!this.pairMesh); this.root.updateMatrixWorld(true);
+    this.groundFeet(dt); this.jfGround = this.onGround; const wm = this.weaponMesh; if (wm?.userData.q0) wm.quaternion.copy(wm.userData.q0); if (this.pairMesh?.userData.q0 && !(this.attack?.st.thrust && (this.attack.wi ?? 0) === 1)) this.pairMesh.quaternion.copy(this.pairMesh.userData.q0); if (this.attack) this.rig.apply(this.attack.S, this.attack.k, this.facing, wm, this.crouch); this.twoHandIK(); if (wm && this.weaponKind === 'boomerang') wm.visible = !this.g.shots?.some(s => s.kind === 'boomerang' && s.friendly && s.life > 0); /* the boomerang leaves the hand while it flies */ if (this.attack?.streakDue) this.thrustFlash(wm); if (wm && (this.weaponKind === 'spear' || this.weaponKind === 'lance')) this.liftTip(wm, this.onGround); /* a long point never goes through the floor or out through the stage's front (it did in the recoveries) */
+    if (this.trailOn) { if (!this.attack?.st.thrust) this.trail.push(this.weaponMesh, this.fx?.userData.elem || this.trailElem, this.onGround ? this.pos.y : this.g.floorBelow?.(this.pos.x, this.pos.y + 0.05)); this.trailOn = false; } /* a thrust draws its needle, not a ribbon */ this.trail.update(dt); this.scarf.update(dt, this.facing, this.vel, this.onGround ? this.pos.y : null);
     // lean into the run and into acceleration
     const ax = dt > 0 ? THREE.MathUtils.clamp((this.vel.x - (this._pvx ?? 0)) / dt, -70, 70) : 0; this._pvx = this.vel.x; this.leanV = (this.leanV || 0) + (ax - (this.leanV || 0)) * Math.min(1, dt * 10);
     const runLean = this.state === 'free' && this.onGround && !this.attack ? -(this.vel.x / PHYS.walk) * 0.035 - this.leanV * 0.0016 : 0;
@@ -788,7 +767,7 @@ export class Trail {
     // fades out where it dips to the floor under the swinger's feet (`low`), so a rising cut leaves no pale crescent on the stone
     this.mat = new THREE.ShaderMaterial({ uniforms: { col: { value: new THREE.Color(0x7fa0ff) }, fade: { value: 1 }, low: { value: -1e9 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       vertexShader: 'attribute float alpha; attribute float w; varying float a; varying float v; varying float wy; void main(){ a=alpha; v=w; vec4 p=modelMatrix*vec4(position,1.); wy=p.y; gl_Position=projectionMatrix*viewMatrix*p; }',
-      fragmentShader: 'uniform vec3 col; uniform float fade; uniform float low; varying float a; varying float v; varying float wy; void main(){ float body=a*pow(v,5.)*.2; float edge=a*smoothstep(.84,1.,v)*.95; float f=min(.55,(body+edge)*fade)*smoothstep(low-.2,low+.1,wy); vec3 c=mix(col, vec3(1.), smoothstep(.9,1.,v)*a*.25); c*=min(1., .6/max(.001,max(c.r,max(c.g,c.b)))); gl_FragColor=vec4(c, f); }' });
+      fragmentShader: 'uniform vec3 col; uniform float fade; uniform float low; varying float a; varying float v; varying float wy; void main(){ float body=a*pow(v,2.4)*.42; float edge=a*smoothstep(.8,1.,v)*.95; float f=min(.72,(body+edge)*fade)*smoothstep(low-.2,low+.1,wy); vec3 c=mix(col, vec3(1.), smoothstep(.9,1.,v)*a*.25); c*=min(1., .6/max(.001,max(c.r,max(c.g,c.b)))); gl_FragColor=vec4(c, f); }' });
     this.mesh = new THREE.Mesh(this.geo, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh); this.life = 0;
   }
   push(weapon, elem, floorY) { // floorY: the floor under the swinger (null: none), the ribbon fades out from 0.3 m above it
@@ -813,37 +792,63 @@ export class Trail {
   update(dt) { if (this.life > 0) { if (this.fresh) this.fresh = false; else this.life -= dt; const u = Math.max(0, this.life / 0.14); this.mat.uniforms.fade.value = u * u; if (this.life <= 0) { this.mesh.visible = false; this.pts.length = 0; } } }
 }
 
-// Crimson scarf: a long verlet ribbon pinned at the neck — a colour accent that reads from the side and shows motion.
-class Scarf {
-  constructor(scene, anchor) {
-    this.anchor = anchor; this.n = 16; this.seg = 0.075; this.p = []; this.o = []; this.t = 0;
-    for (let i = 0; i < this.n; i++) { this.p.push(new THREE.Vector3()); this.o.push(new THREE.Vector3()); }
-    this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(this.n * 2 * 3);
-    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
-    const uv = new Float32Array(this.n * 4); for (let i = 0; i < this.n; i++) uv.set([i / (this.n - 1), 0, i / (this.n - 1), 1], i * 4); this.geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    const idx = []; for (let i = 0; i < this.n - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
-    // swallow-tail: a V cut out of the last tenth of the cloth
-    const c = document.createElement('canvas'); c.width = 64; c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 64, 16); x.fillStyle = '#000'; x.beginPath(); x.moveTo(64, 2); x.lineTo(55, 8); x.lineTo(64, 14); x.fill();
-    const am = new THREE.CanvasTexture(c);
-    this.mesh = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ color: 0x6a0a14, emissive: 0x1a0204, roughness: 0.78, side: THREE.DoubleSide, alphaMap: am, alphaTest: 0.5 }));
-    this.mesh.frustumCulled = false; this.mesh.castShadow = true; scene.add(this.mesh); this.init = false;
+// Crimson scarf: a collar wound round the neck and two long tails down the back. Each tail is a damped verlet chain that
+// hangs heavy at rest, streams out behind a run, lifts on a fall and snaps round on a turn. It is kept behind the shoulders
+// (never across the face or the sword arm), it bends in a smooth curve (a second-neighbour constraint resists folding) and its
+// speed is capped, so a teleport, a crouch or a swing can never whip it over his head.
+class ScarfTail {
+  constructor(n, seg, w0, w1, col, z) {
+    this.n = n; this.seg = seg; this.w0 = w0; this.w1 = w1; this.z = z; this.p = []; this.o = [];
+    for (let i = 0; i < n; i++) { this.p.push(new THREE.Vector3()); this.o.push(new THREE.Vector3()); }
+    this.geo = new THREE.BufferGeometry(); this.pos = new Float32Array(n * 2 * 3); this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    const uv = new Float32Array(n * 4), colr = new Float32Array(n * 6), c = new THREE.Color(col);
+    for (let i = 0; i < n; i++) { const k = i / (n - 1); uv.set([k, 0, k, 1], i * 4); const sh = 0.72 + 0.28 * Math.cos(k * 9) * (1 - k * 0.3), lo = sh * 0.7; colr.set([c.r * sh, c.g * sh, c.b * sh, c.r * lo, c.g * lo, c.b * lo], i * 6); } // soft folds along its length, a darker lower edge
+    this.geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); this.geo.setAttribute('color', new THREE.BufferAttribute(colr, 3));
+    const idx = []; for (let i = 0; i < n - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } this.geo.setIndex(idx);
   }
-  update(dt, facing, vel) {
-    if (!this.anchor) return;
-    this.t += dt;
-    const a = this.anchor.getWorldPosition(new THREE.Vector3()); a.y -= 0.02; a.x -= facing * 0.1;
-    if (this.init && this.p[1].distanceTo(a) > 0.6) this.init = false;
-    if (!this.init) { this.p.forEach((p, i) => { p.copy(a).x -= facing * i * this.seg; this.o[i].copy(p); }); this.init = true; }
-    const sp = Math.min(1, Math.abs(vel.x) / 5), g = -26 * dt * dt, wind = (-facing * 1.5 - vel.x * 1.6) * dt * dt;
+  step(a, dt, facing, vel, t, ph, floor) {
+    const n = this.n, seg = this.seg, back = -facing;
+    if (!this.init || this.p[0].distanceTo(a) > 1.2) { for (let i = 0; i < n; i++) { this.p[i].set(a.x + back * i * seg * 0.35, a.y - i * seg * 0.9, a.z); this.o[i].copy(this.p[i]); } this.init = true; }
+    // what the air does to it: it trails whatever way he moves (run: straight back; fall: up; rise: down), plus a breath of wind
+    const run = Math.min(1, Math.abs(vel.x) / 4.7), ax = (-vel.x * 5.2 + back * (1.4 + 1.2 * Math.sin(t * 1.7 + ph))), ay = -24 * (1 - run * 0.55) - vel.y * 3.4, cap = 9 * dt;
     this.p[0].copy(a); this.o[0].copy(a);
-    for (let i = 1; i < this.n; i++) { const p = this.p[i], o = this.o[i], vx = (p.x - o.x) * 0.9, vy = (p.y - o.y) * 0.9, k = i / this.n;
-      o.copy(p); p.x += vx + wind; p.y += vy + g + Math.sin(this.t * 13 - i * 0.9) * 0.0009 * k * (0.3 + sp); p.z = a.z - 0.05 - k * 0.06; }
-    for (let k = 0; k < 3; k++) for (let i = 1; i < this.n; i++) { const A = this.p[i - 1], B = this.p[i], d = B.clone().sub(A), L = d.length() || 1e-4; B.copy(A).addScaledVector(d, this.seg / L); }
-    for (let i = 0; i < this.n; i++) {
-      const p = this.p[i], q = this.p[Math.min(this.n - 1, i + 1)], r = this.p[Math.max(0, i - 1)], tx = q.x - r.x, ty = q.y - r.y, L = Math.hypot(tx, ty) || 1;
-      const k = i / (this.n - 1), w = 0.16 - 0.11 * k, nx = -ty / L * w / 2, ny = tx / L * w / 2, tw = Math.sin(this.t * 7 + i * 0.55) * 0.05 * k * (0.4 + sp); // twist: the cloth turns its edge to the camera as it ripples
+    for (let i = 1; i < n; i++) { const p = this.p[i], o = this.o[i], k = i / (n - 1);
+      let vx = (p.x - o.x) * 0.86, vy = (p.y - o.y) * 0.86; const sp = Math.hypot(vx, vy); if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }
+      o.copy(p); const flut = Math.sin(t * (7 + run * 6) - i * 0.8 + ph) * (0.6 + run * 2.4) * k;
+      p.x += vx + ax * dt * dt; p.y += vy + (ay + flut * 9) * dt * dt; p.z = a.z + this.z - k * 0.05; }
+    for (let it = 0; it < 4; it++) {
+      for (let i = 1; i < n; i++) { const A = this.p[i - 1], B = this.p[i], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1e-4; B.x = A.x + dx * seg / L; B.y = A.y + dy * seg / L; }
+      for (let i = 2; i < n; i++) { const A = this.p[i - 2], B = this.p[i], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1e-4, min = seg * 1.82; if (L < min) { B.x = A.x + dx * min / L; B.y = A.y + dy * min / L; } } // no sharp folds
+      for (let i = 1; i < n; i++) { const p = this.p[i], k = i / (n - 1), lim = a.x + back * Math.min(0.1, 0.02 + k * 0.5); if ((p.x - lim) * back < 0) p.x = lim; /* stays behind the shoulders */
+        const top = a.y + 0.12 + k * 0.5 + Math.max(0, -vel.y) * 0.06; if (p.y > top) p.y = top; if (floor != null && p.y < floor + 0.04) p.y = floor + 0.04; }
+    }
+    for (let i = 0; i < n; i++) {
+      const p = this.p[i], q = this.p[Math.min(n - 1, i + 1)], r = this.p[Math.max(0, i - 1)], tx = q.x - r.x, ty = q.y - r.y, L = Math.hypot(tx, ty) || 1, k = i / (n - 1);
+      const w = (this.w0 + (this.w1 - this.w0) * k) * (0.82 + 0.18 * Math.cos(t * 5 + i * 0.7 + ph)), nx = -ty / L * w / 2, ny = tx / L * w / 2, tw = Math.sin(t * 6 + i * 0.55 + ph) * 0.04 * k;
       this.pos.set([p.x + nx, p.y + ny, p.z + tw], i * 6); this.pos.set([p.x - nx, p.y - ny, p.z - tw], i * 6 + 3);
     }
-    this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals();
+    this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals(); this.geo.computeBoundingSphere();
+  }
+}
+class Scarf {
+  constructor(scene, anchor) {
+    this.anchor = anchor; this.t = 0;
+    // swallow-tail: a V cut out of the last tenth of the cloth
+    const c = document.createElement('canvas'); c.width = 64; c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 64, 16); x.fillStyle = '#000'; x.beginPath(); x.moveTo(64, 1); x.lineTo(54, 8); x.lineTo(64, 15); x.fill();
+    const am = new THREE.CanvasTexture(c);
+    this.mat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, emissive: 0x3a0308, emissiveIntensity: 0.9, roughness: 0.7, side: THREE.DoubleSide, alphaMap: am, alphaTest: 0.5 });
+    this.tails = [new ScarfTail(18, 0.085, 0.3, 0.2, 0xb0101e, -0.1), new ScarfTail(13, 0.08, 0.24, 0.15, 0x7c0a16, -0.17)];
+    this.mesh = new THREE.Group(); for (const tl of this.tails) { const m = new THREE.Mesh(tl.geo, this.mat); m.frustumCulled = false; m.castShadow = true; m.renderOrder = 3; this.mesh.add(m); }
+    scene.add(this.mesh);
+    // the collar: two turns of cloth round the neck, riding the neck bone
+    if (anchor) { const ws = anchor.getWorldScale(new THREE.Vector3()).x || 1, cm = new THREE.MeshStandardMaterial({ color: 0x9c0e1c, emissive: 0x3a0308, emissiveIntensity: 0.9, roughness: 0.75 });
+      this.collar = new THREE.Group(); for (const [r, tb, y, tilt] of [[0.1, 0.045, 0.0, 0.22], [0.092, 0.038, 0.045, -0.16]]) { const m = new THREE.Mesh(new THREE.TorusGeometry(r, tb, 8, 18), cm); m.rotation.set(Math.PI / 2 + tilt, 0, 0); m.position.y = y; m.scale.z = 0.8; m.renderOrder = 3; m.castShadow = true; this.collar.add(m); }
+      this.collar.scale.setScalar(1 / ws); anchor.add(this.collar); }
+  }
+  set renderOrder(v) { /* (set per mesh in the constructor) */ }
+  update(dt, facing, vel, floor) {
+    if (!this.anchor) return; this.t += dt; const h = Math.min(dt, 1 / 30);
+    const a = this.anchor.getWorldPosition(new THREE.Vector3()); a.y += 0.05; a.x -= facing * 0.11;
+    this.tails[0].step(a, h, facing, vel, this.t, 0, floor); a.y -= 0.03; a.x -= facing * 0.01; this.tails[1].step(a, h, facing, vel, this.t, 2.1, floor);
   }
 }
